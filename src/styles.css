@@ -1242,3 +1242,52 @@ td.fc-surf {
 .sheet-day {
   margin-top: 0.25rem;
 }
+
+/* rating sliders */
+.ratings {
+  display: grid;
+  gap: 0.35rem;
+}
+.rating-row {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 9rem) 1fr 2.2rem 2.6rem;
+  align-items: center;
+  gap: 0.6rem;
+}
+.rating-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+.rating-name .dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--c);
+  flex: none;
+}
+.rating-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--c);
+  height: 2rem;
+}
+.rating-row.unset input[type='range'] {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+.rating-val {
+  font-weight: 700;
+  font-size: 1.05rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+  .rating-row {
+    grid-template-columns: 1fr 2rem 2.6rem;
+    row-gap: 0;
+  }
+  .rating-name {
+    grid-column: 1 / -1;
+  }
+}

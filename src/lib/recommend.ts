@@ -342,14 +342,16 @@ export function insights(spot: Spot, sessions: Session[], cat = 'fun') {
   const byTide: Record<string, { sum: number; n: number }> = {};
   const byWind: Record<string, { sum: number; n: number }> = {};
   const byZone: Record<string, { sum: number; n: number }> = {};
-  for (const s of sessions) {
-    if (s.spotId !== spot.id || s.excluded) continue;
+  // Tide is shown relative to your average rating at this spot. (Ratings are one value per session
+  // now, so comparing within a session would always give zero.)
+  const relevant = sessions.filter((s) => s.spotId === spot.id && !s.excluded && s.curves[cat]);
+  const means = relevant.map((s) => curveMean(s, cat)).filter((v): v is number => v != null);
+  const spotMean = means.length ? means.reduce((a, b) => a + b, 0) / means.length : null;
+  for (const s of relevant) {
     const curve = s.curves[cat];
-    if (!curve) continue;
     const der = deriveSeries(spot, s.conditions);
-    // Within-session demeaning removes board / crowd / mood effects that are constant in a session.
-    const mean = curveMean(s, cat);
-    if (mean == null) continue;
+    if (spotMean == null || curveMean(s, cat) == null) continue;
+    const mean = spotMean;
     for (let m = s.startMin; m < s.endMin; m += SLOT_MIN) {
       const slot = Math.floor(m / SLOT_MIN);
       const v = curve[slot];

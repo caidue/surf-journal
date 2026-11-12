@@ -160,7 +160,10 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
                           </div>
                         )}
                       </div>
-                      <Sparkline values={fun.slice(lo, hi)} color={settings.categories.find((c) => c.id === 'fun')?.color} />
+                      {/* Only older sessions with a drawn curve have a shape worth showing. */}
+                      {new Set(fun.slice(lo, hi).filter((v) => v != null)).size > 1 && (
+                        <Sparkline values={fun.slice(lo, hi)} color={settings.categories.find((c) => c.id === 'fun')?.color} />
+                      )}
                     </a>
                     <label className="check small relevance" title="Not relevant sessions stay in your journal but are ignored for predictions">
                       <input type="checkbox" checked={!s.excluded} onChange={() => toggle(s)} /> relevant

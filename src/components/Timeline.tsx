@@ -496,7 +496,7 @@ export default function Timeline(p: Props) {
           )}
           {interactive && !sess && (
             <text x={LABEL_W + plotW / 2} y={surf.y + surf.h / 2} textAnchor="middle" className="hint" pointerEvents="none">
-              Drag across the chart to mark when you were in the water
+              {plotW < 380 ? "Drag to mark your time in the water" : "Drag across the chart to mark when you were in the water"}
             </text>
           )}
 

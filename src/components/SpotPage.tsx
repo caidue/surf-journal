@@ -224,9 +224,9 @@ export default function SpotPage({ spot, sessions, settings, go }: { spot: Spot;
           )}
         </Card>
         <Card>
-          <h3>What your feeling curves say</h3>
-          <p className="muted small">From the fun curves of your relevant sessions here.</p>
-          <h4>Tide stage (vs. your session average)</h4>
+          <h3>What your ratings say</h3>
+          <p className="muted small">From the fun ratings of your relevant sessions here.</p>
+          <h4>Tide stage (vs. your average here)</h4>
           <Bars data={ins.byTide} />
           {spot.peaks.length > 0 && (
             <>

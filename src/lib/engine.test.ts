@@ -5,7 +5,7 @@ import { angdiff, destination, haversineKm } from './geo';
 import { breakingHeight, deriveHour, deriveSeries, exposure, tideExtremes, waveEnergyKJ, windKind } from './conditions';
 import { quality, suitability } from './rating';
 import { distance, kernel, SIMILAR_MIN_K } from './similarity';
-import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, curveMean } from './recommend';
+import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, curveMean, insights } from './recommend';
 import { parseRegionQuery, subBox } from './geocode';
 
 const spot: Spot = {
@@ -257,6 +257,20 @@ describe('similarity & prediction', () => {
     expect(late.dayOver).toBe(true);
     expect(late.best).toBeNull();
     expect(late.now?.time).toBe('2026-03-01T20:00');
+  });
+
+  it('tide insight compares single-value ratings with your average at the spot', () => {
+    const tideAt9 = (sign: number) => day('2026-02-01', (h) => ({ seaLevel: sign * Math.cos(((h - 9) / 12.4) * 2 * Math.PI) }));
+    const hiS = session('2026-02-01', 8, { id: 'hi' }, tideAt9(1));
+    const loS = session('2026-02-01', 4, { id: 'lo' }, tideAt9(-1));
+    const { byTide } = insights(spot, [hiS, loS]);
+    const keys = Object.keys(byTide);
+    expect(keys.some((k) => k.startsWith('high'))).toBe(true);
+    expect(keys.some((k) => k.startsWith('low'))).toBe(true);
+    for (const [k, b] of Object.entries(byTide)) {
+      if (k.startsWith('high')) expect(b.mean).toBeCloseTo(2, 5);
+      if (k.startsWith('low')) expect(b.mean).toBeCloseTo(-2, 5);
+    }
   });
 
   it('curve means only count drawn slots in the session', () => {

@@ -165,7 +165,7 @@ export default function SettingsPage({ settings, spots, sessions }: { settings: 
 
       <Card>
         <h3>Feeling categories</h3>
-        <p className="muted small">The curves you draw for each session. “Fun” drives the recommendations.</p>
+        <p className="muted small">What you rate after each session, 1–10 with a slider. “Fun” drives the recommendations.</p>
         {settings.categories.map((c, i) => (
           <div key={c.id} className="row gap peak-row">
             <input type="color" value={c.color} onChange={(e) => setCat(i, { color: e.target.value })} aria-label={`${c.name} colour`} />

@@ -22,18 +22,7 @@ export const TAGS = ['Glassy', 'Choppy', 'Closeouts', 'Barrels', 'Long rides', '
 
 const emptySlots = <T,>() => Array<T | null>(SLOTS).fill(null);
 
-function smooth(arr: (number | null)[], lo: number, hi: number): (number | null)[] {
-  const out = arr.slice();
-  for (let s = lo; s <= hi; s++) {
-    const win: number[] = [];
-    for (let k = -2; k <= 2; k++) {
-      const v = arr[s + k];
-      if (s + k >= lo && s + k <= hi && v != null) win.push(v);
-    }
-    if (arr[s] != null && win.length) out[s] = Math.round((win.reduce((a, b) => a + b, 0) / win.length) * 10) / 10;
-  }
-  return out;
-}
+const roundHalf = (v: number | null | undefined) => (v == null ? null : Math.round(v * 2) / 2);
 
 export default function SessionEditor({
   spots,
@@ -56,11 +45,18 @@ export default function SessionEditor({
   const [date, setDate] = useState(existing?.date ?? preset?.date ?? today);
   const [range, setRange] = useState<Range | null>(existing ? { startMin: existing.startMin, endMin: existing.endMin } : null);
   const [zones, setZones] = useState<(string | null)[]>(existing?.zones ?? emptySlots<string>());
-  const [curves, setCurves] = useState<Record<string, (number | null)[]>>(existing?.curves ?? {});
+  // One 1–10 value per category. Older sessions with drawn curves start at the curve's average.
+  const [ratings, setRatings] = useState<Record<string, number | null>>(() =>
+    Object.fromEntries(settings.categories.map((c) => [c.id, existing ? roundHalf(curveMean(existing, c.id) ?? (c.id === 'fun' ? existing.overall : null)) : null])),
+  );
+  const [touched, setTouched] = useState<Set<string>>(new Set());
+  const setRating = (id: string, v: number | null) => {
+    setRatings((r) => ({ ...r, [id]: v }));
+    setTouched((t) => new Set(t).add(id));
+  };
   const [fields, setFields] = useState<SessionFields>(existing?.fields ?? {});
   const [tags, setTags] = useState<string[]>(existing?.tags ?? []);
   const [notes, setNotes] = useState(existing?.notes ?? '');
-  const [overall, setOverall] = useState<number | null>(existing?.overall ?? null);
   const [excluded, setExcluded] = useState(existing?.excluded ?? false);
   const [skill, setSkill] = useState<Level>(existing?.skillAtTime ?? settings.level);
   const hasSaved = !!existing?.conditions?.length;
@@ -70,7 +66,6 @@ export default function SessionEditor({
   const [days, setDays] = useState<DayInfo[]>(existing?.days ?? []);
   const [source, setSource] = useState(existing?.conditionsSource ?? '');
   const [condState, setCondState] = useState<{ loading: boolean; error: string | null; offline?: boolean }>({ loading: false, error: null });
-  const [activeCat, setActiveCat] = useState(settings.categories[0]?.id ?? 'fun');
   const narrow = typeof window !== 'undefined' && window.innerWidth < 700;
   const [zoom, setZoom] = useState<'session' | 'daylight' | 'full'>(existing && narrow ? 'session' : 'daylight');
   /** spot|date the shown conditions belong to, and the one last imported fresh from the network. */
@@ -184,7 +179,6 @@ export default function SessionEditor({
   })();
 
   const zoneMinutes = spot?.peaks.map((p) => ({ p, min: range ? zones.filter((z, s) => z === p.id && s * SLOT_MIN >= range.startMin && s * SLOT_MIN < range.endMin).length * SLOT_MIN : 0 }));
-  const autoOverall = range ? curveMean({ curves, startMin: range.startMin, endMin: range.endMin } as Session, 'fun') : null;
   const lo = range ? Math.floor(range.startMin / SLOT_MIN) : 0;
   const hi = range ? Math.ceil(range.endMin / SLOT_MIN) - 1 : -1;
 
@@ -196,6 +190,22 @@ export default function SessionEditor({
     if (!spot || !range) return;
     setSaving(true);
     const clip = <T,>(arr: (T | null)[]) => arr.map((v, s) => (s >= lo && s <= hi ? v : null));
+    // Ratings are stored as a flat value over the session's 5-minute slots, so everything that reads
+    // per-hour ratings (matching, insights) keeps working. A drawn curve from an older session is kept
+    // as it was unless you move its slider or change the session's time.
+    const sameRange = existing && existing.startMin === range.startMin && existing.endMin === range.endMin;
+    const buildCurves = () => {
+      const out: Record<string, (number | null)[]> = {};
+      for (const [k, v] of Object.entries(existing?.curves ?? {})) out[k] = clip(v);
+      for (const c of settings.categories) {
+        const old = existing?.curves[c.id];
+        if (sameRange && !touched.has(c.id) && old?.some((v) => v != null)) continue;
+        const r = ratings[c.id];
+        if (r == null) delete out[c.id];
+        else out[c.id] = emptySlots<number>().map((_, s) => (s >= lo && s <= hi ? r : null));
+      }
+      return out;
+    };
     const now = Date.now();
     const sess: Session = {
       id: existing?.id ?? uid(),
@@ -204,7 +214,7 @@ export default function SessionEditor({
       startMin: range.startMin,
       endMin: range.endMin,
       zones: clip(zones),
-      curves: Object.fromEntries(Object.entries(curves).map(([k, v]) => [k, clip(v)])),
+      curves: buildCurves(),
       conditions: conditions ?? [],
       conditionsSource: conditions ? source : '',
       conditionsPending: pending,
@@ -212,7 +222,8 @@ export default function SessionEditor({
       fields,
       tags,
       notes,
-      overall,
+      // The fun slider is the session's rating; an old separate "overall" only survives if fun wasn't changed.
+      overall: touched.has('fun') ? null : existing?.overall ?? null,
       excluded,
       skillAtTime: skill,
       demo: existing?.demo,
@@ -317,8 +328,7 @@ export default function SessionEditor({
             <>
               <p className="muted small">
                 1. Drag across the chart to mark when you were in the water (drag the edges to adjust).
-                {spot.peaks.length > 0 && ' 2. Paint the lanes to show when you were at each peak.'} {spot.peaks.length > 0 ? '3.' : '2.'} Pick a feeling and draw how it
-                changed over the session.
+                {spot.peaks.length > 0 && ' 2. Paint the lanes to show when you were at each peak.'} Then rate the session below.
               </p>
               <Timeline
                 hours={conditions ?? []}
@@ -336,40 +346,7 @@ export default function SessionEditor({
                 peaks={spot.peaks}
                 zones={zones}
                 onZonesChange={setZones}
-                categories={settings.categories}
-                curves={curves}
-                activeCategory={activeCat}
-                onCurvesChange={setCurves}
               />
-              <div className="row between wrap tools">
-                <div className="cat-tabs">
-                  {settings.categories.map((c) => {
-                    const drawn = (curves[c.id] ?? []).some((v, s) => v != null && s >= lo && s <= hi);
-                    return (
-                      <button key={c.id} className={`cat-tab${activeCat === c.id ? ' on' : ''}`} style={{ '--c': c.color } as React.CSSProperties} onClick={() => setActiveCat(c.id)}>
-                        <span className="dot" /> {c.name}
-                        {drawn ? ' ✓' : ''}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="row gap">
-                  <button className="btn small" disabled={!range} onClick={() => setCurves({ ...curves, [activeCat]: smooth(curves[activeCat] ?? emptySlots<number>(), lo, hi) })}>
-                    Smooth
-                  </button>
-                  <button
-                    className="btn small"
-                    disabled={!range}
-                    onClick={() => {
-                      const arr = (curves[activeCat] ?? emptySlots<number>()).slice();
-                      for (let s = lo; s <= hi; s++) arr[s] = null;
-                      setCurves({ ...curves, [activeCat]: arr });
-                    }}
-                  >
-                    Clear curve
-                  </button>
-                </div>
-              </div>
               {spot.peaks.length > 0 && range && (
                 <div className="row gap wrap tools">
                   <span className="muted small">Quick fill:</span>
@@ -418,19 +395,42 @@ export default function SessionEditor({
 
       {spot && (
         <Card>
+          <h3>How was it?</h3>
+          <div className="ratings">
+            {settings.categories.map((c) => {
+              const v = ratings[c.id] ?? null;
+              return (
+                <div key={c.id} className={`rating-row${v == null ? ' unset' : ''}`} style={{ '--c': c.color } as React.CSSProperties}>
+                  <span className="rating-name">
+                    <span className="dot" /> {c.name}
+                  </span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={10}
+                    step={0.5}
+                    value={v ?? 5}
+                    aria-label={`${c.name}, 1 to 10`}
+                    onPointerDown={() => v == null && setRating(c.id, 5)}
+                    onKeyDown={() => v == null && setRating(c.id, 5)}
+                    onChange={(e) => setRating(c.id, Number(e.target.value))}
+                  />
+                  <span className="rating-val">{v == null ? '–' : v}</span>
+                  <button className="link small rating-clear" style={{ visibility: v == null ? 'hidden' : 'visible' }} onClick={() => setRating(c.id, null)} aria-label={`Clear ${c.name}`}>
+                    clear
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <p className="muted tiny">1 = very low, 10 = very high. Fun drives your recommendations; add or rename categories in Settings.</p>
+        </Card>
+      )}
+
+      {spot && (
+        <Card>
           <h3>Details</h3>
           <div className="form-grid">
-            <label>
-              Overall rating {overall == null ? <span className="muted small">(auto: {autoOverall != null ? autoOverall.toFixed(1) : '–'})</span> : <strong>{overall}</strong>}
-              <div className="row gap">
-                <input type="range" min={1} max={10} step={0.5} value={overall ?? autoOverall ?? 5} onChange={(e) => setOverall(Number(e.target.value))} />
-                {overall != null && (
-                  <button className="link small" onClick={() => setOverall(null)}>
-                    auto
-                  </button>
-                )}
-              </div>
-            </label>
             <label>
               Board
               <input list="boards" value={fields.board ?? ''} onChange={(e) => setFields({ ...fields, board: e.target.value })} placeholder="e.g. 6'2 shortboard" />
