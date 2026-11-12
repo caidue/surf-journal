@@ -2,7 +2,7 @@ import type { DayInfo, HourConditions, Level, Session, Settings, Spot } from '..
 import { SLOT_MIN } from '../types';
 import { deriveSeries, windKind, type Derived } from './conditions';
 import { recommendability, type Quality, type Suitability } from './rating';
-import { distance, kernel, mostDifferent } from './similarity';
+import { distance, kernel, mostDifferent, mostDifferentKey } from './similarity';
 import { daysBetween, isoToMin } from './time';
 
 /* ------------------------------------------------------------------ */
@@ -137,6 +137,8 @@ export interface Neighbour {
   y: number | null;
   hourIdx: number;
   differs: string | null;
+  /** Feature key behind `differs` (see SPOT_FEATURES). */
+  differsKey: string | null;
 }
 
 export interface Prediction {
@@ -166,6 +168,7 @@ export function matchSession(spot: Spot, target: Derived, h: HistoryItem, cat = 
         y: ratingFor(h.session, cat, m, m + 60),
         hourIdx: j,
         differs: mostDifferent(dist.parts),
+        differsKey: mostDifferentKey(dist.parts),
       };
     }
   }

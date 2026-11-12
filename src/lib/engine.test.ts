@@ -4,7 +4,7 @@ import { SLOTS } from '../types';
 import { angdiff, destination, haversineKm } from './geo';
 import { breakingHeight, deriveHour, deriveSeries, exposure, windKind } from './conditions';
 import { quality, suitability } from './rating';
-import { distance, kernel } from './similarity';
+import { distance, kernel, SIMILAR_MIN_K } from './similarity';
 import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, curveMean } from './recommend';
 import { parseRegionQuery, subBox } from './geocode';
 
@@ -159,6 +159,18 @@ describe('similarity & prediction', () => {
     // One tolerance off in size only -> clearly similar but not identical.
     const c = { ...a, hb: Math.exp(Math.log(a.hb! + 0.2) + 0.25) - 0.2 };
     expect(distance(a, c, spot).d).toBeCloseTo(1, 5);
+  });
+
+  it('where the "similar sessions" line sits', () => {
+    const a = deriveSeries(spot, day('2026-01-01'))[9];
+    const k = (b: typeof a) => kernel(distance(a, b, spot).d);
+    const grow = (f: number) => Math.exp(Math.log(a.hb! + 0.2) + f * 0.25) - 0.2;
+    // One step off in size, onshore wind and tide together: still listed.
+    expect(k({ ...a, hb: grow(1), uOff: a.uOff! - 9, tideNorm: Math.min(1, a.tideNorm! + 0.18) })).toBeGreaterThan(SIMILAR_MIN_K);
+    // A 25° swell-direction change alone is still similar.
+    expect(k({ ...a, dirDom: (a.dirDom! + 25) % 360 })).toBeGreaterThan(0.5);
+    // 1.6 m vs 2.6 m at the spot is too different on its own.
+    expect(kernel(distance({ ...a, hb: 1.6 }, { ...a, hb: 2.6 }, spot).d)).toBeLessThan(SIMILAR_MIN_K);
   });
 
   it('missing features do not make sessions look more similar', () => {

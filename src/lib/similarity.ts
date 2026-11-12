@@ -23,7 +23,9 @@ export const SPOT_FEATURES: FeatureSpec[] = [
   // Size on a log scale: 0.3 m matters at 0.8 m, much less at 3 m.
   { key: 'size', label: 'wave size', weight: 3, tol: 0.25, get: (d) => (d.hb == null ? null : Math.log(d.hb + 0.2)) },
   { key: 'period', label: 'swell period', weight: 1.5, tol: 2, get: (d) => d.tDom },
-  { key: 'swellDir', label: 'swell direction', weight: 2, tol: 15, angular: true, get: (d) => d.dirDom },
+  // 20°: model swell directions are uncertain by ~10–15°, and a swell turning out of the spot's
+  // window already shows up in the size feature (via exposure), so don't double-punish it.
+  { key: 'swellDir', label: 'swell direction', weight: 1.5, tol: 20, angular: true, get: (d) => d.dirDom },
   { key: 'offshore', label: 'offshore/onshore wind', weight: 2.5, tol: 9, get: (d) => d.uOff },
   { key: 'cross', label: 'cross-shore wind', weight: 1, tol: 9, get: (d) => d.uX },
   { key: 'tide', label: 'tide height', weight: 2, tol: 0.18, get: (d) => d.tideNorm },
@@ -70,7 +72,11 @@ export function kernel(d: number, cutoff = 2.5): number {
   return Math.exp((-d * d) / 2);
 }
 
-export function mostDifferent(parts: Record<string, number>, specs = SPOT_FEATURES): string | null {
+/** Sessions from this kernel value up are listed as "in similar conditions" (d ≈ 1.67). */
+export const SIMILAR_MIN_K = 0.25;
+
+/** Key of the feature that contributes most to the distance (if it matters at all). */
+export function mostDifferentKey(parts: Record<string, number>): string | null {
   let best: string | null = null;
   let max = 0.5;
   for (const [k, v] of Object.entries(parts)) {
@@ -79,6 +85,11 @@ export function mostDifferent(parts: Record<string, number>, specs = SPOT_FEATUR
       best = k;
     }
   }
+  return best;
+}
+
+export function mostDifferent(parts: Record<string, number>, specs = SPOT_FEATURES): string | null {
+  const best = mostDifferentKey(parts);
   return best ? specs.find((s) => s.key === best)?.label ?? best : null;
 }
 

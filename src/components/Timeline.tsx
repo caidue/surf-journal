@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Category, HourConditions, Peak, Settings } from '../types';
 import { SLOT_MIN, SLOTS } from '../types';
 import { windKind, type Derived, type WindKind } from '../lib/conditions';
@@ -66,6 +66,16 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 export default function Timeline(p: Props) {
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const drag = useRef<Drag | null>(null);
+  /** Peak whose full name is shown (tap a lane label: names are cut off in the narrow label column). */
+  const [peakTip, setPeakTip] = useState<string | null>(null);
+  useEffect(() => {
+    if (!peakTip) return;
+    const close = (e: PointerEvent) => {
+      if (!(e.target as Element).closest?.('.peak-tip, .lane-label')) setPeakTip(null);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [peakTip]);
   const [v0, v1] = p.view ?? [0, 24 * 60];
   const plotW = Math.max(100, width - LABEL_W - PAD_R);
   const pxPerMin = plotW / (v1 - v0);
@@ -314,8 +324,28 @@ export default function Timeline(p: Props) {
     </g>
   );
 
+  const tipIdx = peakTip && showZones ? p.peaks!.findIndex((pk) => pk.id === peakTip) : -1;
+  const tipPeak = tipIdx >= 0 ? p.peaks![tipIdx] : null;
+  const tipMinutes =
+    tipPeak && sess && p.zones
+      ? p.zones.filter((z, s) => z === tipPeak.id && s * SLOT_MIN >= sess.startMin && s * SLOT_MIN < sess.endMin).length * SLOT_MIN
+      : 0;
+
   return (
     <div ref={ref} className="timeline">
+      {tipPeak && (
+        <div className="peak-tip" role="tooltip" style={{ top: lanes[tipIdx].y + lanes[tipIdx].h + 4, left: 4 }}>
+          <div className="row gap">
+            <span className="dot" style={{ background: PEAK_COLORS[tipIdx % PEAK_COLORS.length] }} />
+            <strong>{tipPeak.name}</strong>
+          </div>
+          {tipPeak.description && <div className="small">{tipPeak.description}</div>}
+          <div className="small muted">
+            {tipMinutes ? `${fmtDuration(tipMinutes)} here this session · ` : ''}
+            {p.onZonesChange ? 'Drag along the lane to mark your time here.' : ''}
+          </div>
+        </div>
+      )}
       {width > 0 && (
         <svg width={width} height={H} className={interactive ? 'interactive' : ''} onPointerUp={end} onPointerCancel={() => (drag.current = null)}>
           {/* night */}
@@ -477,10 +507,20 @@ export default function Timeline(p: Props) {
               const color = PEAK_COLORS[k % PEAK_COLORS.length];
               return (
                 <g key={pk.id}>
-                  <text x={LABEL_W - 8} y={r.y + 16} textAnchor="end" className="tl-label" fill={color}>
-                    {pk.name.length > 10 ? pk.name.slice(0, 9) + '…' : pk.name}
+                  <g
+                    className="lane-label"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${pk.name}${pk.description ? ` – ${pk.description}` : ''}`}
+                    onClick={() => setPeakTip((cur) => (cur === pk.id ? null : pk.id))}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setPeakTip((cur) => (cur === pk.id ? null : pk.id))}
+                  >
+                    <rect x={0} y={r.y} width={LABEL_W - 2} height={r.h} fill="transparent" />
+                    <text x={LABEL_W - 8} y={r.y + 16} textAnchor="end" className="tl-label" fill={color}>
+                      {pk.name.length > 10 ? pk.name.slice(0, 8) + '…' : pk.name}
+                    </text>
                     <title>{pk.name}</title>
-                  </text>
+                  </g>
                   <rect x={LABEL_W} y={r.y} width={plotW} height={r.h} rx={4} className="lane" />
                   {zoneRuns(pk.id).map(([a, b]) => (
                     <rect key={a} x={x(a)} y={r.y + 2} width={x(b) - x(a)} height={r.h - 4} rx={3} fill={color} opacity={0.85} />

@@ -7,9 +7,9 @@ import { geocode, parseRegionQuery, PART_LABEL, subBox } from '../lib/geocode';
 import { buildHistory, confidence, explain, matchSession, recommendSpotDay, sessionOverall, type Neighbour, type SpotRec } from '../lib/recommend';
 import { LEVELS, scoreColor } from '../lib/rating';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
-import { fmtSurfRange, fmtWind } from '../lib/format';
-import { tideLabel, windKind, WIND_LABEL } from '../lib/conditions';
-import { similarityPct } from '../lib/similarity';
+import { fmtFeature, fmtSurfRange, fmtWind } from '../lib/format';
+import { tideLabel, windKind, WIND_LABEL, type Derived } from '../lib/conditions';
+import { SIMILAR_MIN_K, similarityPct } from '../lib/similarity';
 import MapView, { type MapMarker } from './MapView';
 import { Card, ConditionsStatus, DirArrow, Empty, ScoreBadge, Segmented, SuitBadge } from './ui';
 
@@ -138,23 +138,28 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
     }
   }, [dayOver, autoSwitched]);
 
-  // Past sessions at these spots with conditions similar to the selected day.
+  // Past sessions at these spots, each matched to its closest daylight hour of the selected day.
+  // Close ones are listed; if none is close, the nearest few are shown with what differs.
   const similar = useMemo(() => {
-    const out: { rec: SpotRec; nb: Neighbour; when: string }[] = [];
+    const all: SimilarMatch[] = [];
     for (const rec of recs) {
       const hist = buildHistory(rec.spot, sessions, settings, today, rec.gain);
       for (const h of hist) {
-        let best: { nb: Neighbour; when: string } | null = null;
+        let best: SimilarMatch | null = null;
         for (const hr of rec.hours) {
           if (!hr.daylight) continue;
           const nb = matchSession(rec.spot, hr.derived, h);
-          if (nb && (!best || nb.d < best.nb.d)) best = { nb, when: hr.time };
+          if (nb && Number.isFinite(nb.d) && (!best || nb.d < best.nb.d)) best = { rec, nb, when: hr.time, now: hr.derived, then: h.derived[nb.hourIdx] };
         }
-        if (best && best.nb.k > 0.25) out.push({ rec, ...best });
+        if (best) all.push(best);
       }
     }
-    return out.sort((a, b) => a.nb.d - b.nb.d).slice(0, 8);
+    all.sort((a, b) => a.nb.d - b.nb.d);
+    // Compare the rounded percentage that's shown, so "25% similar" never lands on the wrong side.
+    const close = all.filter((m) => similarityPct(m.nb.d) >= Math.round(SIMILAR_MIN_K * 100)).slice(0, 8);
+    return { close, nearest: close.length ? [] : all.slice(0, 3) };
   }, [recs, sessions, settings, today]);
+  const dayWord = dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : 'that day';
 
   const markers: MapMarker[] = spots.map((s) => {
     const r = recBySpot.get(s.id);
@@ -347,36 +352,79 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
 
       <section>
         <h3>Your past sessions in conditions like {dayOffset === 0 ? 'today' : 'this day'}</h3>
-        {similar.length === 0 ? (
+        {similar.close.length > 0 ? (
+          <div className="similar-grid">
+            {similar.close.map((m) => (
+              <SimilarCard key={m.nb.session.id} m={m} dayWord={dayWord} settings={settings} />
+            ))}
+          </div>
+        ) : similar.nearest.length > 0 ? (
+          <>
+            <p className="small muted">
+              None of your sessions at these spots is close enough ({Math.round(SIMILAR_MIN_K * 100)}% similar or more) to count. The nearest ones, and what differs:
+            </p>
+            <div className="similar-grid">
+              {similar.nearest.map((m) => (
+                <SimilarCard key={m.nb.session.id} m={m} dayWord={dayWord} settings={settings} faded />
+              ))}
+            </div>
+          </>
+        ) : (
           <Empty>
             {sessions.length === 0
               ? 'Once you log sessions, the ones recorded in similar conditions to today show up here.'
-              : 'None of your logged sessions at these spots had conditions close to this day.'}
+              : 'You have no logged sessions at the spots in this area yet.'}
           </Empty>
-        ) : (
-          <div className="similar-grid">
-            {similar.map(({ rec, nb, when }) => (
-              <a key={nb.session.id} className={`card similar${nb.session.excluded ? ' excluded' : ''}`} href={`#/session/${nb.session.id}`}>
-                <div className="row between">
-                  <strong>{rec.spot.name}</strong>
-                  <span className="pct">{similarityPct(nb.d)}% similar</span>
-                </div>
-                <div className="small">
-                  {fmtDate(nb.session.date)} · {fmtMin(nb.session.startMin)}–{fmtMin(nb.session.endMin)}
-                </div>
-                <div className="small muted">
-                  matches {fmtMin(isoToMin(when) ?? 0)} {dayOffset === 0 ? 'today' : ''}
-                  {nb.differs ? ` · differs most in ${nb.differs}` : ''}
-                </div>
-                <div className="row gap">
-                  <ScoreBadge score={nb.y ?? sessionOverall(nb.session)} size="sm" /> <span className="small">fun then</span>
-                  {nb.session.excluded && <span className="badge muted">not relevant</span>}
-                </div>
-              </a>
-            ))}
-          </div>
         )}
+        <details className="how small muted">
+          <summary>How is this matched?</summary>
+          <p>
+            Each past session is compared with every daylight hour of this day <strong>at the same spot</strong>, using the hour of your session that fits best. Compared are: the
+            estimated wave size at the spot (one step ≈ 25 % bigger or smaller), swell period (± 2 s), swell direction (± 20°), offshore/onshore and cross-shore wind (± 9 km/h),
+            tide height (± a fifth of the day's range) and whether the tide is rising or falling. Size, wind and tide count most.
+          </p>
+          <p>
+            A session is listed from {Math.round(SIMILAR_MIN_K * 100)} % similar: roughly one step off in size, wind and tide at the same time. A size difference alone of 1.6 m
+            vs 2.6 m) is already too different. Wave size here is the estimate at that spot, so a swell turning out of a spot's window can change it a lot even when the offshore
+            forecast looks similar.
+          </p>
+        </details>
       </section>
     </div>
+  );
+}
+
+interface SimilarMatch {
+  rec: SpotRec;
+  nb: Neighbour;
+  when: string;
+  now: Derived;
+  then: Derived | undefined;
+}
+
+function SimilarCard({ m, dayWord, settings, faded }: { m: SimilarMatch; dayWord: string; settings: Settings; faded?: boolean }) {
+  const { rec, nb, when } = m;
+  return (
+    <a className={`card similar${nb.session.excluded ? ' excluded' : ''}${faded ? ' faded' : ''}`} href={`#/session/${nb.session.id}`}>
+      <div className="row between">
+        <strong>{rec.spot.name}</strong>
+        <span className="pct">{similarityPct(nb.d)}% similar</span>
+      </div>
+      <div className="small">
+        {fmtDate(nb.session.date)} · {fmtMin(nb.session.startMin)}–{fmtMin(nb.session.endMin)}
+      </div>
+      <div className="small muted">
+        closest to {fmtMin(isoToMin(when) ?? 0)} {dayWord}
+      </div>
+      {nb.differsKey && (
+        <div className="small">
+          Differs most in {nb.differs}: {fmtFeature(nb.differsKey, m.now, settings)} {dayWord} vs {fmtFeature(nb.differsKey, m.then, settings)} then
+        </div>
+      )}
+      <div className="row gap">
+        <ScoreBadge score={nb.y ?? sessionOverall(nb.session)} size="sm" /> <span className="small">fun then</span>
+        {nb.session.excluded && <span className="badge muted">not relevant</span>}
+      </div>
+    </a>
   );
 }
