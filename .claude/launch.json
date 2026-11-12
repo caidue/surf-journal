@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "surf-journal",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5178
+    },
+    {
+      "name": "surf-journal-build",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "npm run build && npm run preview -- --strictPort"],
+      "port": 4178
+    }
+  ]
+}
