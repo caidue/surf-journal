@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Bottom, BreakType, Peak, Session, Spot, SpotLevel, TidePref } from '../types';
+import type { Bottom, BreakType, Peak, Session, Spot, SpotGuide, SpotLevel, TidePref } from '../types';
 import { db } from '../db';
 import { compass } from '../lib/geo';
 import { uid } from '../lib/time';
@@ -56,6 +56,13 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
     },
   );
   const [hazardText, setHazardText] = useState(s.hazards.join(', '));
+  const [guide, setGuide] = useState<SpotGuide>(spot?.guide ?? {});
+  const setG = <K extends keyof SpotGuide>(k: K, v: SpotGuide[K]) => setGuide((g) => ({ ...g, [k]: v }));
+  const setAccess = (k: 'paddleOut' | 'paddleIn' | 'easier' | 'harder', v: string) => setGuide((g) => ({ ...g, access: { ...g.access, [k]: v } }));
+  const lines = (t: string) => t.split('\n').map((x) => x.trim()).filter(Boolean);
+  const [warnText, setWarnText] = useState((spot?.guide?.warnings ?? []).join('\n'));
+  const [facText, setFacText] = useState((spot?.guide?.facilities ?? []).join('\n'));
+  const [boardText, setBoardText] = useState((spot?.guide?.boards ?? []).join(', '));
   const set = <K extends keyof Spot>(k: K, v: Spot[K]) => setS((cur) => ({ ...cur, [k]: v }));
   const used = spot ? sessions.filter((x) => x.spotId === spot.id).length : 0;
 
@@ -66,7 +73,13 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
       .map((h) => h.trim())
       .filter(Boolean);
     const peaks = s.peaks.filter((p) => p.name.trim());
-    await db.spots.put({ ...s, name: s.name.trim(), region: s.region.trim() || 'My spots', hazards, peaks, updatedAt: Date.now() });
+    const g: SpotGuide = {
+      ...guide,
+      warnings: lines(warnText),
+      facilities: lines(facText),
+      boards: boardText.split(',').map((b) => b.trim()).filter(Boolean),
+    };
+    await db.spots.put({ ...s, name: s.name.trim(), region: s.region.trim() || 'My spots', hazards, peaks, guide: g, updatedAt: Date.now() });
     go(`spot/${s.id}`);
   };
 
@@ -170,17 +183,70 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
         <h3>Peaks / waves at this spot</h3>
         <p className="muted small">Add peaks (e.g. Inside and Outside) to record how long you spent at each during a session.</p>
         {s.peaks.map((p, i) => (
-          <div key={p.id} className="row gap peak-row">
-            <input value={p.name} onChange={(e) => setPeak(i, { name: e.target.value })} placeholder="Name" />
-            <input value={p.description ?? ''} onChange={(e) => setPeak(i, { description: e.target.value })} placeholder="Notes (optional)" />
-            <button className="btn small" onClick={() => set('peaks', s.peaks.filter((_, k) => k !== i))} aria-label={`Remove ${p.name}`}>
-              Remove
-            </button>
+          <div key={p.id} className="peak-edit">
+            <div className="row gap">
+              <input value={p.name} onChange={(e) => setPeak(i, { name: e.target.value })} placeholder="Name" aria-label="Peak name" />
+              <button className="btn small" onClick={() => set('peaks', s.peaks.filter((_, k) => k !== i))} aria-label={`Remove ${p.name}`}>
+                Remove
+              </button>
+            </div>
+            <input value={p.description ?? ''} onChange={(e) => setPeak(i, { description: e.target.value })} placeholder="Description (optional)" aria-label="Peak description" />
+            <input value={p.goodWhen ?? ''} onChange={(e) => setPeak(i, { goodWhen: e.target.value })} placeholder="Best when… (tide, swell, wind, size)" aria-label="When this peak is good" />
+            <div className="row gap wrap">
+              <Chips small options={(['beach', 'reef', 'point'] as BreakType[]).map((t) => ({ id: t, label: t }))} value={p.breakType} onChange={(v) => setPeak(i, { breakType: v ?? undefined })} />
+              <Chips small options={(['sand', 'reef', 'rock', 'mixed'] as Bottom[]).map((t) => ({ id: t, label: t }))} value={p.bottom} onChange={(v) => setPeak(i, { bottom: v ?? undefined })} />
+              <Chips small options={['left', 'right', 'left and right'].map((t) => ({ id: t, label: t }))} value={p.direction} onChange={(v) => setPeak(i, { direction: v ?? undefined })} />
+            </div>
+            <Chips small options={(['beginner', 'all', 'intermediate', 'advanced', 'expert'] as SpotLevel[]).map((t) => ({ id: t, label: t }))} value={p.level} onChange={(v) => setPeak(i, { level: v ?? undefined })} />
           </div>
         ))}
         <button className="btn small" onClick={() => set('peaks', [...s.peaks, { id: uid(), name: s.peaks.length === 0 ? 'Inside' : s.peaks.length === 1 ? 'Outside' : '' }])}>
           + Add peak
         </button>
+      </Card>
+
+      <Card>
+        <h3>Spot guide</h3>
+        <div className="field">
+          <span>Best months</span>
+          <MonthToggle months={guide.season ?? []} onChange={(m) => setG('season', m)} />
+          <input value={guide.seasonNote ?? ''} onChange={(e) => setG('seasonNote', e.target.value)} placeholder="Season note (optional)" />
+        </div>
+        <label className="field">
+          Boards (comma separated)
+          <input value={boardText} onChange={(e) => setBoardText(e.target.value)} placeholder="shortboard, step-up on big days" />
+        </label>
+        <div className="form-grid">
+          <label>
+            Paddle out
+            <textarea rows={2} value={guide.access?.paddleOut ?? ''} onChange={(e) => setAccess('paddleOut', e.target.value)} placeholder="Where and how to get out" />
+          </label>
+          <label>
+            Paddle in
+            <textarea rows={2} value={guide.access?.paddleIn ?? ''} onChange={(e) => setAccess('paddleIn', e.target.value)} placeholder="Where and how to come back" />
+          </label>
+          <label>
+            Easier when
+            <textarea rows={2} value={guide.access?.easier ?? ''} onChange={(e) => setAccess('easier', e.target.value)} />
+          </label>
+          <label>
+            Harder when
+            <textarea rows={2} value={guide.access?.harder ?? ''} onChange={(e) => setAccess('harder', e.target.value)} />
+          </label>
+        </div>
+        <label className="field">
+          Warnings (one per line)
+          <textarea rows={3} value={warnText} onChange={(e) => setWarnText(e.target.value)} placeholder={'strong current to the west\nclose-outs on big days'} />
+        </label>
+        <label className="field">
+          Parking
+          <textarea rows={2} value={guide.parking ?? ''} onChange={(e) => setG('parking', e.target.value)} />
+        </label>
+        <label className="field">
+          Nearby facilities (one per line)
+          <textarea rows={3} value={facText} onChange={(e) => setFacText(e.target.value)} placeholder={'café at the harbour\nsurf shop in town (2 km)'} />
+        </label>
+        <p className="muted tiny">Add photos on the spot page.</p>
       </Card>
 
       <div className="row between sticky-actions">
@@ -194,6 +260,27 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function MonthToggle({ months, onChange }: { months: number[]; onChange: (m: number[]) => void }) {
+  const set = new Set(months);
+  const names = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+  return (
+    <div className="months toggle">
+      {names.map((l, i) => (
+        <button
+          key={i}
+          type="button"
+          className={set.has(i + 1) ? 'on' : ''}
+          aria-pressed={set.has(i + 1)}
+          aria-label={new Date(2000, i, 1).toLocaleString('en', { month: 'long' })}
+          onClick={() => onChange(set.has(i + 1) ? months.filter((m) => m !== i + 1) : [...months, i + 1].sort((a, b) => a - b))}
+        >
+          {l}
+        </button>
+      ))}
     </div>
   );
 }

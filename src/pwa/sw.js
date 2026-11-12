@@ -6,6 +6,7 @@
  *   offers "Reload" (the app sends SKIP_WAITING).
  * - Map (OpenFreeMap): tiles, fonts and sprites cache-first (their URLs are versioned or stable),
  *   style and tile index network-first with a cached fallback. Capped so it can't grow forever.
+ * - Spot photos (Wikimedia Commons): cache-first, kept for offline use.
  * - Conditions (Open-Meteo) and place search are not touched here: the app keeps them in IndexedDB.
  */
 const VERSION = '__VERSION__';
@@ -13,6 +14,7 @@ const PRECACHE = __PRECACHE__;
 const SHELL = `shell-${VERSION}`;
 const MAP_TILES = 'map-tiles';
 const MAP_META = 'map-meta';
+const PHOTOS = 'spot-photos';
 const MAX_TILES = 1500;
 
 // Static servers often send `Vary: Origin`; module scripts are requested with an Origin header and
@@ -50,6 +52,12 @@ self.addEventListener('fetch', (event) => {
     } else {
       event.respondWith(caches.match(req, MATCH).then((hit) => hit || fetch(req)));
     }
+    return;
+  }
+
+  // Spot photos from Wikimedia Commons: keep the ones you've seen for offline use.
+  if (url.hostname === 'upload.wikimedia.org' || url.hostname === 'thumb.wikimedia.org') {
+    event.respondWith(cacheFirst(req, PHOTOS));
     return;
   }
 

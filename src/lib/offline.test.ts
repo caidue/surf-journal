@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { db } from '../db';
+import { db, mergeSeedSpots } from '../db';
 import { SEED_SPOTS } from '../data/seedSpots';
 import type { ConditionsSeries, HourConditions, Session } from '../types';
 import { SLOTS } from '../types';
@@ -192,5 +192,26 @@ describe('sessions logged offline', () => {
     vi.stubGlobal('fetch', f);
     expect(await syncPendingSessions()).toBe(0);
     expect(f).not.toHaveBeenCalled();
+  });
+});
+
+describe('built-in spot data reaching existing devices', () => {
+  it('updates untouched spots and only adds details to spots you edited', async () => {
+    const [a, b] = SEED_SPOTS.filter((s) => s.peaks.length > 0);
+    await db.spots.bulkPut([
+      { ...a, description: 'old text', peaks: a.peaks.map((p) => ({ id: p.id, name: p.name })), guide: undefined, lat: 1, lon: 2 },
+      { ...b, peaks: b.peaks.map((p) => ({ id: p.id, name: `My ${p.name}` })), guide: undefined, updatedAt: 123, lat: 5, lon: 6 },
+    ]);
+    await mergeSeedSpots();
+    const ua = (await db.spots.get(a.id))!;
+    expect(ua.description).toBe(a.description);
+    expect(ua.peaks).toEqual(a.peaks);
+    expect(ua.guide).toEqual(a.guide);
+    expect([ua.lat, ua.lon]).toEqual([a.lat, a.lon]); // never edited: corrected position comes through
+    const ub = (await db.spots.get(b.id))!;
+    expect(ub.peaks.map((p) => p.name)).toEqual(b.peaks.map((p) => `My ${p.name}`));
+    expect(ub.peaks.map((p) => p.description)).toEqual(b.peaks.map((p) => p.description));
+    expect(ub.guide).toEqual(b.guide);
+    expect([ub.lat, ub.lon]).toEqual([5, 6]); // edited: your marker stays
   });
 });

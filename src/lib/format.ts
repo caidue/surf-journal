@@ -50,3 +50,21 @@ export function fmtFeature(key: string, d: Derived | undefined, s: Pick<Settings
       return '–';
   }
 }
+
+export const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "Oct–Mar" style summary of a set of months (handles wrapping over the new year). */
+export function monthRanges(months: number[]): string {
+  const set = new Set(months);
+  if (!set.size) return '';
+  if (set.size === 12) return 'all year';
+  // Start a run at a month whose previous month is not in the set.
+  const out: string[] = [];
+  for (let m = 1; m <= 12; m++) {
+    if (!set.has(m) || set.has(((m + 10) % 12) + 1)) continue;
+    let end = m;
+    while (set.has((end % 12) + 1) && (end % 12) + 1 !== m) end = (end % 12) + 1;
+    out.push(end === m ? MONTH_NAMES[m - 1] : `${MONTH_NAMES[m - 1]}–${MONTH_NAMES[end - 1]}`);
+  }
+  return out.join(', ');
+}

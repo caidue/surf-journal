@@ -78,7 +78,6 @@ export async function addDemoSessions(spots: Spot[], settings: Settings): Promis
       set('fun', fun);
       set('waves', 1 + r.quality.q * 0.9 + (rand() - 0.5) * 0.5);
       set('exertion', 3 + t * 5 + (d.hb ?? 1) * 0.8);
-      if (spot.peaks.length) zones[slot] = spot.peaks[t < 0.45 ? 0 : spot.peaks.length - 1].id;
     }
     // One rating per category (like the sliders in the editor): the session average, to the half point.
     for (const id of Object.keys(curves)) {

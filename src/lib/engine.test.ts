@@ -7,6 +7,7 @@ import { quality, suitability } from './rating';
 import { distance, kernel, SIMILAR_MIN_K } from './similarity';
 import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, curveMean, insights } from './recommend';
 import { parseRegionQuery, subBox } from './geocode';
+import { monthRanges } from './format';
 
 const spot: Spot = {
   id: 's',
@@ -293,5 +294,15 @@ describe('region parsing', () => {
     const b = subBox({ south: 28, north: 29, west: -14.5, east: -13.8 }, 'north');
     expect(b.south).toBeCloseTo(28.5);
     expect(b.north).toBe(29);
+  });
+});
+
+describe('season', () => {
+  it('summarises best months, wrapping over the new year', () => {
+    expect(monthRanges([10, 11, 12, 1, 2, 3])).toBe('Oct–Mar');
+    expect(monthRanges([1, 2, 6, 7])).toBe('Jan–Feb, Jun–Jul');
+    expect(monthRanges([5])).toBe('May');
+    expect(monthRanges(Array.from({ length: 12 }, (_, i) => i + 1))).toBe('all year');
+    expect(monthRanges([])).toBe('');
   });
 });

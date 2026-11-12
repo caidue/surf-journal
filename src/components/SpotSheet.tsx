@@ -8,6 +8,7 @@ import { fmtDate, fmtMin, isoToMin, nowMinutesAt } from '../lib/time';
 import { fmtSurfRange, fmtWind } from '../lib/format';
 import { WIND_BG } from './Timeline';
 import { DirArrow, ScoreBadge, Segmented, SuitBadge } from './ui';
+import SpotGuide from './SpotGuide';
 
 const COL_W = 46;
 
@@ -140,27 +141,9 @@ export default function SpotSheet({ spot, rec, series, date, today, dayOptions, 
             </dd>
             <dt>Tide</dt>
             <dd>{spot.tide === 'all' ? 'all tides' : spot.tide}</dd>
-            {spot.hazards.length > 0 && (
-              <>
-                <dt>Hazards</dt>
-                <dd>{spot.hazards.join(', ')}</dd>
-              </>
-            )}
-            {spot.peaks.length > 0 && (
-              <>
-                <dt>Peaks</dt>
-                <dd>
-                  {spot.peaks.map((p) => (
-                    <div key={p.id}>
-                      <strong>{p.name}</strong>
-                      {p.description ? ` – ${p.description}` : ''}
-                    </div>
-                  ))}
-                </dd>
-              </>
-            )}
           </dl>
           {spot.coordsApprox && <p className="muted tiny">Map position is approximate.</p>}
+          <SpotGuide spot={spot} compact />
 
           <div className="sheet-actions">
             <button className="btn" onClick={() => go(`spot/${spot.id}`)}>

@@ -10,6 +10,39 @@ export interface Peak {
   id: string;
   name: string;
   description?: string;
+  /** Spot-guide details for this wave (all optional; shown in the spot overview). */
+  breakType?: BreakType;
+  bottom?: Bottom;
+  /** e.g. "left", "right", "left and right". */
+  direction?: string;
+  level?: SpotLevel;
+  /** When it works best: tide, swell, wind, size. */
+  goodWhen?: string;
+  /** Best months 1–12 when they differ from the spot's. */
+  season?: number[];
+}
+
+/** A freely licensed photo (Wikimedia Commons), shown with its credit. */
+export interface SpotPhoto {
+  imageUrl: string;
+  pageUrl: string;
+  author: string;
+  license: string;
+  caption?: string;
+}
+
+/** Practical spot guide: season, boards, access, warnings, parking, facilities, photos. */
+export interface SpotGuide {
+  /** Best months 1–12. */
+  season?: number[];
+  seasonNote?: string;
+  boards?: string[];
+  access?: { paddleOut?: string; paddleIn?: string; easier?: string; harder?: string };
+  warnings?: string[];
+  parking?: string;
+  facilities?: string[];
+  photos?: SpotPhoto[];
+  sources?: string[];
 }
 
 export interface Spot {
@@ -36,6 +69,7 @@ export interface Spot {
   hazards: string[];
   description: string;
   peaks: Peak[];
+  guide?: SpotGuide;
   /** Multiplier from modelled breaking height to what you see at this spot. */
   gain: number;
   source?: string;
@@ -126,6 +160,18 @@ export interface Session {
   updatedAt: number;
 }
 
+/** A photo you added to a spot yourself (stored only on this device). */
+export interface UserPhoto {
+  id: string;
+  spotId: string;
+  /** JPEG, scaled down to at most 1600 px. */
+  blob: Blob;
+  width: number;
+  height: number;
+  caption?: string;
+  addedAt: number;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -142,6 +188,8 @@ export interface Settings {
   heightUnit: 'm' | 'ft';
   windUnit: 'kmh' | 'kn';
   lastQuery?: string;
+  /** Version of the built-in spot data last merged into this device's spots. */
+  seedVersion?: number;
 }
 
 export const SLOT_MIN = 5;

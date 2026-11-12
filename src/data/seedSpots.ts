@@ -1,4 +1,5 @@
 import type { Spot } from '../types';
+import { SPOT_GUIDES } from './spotGuides';
 
 /**
  * Seed spots for northern Fuerteventura, compiled from public spot guides
@@ -16,10 +17,10 @@ const seed: SeedSpot[] = [
   {
     id: 'fv-rocky-point',
     name: 'Rocky Point',
-    lat: 28.752,
-    lon: -13.8805,
-    facing: 345,
-    idealSwellDir: 320,
+    lat: 28.7335, // Wannasurf; in Corralejo bay by Punta Elena (OSM), south of the harbour
+    lon: -13.8558,
+    facing: 15, // offshore wind from S–SW (guides)
+    idealSwellDir: 345, // N–NW swell
     swellWindow: 70,
     minSize: 0.6,
     maxSize: 3,
@@ -94,8 +95,8 @@ const seed: SeedSpot[] = [
   {
     id: 'fv-generoso',
     name: 'Generoso',
-    lat: 28.757,
-    lon: -13.905,
+    lat: 28.7547, // Wannasurf / surf-forecast, past the power station
+    lon: -13.8856,
     facing: 355,
     idealSwellDir: 330,
     swellWindow: 60,
@@ -112,8 +113,8 @@ const seed: SeedSpot[] = [
   {
     id: 'fv-la-caleta',
     name: 'La Caleta',
-    lat: 28.7545,
-    lon: -13.915,
+    lat: 28.7508, // fuerteventuraplayas, a few minutes east of Majanicho
+    lon: -13.9234,
     facing: 345,
     idealSwellDir: 315,
     swellWindow: 70,
@@ -191,8 +192,8 @@ const seed: SeedSpot[] = [
   {
     id: 'fv-punta-blanca',
     name: 'Punta Blanca',
-    lat: 28.732,
-    lon: -13.985,
+    lat: 28.7164, // OSM "Punta Blanca" beach, east of the Tostón lighthouse; the reef is just offshore
+    lon: -14.0014,
     facing: 315,
     idealSwellDir: 300,
     swellWindow: 70,
@@ -212,8 +213,9 @@ const seed: SeedSpot[] = [
   {
     id: 'fv-esquinzo',
     name: 'Esquinzo',
-    lat: 28.705,
-    lon: -14.016,
+    lat: 28.6348, // OSM "Playa de Esquinzo", ~5 km south of El Cotillo
+    lon: -14.027,
+    coordsApprox: false,
     facing: 295,
     idealSwellDir: 305,
     swellWindow: 65,
@@ -224,7 +226,7 @@ const seed: SeedSpot[] = [
     bottom: 'mixed',
     level: 'intermediate',
     hazards: ['heavy at low tide'],
-    description: 'Powerful left over sand and reef north of El Cotillo. Needs a solid NW swell and light easterly wind; heavy and unpredictable at low tide.',
+    description: 'Powerful left over sand and reef south of El Cotillo, reached by dirt track. Needs a solid NW swell and light easterly wind; heavy and unpredictable at low tide.',
     peaks: [],
   },
   {
@@ -248,8 +250,8 @@ const seed: SeedSpot[] = [
   {
     id: 'fv-cotillo-spew-pits',
     name: 'El Cotillo – Spew Pits',
-    lat: 28.666,
-    lon: -14.018,
+    lat: 28.703, // north of town by the lagoons (Wannasurf, surf-forecast); some guides place it off the harbour
+    lon: -14.025,
     facing: 280,
     idealSwellDir: 290,
     swellWindow: 60,
@@ -305,8 +307,8 @@ const seed: SeedSpot[] = [
   {
     id: 'fv-glass-beach',
     name: 'Glass Beach (El Burro)',
-    lat: 28.704,
-    lon: -13.836,
+    lat: 28.688, // OSM / Wannasurf, Corralejo dunes
+    lon: -13.832,
     facing: 70,
     idealSwellDir: 40,
     swellWindow: 55,
@@ -323,10 +325,11 @@ const seed: SeedSpot[] = [
   {
     id: 'fv-playa-del-moro',
     name: 'Playa del Moro',
-    lat: 28.739,
-    lon: -13.865,
-    facing: 20,
-    idealSwellDir: 15,
+    lat: 28.6741, // OSM "Playa del Moro", Corralejo dunes park
+    lon: -13.8339,
+    coordsApprox: false,
+    facing: 70,
+    idealSwellDir: 40,
     swellWindow: 60,
     minSize: 0.3,
     maxSize: 1.6,
@@ -335,15 +338,24 @@ const seed: SeedSpot[] = [
     bottom: 'sand',
     level: 'beginner',
     hazards: ['crowds', 'stony bottom in places'],
-    description: 'Small town beach in Corralejo with lefts and rights in N/NE swell and summer windswell. Mostly whitewash: a beginner spot.',
+    description: 'Beach in the Corralejo dunes park with lefts and rights in N–NE swell and windswell. Mostly mellow and good for learning.',
     peaks: [],
   },
 ];
 
-export const SEED_SPOTS: Spot[] = seed.map((s) => ({
-  region: 'Fuerteventura',
-  source: SRC,
-  gain: s.breakType === 'beach' ? 0.8 : 0.85,
-  coordsApprox: true,
-  ...s,
-}));
+/** Bump when the built-in spot data changes, so devices that already have the spots get it merged in. */
+export const SEED_VERSION = 3;
+
+export const SEED_SPOTS: Spot[] = seed.map((s) => {
+  const g = SPOT_GUIDES[s.id];
+  return {
+    region: 'Fuerteventura',
+    source: SRC,
+    gain: s.breakType === 'beach' ? 0.8 : 0.85,
+    coordsApprox: true,
+    ...s,
+    // Researched peaks replace the short seed list (ids are kept, so logged peak times still match).
+    peaks: g?.peaks.length ? g.peaks : s.peaks,
+    guide: g?.guide,
+  };
+});

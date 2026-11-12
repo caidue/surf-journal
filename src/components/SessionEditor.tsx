@@ -11,7 +11,7 @@ import { recommendability } from '../lib/rating';
 import { calibratedGain, curveMean, OBSERVED_SIZES } from '../lib/recommend';
 import { fmtDate, fmtDuration, fmtMin, isoToMin, todayAt, uid } from '../lib/time';
 import { fmtSurfRange, fmtWind } from '../lib/format';
-import Timeline, { PEAK_COLORS, type HourScore, type Range } from './Timeline';
+import Timeline, { type HourScore, type Range } from './Timeline';
 import { Card, Chips, Segmented } from './ui';
 import { LEVEL_OPTIONS } from './Explore';
 
@@ -44,7 +44,6 @@ export default function SessionEditor({
   const [spotId, setSpotId] = useState(existing?.spotId ?? preset?.spotId ?? '');
   const [date, setDate] = useState(existing?.date ?? preset?.date ?? today);
   const [range, setRange] = useState<Range | null>(existing ? { startMin: existing.startMin, endMin: existing.endMin } : null);
-  const [zones, setZones] = useState<(string | null)[]>(existing?.zones ?? emptySlots<string>());
   // One 1–10 value per category. Older sessions with drawn curves start at the curve's average.
   const [ratings, setRatings] = useState<Record<string, number | null>>(() =>
     Object.fromEntries(settings.categories.map((c) => [c.id, existing ? roundHalf(curveMean(existing, c.id) ?? (c.id === 'fun' ? existing.overall : null)) : null])),
@@ -121,13 +120,6 @@ export default function SessionEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existing?.conditions, existing?.conditionsPending]);
 
-  // Peaks belong to the spot: clear zone painting when switching spots.
-  useEffect(() => {
-    if (!spot) return;
-    const valid = new Set(spot.peaks.map((p) => p.id));
-    if (zones.some((z) => z && !valid.has(z))) setZones(emptySlots<string>());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spotId]);
 
   const gain = useMemo(() => (spot ? calibratedGain(spot, sessions.filter((s) => s.id !== id)).gain : 1), [spot, sessions, id]);
   const derived = useMemo(() => (spot && conditions ? deriveSeries(spot, conditions, gain) : []), [spot, conditions, gain]);
@@ -178,7 +170,6 @@ export default function SessionEditor({
     };
   })();
 
-  const zoneMinutes = spot?.peaks.map((p) => ({ p, min: range ? zones.filter((z, s) => z === p.id && s * SLOT_MIN >= range.startMin && s * SLOT_MIN < range.endMin).length * SLOT_MIN : 0 }));
   const lo = range ? Math.floor(range.startMin / SLOT_MIN) : 0;
   const hi = range ? Math.ceil(range.endMin / SLOT_MIN) - 1 : -1;
 
@@ -213,7 +204,8 @@ export default function SessionEditor({
       date,
       startMin: range.startMin,
       endMin: range.endMin,
-      zones: clip(zones),
+      // Peaks aren't entered any more; peak times recorded in older sessions are kept.
+      zones: existing && existing.spotId === spot.id ? clip(existing.zones) : emptySlots<string>(),
       curves: buildCurves(),
       conditions: conditions ?? [],
       conditionsSource: conditions ? source : '',
@@ -328,7 +320,7 @@ export default function SessionEditor({
             <>
               <p className="muted small">
                 1. Drag across the chart to mark when you were in the water (drag the edges to adjust).
-                {spot.peaks.length > 0 && ' 2. Paint the lanes to show when you were at each peak.'} Then rate the session below.
+                Then rate it below.
               </p>
               <Timeline
                 hours={conditions ?? []}
@@ -343,38 +335,7 @@ export default function SessionEditor({
                 view={view}
                 session={range}
                 onSessionChange={setRange}
-                peaks={spot.peaks}
-                zones={zones}
-                onZonesChange={setZones}
               />
-              {spot.peaks.length > 0 && range && (
-                <div className="row gap wrap tools">
-                  <span className="muted small">Quick fill:</span>
-                  {spot.peaks.map((p, k) => (
-                    <button
-                      key={p.id}
-                      className="btn small"
-                      style={{ borderColor: PEAK_COLORS[k % PEAK_COLORS.length] }}
-                      onClick={() => {
-                        const z = zones.slice();
-                        for (let s = lo; s <= hi; s++) z[s] = p.id;
-                        setZones(z);
-                      }}
-                    >
-                      All at {p.name}
-                    </button>
-                  ))}
-                  <button className="btn small" onClick={() => setZones(emptySlots<string>())}>
-                    Clear peaks
-                  </button>
-                  <span className="small">
-                    {zoneMinutes!
-                      .filter((z) => z.min)
-                      .map((z) => `${z.p.name}: ${fmtDuration(z.min)}`)
-                      .join(' · ')}
-                  </span>
-                </div>
-              )}
               {summary && range && (
                 <div className="summary">
                   <strong>

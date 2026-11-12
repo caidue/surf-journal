@@ -9,6 +9,7 @@ import { similarityPct } from '../lib/similarity';
 import Timeline, { type HourScore } from './Timeline';
 import MapView from './MapView';
 import { Card, ConditionsStatus, Empty, ScoreBadge, Segmented, SuitBadge } from './ui';
+import SpotGuide from './SpotGuide';
 import { sessionSummary } from './Journal';
 
 function Bars({ data, labels }: { data: Record<string, { mean: number; minutes: number }>; labels?: Record<string, string> }) {
@@ -115,18 +116,6 @@ export default function SpotPage({ spot, sessions, settings, go }: { spot: Spot;
             </dd>
             <dt>Tide</dt>
             <dd>{spot.tide}</dd>
-            {spot.hazards.length > 0 && (
-              <>
-                <dt>Hazards</dt>
-                <dd>{spot.hazards.join(', ')}</dd>
-              </>
-            )}
-            {spot.peaks.length > 0 && (
-              <>
-                <dt>Peaks</dt>
-                <dd>{spot.peaks.map((p) => p.name + (p.description ? ` (${p.description})` : '')).join(' · ')}</dd>
-              </>
-            )}
             <dt>Size factor</dt>
             <dd>
               {calib.n >= 2 ? `${calib.gain.toFixed(2)} (calibrated from ${calib.n} sessions where you noted the size)` : `${spot.gain.toFixed(2)} (default; note the size you saw when logging to calibrate)`}
@@ -137,6 +126,11 @@ export default function SpotPage({ spot, sessions, settings, go }: { spot: Spot;
         </Card>
         <MapView markers={[{ id: spot.id, lat: spot.lat, lon: spot.lon, color: '#0b6e99', label: '●', title: spot.name }]} fit={{ south: spot.lat - 0.02, north: spot.lat + 0.02, west: spot.lon - 0.03, east: spot.lon + 0.03 }} height={260} />
       </div>
+
+      <Card>
+        <h3>Spot guide</h3>
+        <SpotGuide spot={spot} />
+      </Card>
 
       <Card>
         <div className="row between wrap">
@@ -228,7 +222,7 @@ export default function SpotPage({ spot, sessions, settings, go }: { spot: Spot;
           <p className="muted small">From the fun ratings of your relevant sessions here.</p>
           <h4>Tide stage (vs. your average here)</h4>
           <Bars data={ins.byTide} />
-          {spot.peaks.length > 0 && (
+          {spot.peaks.length > 0 && Object.keys(ins.byZone).length > 0 && (
             <>
               <h4>Where you were happiest</h4>
               <Bars data={ins.byZone} labels={peakNames} />
