@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { HourConditions, Session, Settings, Spot } from '../types';
 import { SLOTS } from '../types';
 import { angdiff, destination, haversineKm } from './geo';
-import { breakingHeight, deriveHour, deriveSeries, exposure, windKind } from './conditions';
+import { breakingHeight, deriveHour, deriveSeries, exposure, tideExtremes, waveEnergyKJ, windKind } from './conditions';
 import { quality, suitability } from './rating';
 import { distance, kernel, SIMILAR_MIN_K } from './similarity';
 import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, curveMean } from './recommend';
@@ -132,6 +132,33 @@ describe('conditions', () => {
   it('falls back to total sea state without partitions', () => {
     const d = deriveHour(spot, hour('t', { swellH: null, swellPer: null, swellDir: null, waveH: 2, wavePer: 10, waveDir: 320 }));
     expect(d.hb).toBeGreaterThan(1);
+  });
+});
+
+describe('tide extremes & energy', () => {
+  it('times high and low tide between the hourly values', () => {
+    // Semi-diurnal tide: high at 03:30 and 15:54 (period 12.42 h), amplitude 1.2 m.
+    const T = 12.42;
+    const hrs = Array.from({ length: 48 }, (_, i) => {
+      const d = i < 24 ? '2026-01-01' : '2026-01-02';
+      const h = i % 24;
+      return hour(`${d}T${String(h).padStart(2, '0')}:00`, { seaLevel: 1.2 * Math.cos((2 * Math.PI * (i - 3.5)) / T) });
+    });
+    const ex = tideExtremes(hrs, '2026-01-01');
+    expect(ex.map((e) => e.type)).toEqual(['high', 'low', 'high', 'low']);
+    expect(Math.abs(ex[0].min - 210)).toBeLessThanOrEqual(3);
+    expect(Math.abs(ex[1].min - (210 + (T / 2) * 60))).toBeLessThanOrEqual(3);
+    expect(ex[0].level).toBeCloseTo(1.2, 1);
+    expect(ex[1].level).toBeCloseTo(-1.2, 1);
+  });
+
+  it('energy grows with the square of period and is cut by the swell window', () => {
+    const e10 = waveEnergyKJ(spot, hour('t', { swellH: 1.5, swellPer: 10, swellDir: spot.idealSwellDir, swell2H: null, windWaveH: null }))!;
+    const e14 = waveEnergyKJ(spot, hour('t', { swellH: 1.5, swellPer: 14, swellDir: spot.idealSwellDir, swell2H: null, windWaveH: null }))!;
+    expect(e10).toBeCloseTo(1.96 * 1.5 * 1.5 * 100, -1);
+    expect(e14 / e10).toBeCloseTo(1.96, 1);
+    const blocked = waveEnergyKJ(spot, hour('t', { swellH: 1.5, swellPer: 14, swellDir: (spot.idealSwellDir + 180) % 360, swell2H: null, windWaveH: null }))!;
+    expect(blocked).toBe(0);
   });
 });
 

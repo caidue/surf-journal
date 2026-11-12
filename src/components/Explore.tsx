@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Level, Session, Settings, Spot } from '../types';
 import { saveSettings } from '../db';
 import { useConditions } from '../hooks';
@@ -11,6 +11,7 @@ import { fmtFeature, fmtSurfRange, fmtWind } from '../lib/format';
 import { tideLabel, windKind, WIND_LABEL, type Derived } from '../lib/conditions';
 import { SIMILAR_MIN_K, similarityPct } from '../lib/similarity';
 import MapView, { type MapMarker } from './MapView';
+import SpotSheet from './SpotSheet';
 import { Card, ConditionsStatus, DirArrow, Empty, ScoreBadge, Segmented, SuitBadge } from './ui';
 
 interface Region {
@@ -45,6 +46,13 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
   const [searchError, setSearchError] = useState<string | null>(null);
   const [dayOffset, setDayOffset] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  /** Spot whose details sheet is open (from a map marker or a list card). */
+  const [sheet, setSheet] = useState<string | null>(null);
+  const closeSheet = useCallback(() => setSheet(null), []);
+  const openSheet = (id: string) => {
+    setSelected(id);
+    setSheet(id);
+  };
   const [addMode, setAddMode] = useState(false);
 
   const today = todayAt();
@@ -217,10 +225,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
             fit={bboxOf(regionSpots) ?? region?.bbox ?? bboxOf(spots)}
             area={region?.bbox ?? null}
             selectedId={selected}
-            onSelect={(id) => {
-              setSelected(id);
-              document.getElementById(`spot-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }}
+            onSelect={openSheet}
             onMapClick={(lat, lon) => {
               if (addMode) go(`spot-new?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`);
             }}
@@ -298,7 +303,14 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
               const r = recBySpot.get(spot.id);
               const show = r?.now ?? r?.best;
               return (
-                <Card key={spot.id} id={`spot-${spot.id}`} className={`spot-item${selected === spot.id ? ' selected' : ''}`} onClick={() => setSelected(spot.id)}>
+                <Card
+                  key={spot.id}
+                  id={`spot-${spot.id}`}
+                  className={`spot-item${selected === spot.id ? ' selected' : ''}`}
+                  onClick={(e: React.MouseEvent) => {
+                    if (!(e.target as Element).closest('a, button')) openSheet(spot.id);
+                  }}
+                >
                   <div className="row between">
                     <div>
                       <a className="spot-name" href={`#/spot/${spot.id}`}>
@@ -390,6 +402,28 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
           </p>
         </details>
       </section>
+
+      {sheet &&
+        (() => {
+          const spot = spots.find((x) => x.id === sheet);
+          if (!spot) return null;
+          return (
+            <SpotSheet
+              spot={spot}
+              rec={recBySpot.get(spot.id)}
+              series={bySpot.get(spot.id)}
+              date={date}
+              today={today}
+              dayOptions={dayOptions}
+              dayOffset={dayOffset}
+              onDay={setDayOffset}
+              settings={settings}
+              loading={loading}
+              onClose={closeSheet}
+              go={go}
+            />
+          );
+        })()}
     </div>
   );
 }

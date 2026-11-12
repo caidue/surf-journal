@@ -53,7 +53,7 @@ interface Partition {
   weight: number;
 }
 
-function partitions(c: HourConditions): Partition[] {
+export function partitions(c: HourConditions): Partition[] {
   const out: Partition[] = [];
   if (c.swellH != null && c.swellPer != null && c.swellDir != null) out.push({ h: c.swellH, t: c.swellPer, dir: c.swellDir, weight: 1 });
   if (c.swell2H != null && c.swell2Per != null && c.swell2Dir != null) out.push({ h: c.swell2H, t: c.swell2Per, dir: c.swell2Dir, weight: 1 });
@@ -173,4 +173,60 @@ export function tideLabel(norm: number | null, trend: number | null): string {
   const lvl = norm < 0.2 ? 'low' : norm < 0.4 ? 'low-mid' : norm < 0.6 ? 'mid' : norm < 0.8 ? 'mid-high' : 'high';
   if (trend == null || Math.abs(trend) < 0.25) return lvl;
   return `${lvl}, ${trend > 0 ? 'rising' : 'falling'}`;
+}
+
+/* ---------- wave energy & tide extremes (for the hourly forecast table) ---------- */
+
+/** ρ g² / (16 π) in kJ: energy of one wave per metre of crest is ≈ 1.96 · H² · T² kJ (H in m, T in s). */
+const ENERGY_K = (1025 * 9.81 * 9.81) / (16 * Math.PI) / 1000;
+
+/**
+ * Swell energy reaching the spot (kJ per metre of wave crest, summed over swell trains,
+ * each weighted by how much of it the spot's swell window lets in). Long-period swell
+ * carries far more energy than the same height of short wind sea, which is why surfers
+ * look at it next to the height.
+ */
+export function waveEnergyKJ(spot: Pick<Spot, 'idealSwellDir' | 'swellWindow'>, c: HourConditions): number | null {
+  const parts = partitions(c);
+  if (!parts.length) return null;
+  let e = 0;
+  for (const p of parts) e += exposure(spot, p.dir) * ENERGY_K * p.h * p.h * p.t * p.t;
+  return e;
+}
+
+export interface TideExtreme {
+  date: string;
+  /** Minutes after local midnight (interpolated between the hourly values). */
+  min: number;
+  level: number;
+  type: 'high' | 'low';
+}
+
+/** High and low tides on `date`, timed to the minute by fitting a parabola through the hourly sea level. */
+export function tideExtremes(hours: HourConditions[], date: string): TideExtreme[] {
+  const out: TideExtreme[] = [];
+  for (let i = 1; i < hours.length - 1; i++) {
+    const a = hours[i - 1].seaLevel;
+    const b = hours[i].seaLevel;
+    const c = hours[i + 1].seaLevel;
+    if (a == null || b == null || c == null) continue;
+    const high = b >= a && b > c;
+    const low = b <= a && b < c;
+    if (!high && !low) continue;
+    const denom = a - 2 * b + c;
+    const off = denom === 0 ? 0 : Math.max(-0.5, Math.min(0.5, (0.5 * (a - c)) / denom)); // hours
+    const level = b - 0.25 * (a - c) * off;
+    const base = Number(hours[i].time.slice(11, 13)) * 60 + Number(hours[i].time.slice(14, 16));
+    let min = Math.round(base + off * 60);
+    let day = hours[i].time.slice(0, 10);
+    if (min < 0) {
+      min += 1440;
+      day = hours[i - 1].time.slice(0, 10);
+    } else if (min >= 1440) {
+      min -= 1440;
+      day = hours[i + 1].time.slice(0, 10);
+    }
+    if (day === date) out.push({ date: day, min, level, type: high ? 'high' : 'low' });
+  }
+  return out;
 }

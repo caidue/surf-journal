@@ -46,7 +46,7 @@ interface Props {
 const LABEL_W = 64;
 const PAD_R = 8;
 export const PEAK_COLORS = ['#0ea5e9', '#f97316', '#8b5cf6', '#10b981', '#e11d48', '#eab308'];
-const WIND_BG: Record<WindKind, string> = {
+export const WIND_BG: Record<WindKind, string> = {
   glassy: '#e0f2fe',
   offshore: '#bbf7d0',
   'cross-off': '#d9f99d',
