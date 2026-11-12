@@ -29,7 +29,7 @@ npm run preview    # serve the build on http://localhost:4178 (the service worke
 npm run icons      # redraw the app icons in public/ (plain Node, no image tools)
 ```
 
-To use it on your phone, deploy `dist/` to any HTTPS static host (GitHub Pages, Netlify, Cloudflare Pages). Service workers need HTTPS, except on `localhost`.
+To use it on your phone it needs to be on HTTPS (service workers only run on HTTPS or `localhost`). `.github/workflows/pages.yml` tests, builds and publishes it to GitHub Pages on every push to `main`. Turn it on once under **Settings → Pages → Source: GitHub Actions**. On a free GitHub plan the repo has to be public for Pages to work. `dist/` also works on any other static host (Netlify, Cloudflare Pages).
 
 `package.json` overrides esbuild and Rollup with their WebAssembly builds (`esbuild-wasm`, `@rollup/wasm-node`), so nothing native has to be downloaded and executed. That is a little slower than the native builds. On a machine where native binaries run fine, you can delete the `overrides` block and reinstall.
 
