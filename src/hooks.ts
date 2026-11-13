@@ -9,6 +9,11 @@ export function useSettings(): Settings {
   return useLiveQuery(() => db.settings.get('settings'), []) ?? DEFAULT_SETTINGS;
 }
 
+/** The stored settings, or undefined while they are still loading (to tell "no profile yet" from "not loaded"). */
+export function useStoredSettings(): Settings | undefined {
+  return useLiveQuery(async () => (await db.settings.get('settings')) ?? DEFAULT_SETTINGS, []);
+}
+
 export function useSpots(): Spot[] | undefined {
   return useLiveQuery(() => db.spots.toArray(), []);
 }

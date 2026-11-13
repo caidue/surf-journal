@@ -1,8 +1,8 @@
 import { useMemo, useRef } from 'react';
 import type { HourConditions, Settings } from '../types';
 import { SLOT_MIN } from '../types';
-import { waveEnergyKJ, windKind, type Derived, type WindKind } from '../lib/conditions';
-import { energyColors, fmtEnergy } from '../lib/format';
+import { trainsByEnergy, waveEnergyKJ, windKind, type Derived, type WindKind } from '../lib/conditions';
+import { energyColors, fmtEnergy, WIND_UNIT_LABEL, windIn } from '../lib/format';
 import { scoreColor } from '../lib/rating';
 import { fmtDuration, fmtMin, isoToMin } from '../lib/time';
 import { useElementWidth } from '../hooks';
@@ -49,6 +49,9 @@ export const WIND_BG: Record<WindKind, string> = {
 
 type Drag = { kind: 'brush'; mode: 'new' | 'start' | 'end' | 'move'; anchor: number; offset: number; moved: boolean };
 
+/** Offshore height of the strongest train (the "swell" line), else the total sea. */
+const swellH = (h: HourConditions) => trainsByEnergy(h)[0]?.h ?? h.waveH;
+
 const snap = (m: number, step = SLOT_MIN) => Math.round(m / step) * step;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -89,14 +92,14 @@ export default function Timeline(p: Props) {
   const axis = row(18, 0);
   const H = y;
 
-  const maxH = Math.max(1.2, ...hours.map((r) => Math.max(r.d?.hb ?? 0, r.h.swellH ?? 0, r.h.waveH ?? 0))) * 1.12;
+  const maxH = Math.max(1.2, ...hours.map((r) => Math.max(r.d?.hb ?? 0, swellH(r.h) ?? 0, r.h.waveH ?? 0))) * 1.12;
   const surfY = (m: number) => surf.y + surf.h - (m / maxH) * (surf.h - 14);
   const tideVals = hours.map((r) => r.h.seaLevel).filter((v): v is number => v != null);
   const tLo = tideVals.length ? Math.min(...tideVals) : 0;
   const tHi = tideVals.length ? Math.max(...tideVals) : 1;
   const tideY = (v: number) => tide.y + tide.h - 4 - ((v - tLo) / Math.max(0.05, tHi - tLo)) * (tide.h - 12);
   const fmtH = (m: number) => (p.heightUnit === 'ft' ? `${Math.round(m * 3.281)}` : m.toFixed(1));
-  const fmtW = (k: number) => (p.windUnit === 'kn' ? Math.round(k / 1.852) : Math.round(k));
+  const fmtW = (k: number) => windIn(k, p.windUnit);
 
   /* ---------------- interaction ---------------- */
   const local = (e: React.PointerEvent) => {
@@ -254,12 +257,12 @@ export default function Timeline(p: Props) {
             );
           })}
           {(() => {
-            const pts = hours.filter((r) => (r.h.swellH ?? r.h.waveH) != null).map((r) => `${(x(r.m) + pxPerHour / 2).toFixed(1)},${surfY((r.h.swellH ?? r.h.waveH)!).toFixed(1)}`);
+            const pts = hours.filter((r) => swellH(r.h) != null).map((r) => `${(x(r.m) + pxPerHour / 2).toFixed(1)},${surfY(swellH(r.h)!).toFixed(1)}`);
             return pts.length > 1 ? <polyline points={pts.join(' ')} className="swell-line" /> : null;
           })()}
 
           {/* swell period & direction */}
-          {label(swell, 'Swell', 'period/dir')}
+          {label(swell, 'Swell', 'peak s/dir')}
           {hours.map((r) =>
             (r.m / 60) % every === 0 && r.d?.tDom != null ? (
               <g key={r.m} transform={`translate(${x(r.m) + pxPerHour / 2},${swell.y + 12})`}>
@@ -279,7 +282,7 @@ export default function Timeline(p: Props) {
             return (
               <g key={r.m}>
                 <rect x={x(r.m) + 1} y={energy.y} width={Math.max(1, pxPerHour - 2)} height={energy.h} rx={3} fill={c?.bg ?? '#f1f5f9'}>
-                  <title>{e == null ? 'no wave data' : `${Math.round(e)} kJ (grid cell wave energy)`}</title>
+                  <title>{e == null ? 'no wave data' : `${Math.round(e)} kJ (strongest swell train in the grid cell)`}</title>
                 </rect>
                 {(r.m / 60) % every === 0 && e != null && pxPerHour * every >= 26 && (
                   <text x={x(r.m) + pxPerHour / 2} y={energy.y + 14} textAnchor="middle" className="tl-val" fill={c?.fg} style={{ fill: c?.fg }}>
@@ -291,7 +294,7 @@ export default function Timeline(p: Props) {
           })}
 
           {/* wind */}
-          {label(wind, 'Wind', p.windUnit === 'kn' ? 'kn' : 'km/h')}
+          {label(wind, 'Wind', WIND_UNIT_LABEL[p.windUnit])}
           {hours.map((r) => {
             const k = r.d ? windKind(r.d) : null;
             return (

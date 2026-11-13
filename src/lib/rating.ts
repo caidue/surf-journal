@@ -1,5 +1,6 @@
-import type { Level, Spot, SpotLevel, TidePref } from '../types';
+import type { Peak, SkillProfile, Spot, SpotLevel, TidePref } from '../types';
 import type { Derived } from './conditions';
+import { boardInfo, bodyWord, REQUIRED_STAGE, stageInfo } from './skill';
 
 /**
  * Rule-based spot rating, synthesised from public descriptions of Surf-Forecast,
@@ -21,11 +22,12 @@ export function fSize(hb: number | null, min: number, max: number): number {
   return 0.65 * clamp(1 - (hb - max) / (0.5 * max), 0, 1);
 }
 
+/** Period factor on the PEAK period (the one surf sites show): wind chop below 6 s, groundswell from 12 s. */
 export function fPeriod(t: number | null): number {
   if (t == null) return 0.5;
-  if (t < 5) return 0.25;
-  if (t < 8) return 0.25 + ((t - 5) / 3) * 0.5;
-  if (t < 11) return 0.75 + ((t - 8) / 3) * 0.25;
+  if (t < 6) return 0.25;
+  if (t < 9) return 0.25 + ((t - 6) / 3) * 0.5;
+  if (t < 12) return 0.75 + ((t - 9) / 3) * 0.25;
   return 1;
 }
 
@@ -73,106 +75,222 @@ export function quality(spot: Spot, d: Derived): Quality {
   return { q: potential * wind, potential, factors: { size, period, wind, tide } };
 }
 
-export type Suit = 'good' | 'ok' | 'challenging' | 'unsuitable';
+/* ---------------- peaks ---------------- */
 
-export const LEVELS: Level[] = ['beginner', 'intermediate', 'advanced', 'expert'];
-const LEVEL_RANK: Record<Level, number> = { beginner: 0, intermediate: 1, advanced: 2, expert: 3 };
-const SPOT_REQ: Record<SpotLevel, number> = { beginner: 0, all: 0, intermediate: 1, advanced: 2, expert: 3 };
-/** Breaking height (m) up to which each level is comfortable. Blog/vendor consensus, tune per user. */
-export const SIZE_CAP: Record<Level, number> = { beginner: 1.0, intermediate: 1.8, advanced: 3.0, expert: 6.0 };
+const OVERRIDES = ['level', 'minSize', 'maxSize', 'tide', 'power', 'peel'] as const;
+
+/** Peaks rated on their own (two or more peaks that override a rating field); [] = rate the spot as a whole. */
+export function ratedPeaks(spot: Spot): Peak[] {
+  const own = spot.peaks.filter((p) => OVERRIDES.some((k) => p[k] != null));
+  return own.length >= 2 ? own : [];
+}
+
+/** The spot as this peak sees it: the peak's level, size range, tide, bottom and shape override the spot's. */
+export function peakSpot(spot: Spot, peak: Peak | null | undefined): Spot {
+  if (!peak) return spot;
+  return {
+    ...spot,
+    level: peak.level ?? spot.level,
+    minSize: peak.minSize ?? spot.minSize,
+    maxSize: peak.maxSize ?? spot.maxSize,
+    tide: peak.tide ?? spot.tide,
+    power: peak.power ?? spot.power,
+    peel: peak.peel ?? spot.peel,
+    bottom: peak.bottom ?? spot.bottom,
+    breakType: peak.breakType ?? spot.breakType,
+  };
+}
+
+/* ---------------- suitability: the rules for your skill profile ---------------- */
+
+export type Suit = 'good' | 'ok' | 'stretch' | 'challenging' | 'unsuitable';
+export const SUIT_ORDER: Suit[] = ['good', 'ok', 'stretch', 'challenging', 'unsuitable'];
+export const SUIT_FACTOR: Record<Suit, number> = { good: 1, ok: 0.85, stretch: 0.7, challenging: 0.5, unsuitable: 0 };
+const worse = (a: Suit, b: Suit) => (SUIT_ORDER.indexOf(a) >= SUIT_ORDER.indexOf(b) ? a : b);
+
+export type ReasonKind = 'spot' | 'size' | 'board' | 'period' | 'bottom' | 'shape' | 'wind' | 'paddle' | 'water' | 'summary';
+
+export interface SuitReason {
+  kind: ReasonKind;
+  status: Suit;
+  text: string;
+  /** A point in favour (shown when the hour is good for you). */
+  positive?: boolean;
+}
 
 export interface Suitability {
   status: Suit;
   factor: number;
-  reasons: string[];
+  /** At most three, worst first (plus one positive when good). Size reasons link to "Edit comfort size". */
+  reasons: SuitReason[];
 }
 
-export function suitability(spot: Spot, d: Derived, level: Level): Suitability {
-  const reasons: string[] = [];
-  const rank = LEVEL_RANK[level];
-  let status: Suit = 'good';
-  const worsen = (s: Suit) => {
-    const order: Suit[] = ['good', 'ok', 'challenging', 'unsuitable'];
-    if (order.indexOf(s) > order.indexOf(status)) status = s;
-  };
+const LEVEL_WORD: Record<SpotLevel, string> = { beginner: 'beginner', all: 'basic', intermediate: 'intermediate', advanced: 'advanced', expert: 'expert' };
+/** Words for "Size is fine; it's the …". */
+const CAUSE: Partial<Record<ReasonKind, string>> = {
+  spot: "spot's level",
+  bottom: 'reef',
+  shape: 'hollow waves',
+  wind: 'wind',
+  paddle: 'paddle-out',
+  water: 'missing lifeguard',
+  period: 'long-period swell',
+};
+const OVERHEAD = 2.0;
 
-  if (rank < SPOT_REQ[spot.level]) {
-    worsen('unsuitable');
-    reasons.push(`Spot is rated for ${spot.level} surfers`);
+/**
+ * Is this hour at this spot (or peak, via peakSpot) right for you? Each rule gives a status and a
+ * reason; the worst status wins (good 1 · ok 0.85 · stretch 0.7 · challenging 0.5 · unsuitable 0).
+ * Sizes are face heights compared with your comfortable size C and biggest wave M.
+ */
+export function suitability(spot: Spot, d: Derived, p: SkillProfile, unit: 'm' | 'ft' = 'm'): Suitability {
+  const all: SuitReason[] = [];
+  const add = (kind: ReasonKind, status: Suit, text: string, positive = false) => all.push({ kind, status, text, positive });
+  const h = (m: number) => (unit === 'ft' ? `${Math.round(m * 3.281)} ft` : `${m.toFixed(1)} m`);
+  const st = p.stage;
+  const C = p.comfort;
+  const M = Math.max(p.max, C);
+  const steep = p.steepExp ?? stageInfo(st).steepExp;
+  // Compare the size as it is shown (0.1 m or 1 ft), so a reason never reads "~2.2 m vs 2.2 m".
+  const H = d.hb == null ? null : unit === 'ft' ? Math.round(d.hb * 3.281) / 3.281 : Math.round(d.hb * 10) / 10;
+
+  // The spot's (or peak's) level, as a stage.
+  const req = REQUIRED_STAGE[spot.level];
+  if (req - st > 1) add('spot', 'unsuitable', `This spot needs ${LEVEL_WORD[spot.level]} skills (stage ${req}+). You're stage ${st}.`);
+  else if (req - st === 1) add('spot', 'challenging', `A step up: this spot is usually surfed from stage ${req}. You're stage ${st}.`);
+
+  if (H != null) {
+    if (H <= 0.8 * C) add('size', 'good', `Right in your range: ~${h(H)} (${bodyWord(H)}); you're comfortable to ${bodyWord(C)} (${h(C)}).`, true);
+    else if (H <= C) add('size', 'ok', `Top of your comfort zone: ~${h(H)} vs your ${h(C)} (${bodyWord(C)}).`);
+    else if (H <= M)
+      add(
+        'size',
+        p.wantsChallenge ? 'stretch' : 'challenging',
+        `${p.wantsChallenge ? 'Stretch session: ' : ''}bigger than you're comfortable in, ~${h(H)} vs ${bodyWord(C)} (${h(C)}), but within the ${h(M)} you've caught.`.replace(/^b/, 'B'),
+      );
+    else if (H <= 1.15 * M) add('size', st >= 6 ? 'challenging' : 'unsuitable', `Bigger than anything you've surfed: ~${h(H)} vs your biggest ${h(M)}.`);
+    else add('size', 'unsuitable', `Well beyond your biggest waves: ~${h(H)} vs ${h(M)}.`);
+    if (H > OVERHEAD && st <= 5) add('size', 'challenging', `Overhead sets (~${h(H)}): injury risk rises sharply before stage 6.`);
+
+    const board = boardInfo(p.board);
+    if (H < board.min) add('board', 'ok', `Small for your ${board.label.replace(/ \(.*\)$/, '').toLowerCase()} (~${h(H)}): take something with more volume.`);
+
+    const tp = d.tDom ?? 0;
+    if (tp >= 13 && H > 0.7 * C && st <= 5) add('period', H > C ? 'challenging' : 'ok', `Long-period groundswell (${Math.round(tp)} s peak): sets hit harder than the height suggests.`);
+
+    if (H > spot.maxSize * 1.15) add('spot', st >= 7 ? 'challenging' : 'unsuitable', `Bigger than this spot handles well: ~${h(H)}, it works up to about ${h(spot.maxSize)}.`);
   }
-  const cap = SIZE_CAP[level];
-  if (d.hb != null) {
-    if (d.hb > cap * 1.3) {
-      worsen('unsuitable');
-      reasons.push(`Too big for your level (~${d.hb.toFixed(1)} m)`);
-    } else if (d.hb > cap) {
-      worsen('challenging');
-      reasons.push(`Above your usual size (~${d.hb.toFixed(1)} m)`);
-    } else if (d.hb > cap * 0.8) {
-      worsen('ok');
-      reasons.push('Upper end of your size range');
-    }
-    if (d.hb > spot.maxSize * 1.15) {
-      worsen(level === 'expert' ? 'challenging' : 'unsuitable');
-      reasons.push('Bigger than this spot handles well');
-    }
-    // Long-period swell is far more powerful at the same height.
-    if (rank <= 1 && (d.tDom ?? 0) >= 13 && d.hb > cap * 0.7) {
-      worsen('challenging');
-      reasons.push('Long-period swell: more power than the height suggests');
-    }
-  }
-  if (rank === 0) {
-    if (spot.bottom !== 'sand' && spot.level !== 'beginner' && spot.level !== 'all') {
-      worsen('challenging');
-      reasons.push(`${spot.bottom} bottom`);
-    }
-    const risky = spot.hazards.filter((h) => /rip|current|shallow|rock|urchin|local/i.test(h));
-    if (risky.length) {
-      worsen('ok');
-      reasons.push(`Watch out: ${risky.join(', ')}`);
-    }
-  }
+
+  // Bottom.
+  const hard = spot.bottom === 'reef' || spot.bottom === 'rock';
+  if (hard && p.reefExp === 0) add('bottom', st <= 3 || (H ?? 0) > C ? 'unsuitable' : 'challenging', `${spot.bottom === 'rock' ? 'Rock' : 'Reef'} bottom and you haven't surfed reef yet: wear booties and avoid low tide.`);
+  else if (spot.bottom === 'mixed' && p.reefExp === 0) add('bottom', 'ok', 'Rocks in places: wear booties.');
+  if (spot.bottom === 'sand' && st <= 3) add('bottom', 'good', 'Sand bottom: forgiving falls.', true);
+
+  // Shape of the wave.
+  if ((spot.power === 'hollow' || spot.power === 'slab') && steep === 0)
+    add('shape', (H ?? 0) > C ? 'unsuitable' : 'challenging', `${spot.power === 'slab' ? 'Slabby, shallow' : 'Hollow'} waves with steep take-offs, and you prefer mellow ones.`);
+  if ((spot.peel === 'fast' || spot.peel === 'sectiony') && st <= 3) add('shape', 'challenging', `${spot.peel === 'fast' ? 'Fast' : 'Sectiony'} waves: hard to make before you can ride along the face (stage 4).`);
+  if (spot.power === 'mellow' && st <= 4) add('shape', 'good', 'Mellow, forgiving waves.', true);
+
+  // Wind.
   if (d.windSpeed != null) {
-    if (d.windSpeed > 45) {
-      worsen(rank >= 2 ? 'challenging' : 'unsuitable');
-      reasons.push('Very strong wind');
-    } else if (d.windSpeed > 30 && rank === 0) {
-      worsen('challenging');
-      reasons.push('Strong wind');
-    }
+    const w = `${Math.round(d.windSpeed)} km/h`;
+    if (d.windSpeed > 45) add('wind', st >= 6 ? 'challenging' : 'unsuitable', `Very strong wind (${w}).`);
+    else if (d.windSpeed > 30 && st <= 3) add('wind', 'challenging', `Strong wind (${w}): hard to paddle and stay in position.`);
+    if ((d.uOff ?? 0) > 25 && steep === 0) add('wind', 'ok', `Strong offshore wind (${Math.round(d.uOff!)} km/h): later, steeper take-offs.`);
   }
-  const factor = { good: 1, ok: 0.85, challenging: 0.5, unsuitable: 0 }[status];
-  return { status, factor, reasons };
+
+  // Getting out.
+  if (spot.hazards.some((x) => /rip|current/i.test(x)) && p.paddleOut <= 1)
+    add('paddle', (H ?? 0) > 0.8 * C ? 'challenging' : 'ok', 'Rips and currents here, and getting out is hard for you: go out with someone who knows the spot.');
+  if (H != null && H > C && p.paddleOut <= 1) add('paddle', 'challenging', 'Getting out through sets bigger than your comfort size takes a solid duck-dive or turtle roll.');
+
+  // Water confidence.
+  if (p.waterConfidence && p.waterConfidence !== 'yes' && st <= 3 && !spot.lifeguard)
+    add('water', p.waterConfidence === 'no' ? 'challenging' : 'ok', "No lifeguard here and you're not sure you'd stay calm out of your depth: stay where you can stand.");
+
+  const negatives = all.filter((r) => !r.positive && r.status !== 'good');
+  const status = negatives.reduce<Suit>((a, r) => worse(r.status, a), 'good');
+  negatives.sort((a, b) => SUIT_ORDER.indexOf(b.status) - SUIT_ORDER.indexOf(a.status));
+
+  let reasons = negatives.slice(0, 3);
+  // Mixed causes: say plainly that size is fine when other things drag the hour down.
+  const size = all.find((r) => r.kind === 'size');
+  if ((status === 'challenging' || status === 'unsuitable') && size && (size.status === 'good' || size.status === 'ok')) {
+    const causes = [...new Set(negatives.filter((r) => SUIT_ORDER.indexOf(r.status) >= SUIT_ORDER.indexOf('challenging') && r.kind !== 'size').map((r) => CAUSE[r.kind]).filter(Boolean))];
+    if (causes.length) reasons = [{ kind: 'summary', status, text: `Size is fine; it's the ${causes.slice(0, 2).join(' and the ')}.` }, ...negatives.slice(0, 2)];
+  }
+  if (status === 'good') {
+    const plus = all.find((r) => r.positive);
+    if (plus) reasons = [...reasons, plus];
+  }
+  return { status, factor: SUIT_FACTOR[status], reasons };
 }
 
-/** Recommendability 0-10 for a given level = quality × suitability. */
-export function recommendability(spot: Spot, d: Derived, level: Level): { score: number; quality: Quality; suit: Suitability } {
+/** One line for tooltips: "Top of your comfort zone…; Reef bottom…". */
+export const reasonsText = (s: Suitability) => s.reasons.map((r) => r.text.replace(/\.$/, '')).join('; ');
+
+/** Recommendability 0-10 for your profile = quality × suitability. */
+export function recommendability(spot: Spot, d: Derived, profile: SkillProfile, unit: 'm' | 'ft' = 'm'): { score: number; quality: Quality; suit: Suitability } {
   const qq = quality(spot, d);
-  const suit = suitability(spot, d, level);
+  const suit = suitability(spot, d, profile, unit);
   return { score: qq.q * suit.factor, quality: qq, suit };
+}
+
+/** Colour for a 0–10 score, matching the word ladder below. */
+export interface SpotRating {
+  /** For you: the peak that suits you best (null when the spot is rated as a whole or the peaks don't differ). */
+  peak: Peak | null;
+  score: number;
+  suit: Suitability;
+  /** Spot rating: how good the waves are at the best peak, whoever you are. */
+  quality: Quality;
+}
+
+/** Rates a spot for one hour: per peak when its peaks differ (ratedPeaks), else as a whole. */
+export function rateSpot(spot: Spot, d: Derived, profile: SkillProfile, unit: 'm' | 'ft' = 'm'): SpotRating {
+  const peaks = ratedPeaks(spot);
+  const rated = (peaks.length ? peaks : [null]).map((peak) => ({ peak, r: recommendability(peakSpot(spot, peak), d, profile, unit) }));
+  const mine = rated.reduce((a, b) => (b.r.score > a.r.score ? b : a));
+  const waves = rated.reduce((a, b) => (b.r.quality.q > a.r.quality.q ? b : a));
+  // Name a peak only when the peaks really differ for you this hour.
+  const differ = rated.some((x) => Math.abs(x.r.score - mine.r.score) > 0.05 || x.r.suit.status !== mine.r.suit.status);
+  return { peak: differ ? mine.peak : null, score: mine.r.score, suit: mine.r.suit, quality: waves.r.quality };
 }
 
 export function scoreColor(score: number | null | undefined): string {
   if (score == null) return '#94a3b8';
-  if (score < 1.5) return '#94a3b8';
+  if (score < 2) return '#94a3b8';
   if (score < 3.5) return '#38bdf8';
-  if (score < 5.5) return '#14b8a6';
-  if (score < 7.5) return '#16a34a';
+  if (score < 5) return '#14b8a6';
+  if (score < 6.5) return '#22c55e';
+  if (score <= 9) return '#16a34a';
   return '#ca8a04';
 }
 
+/** Surf-forecast-style word ladder for the spot rating: Poor … Good, and Epic only above 9. */
 export function scoreLabel(score: number): string {
-  if (score < 1.5) return 'flat / poor';
-  if (score < 3.5) return 'poor-fair';
-  if (score < 5.5) return 'fair';
-  if (score < 7.5) return 'good';
-  return 'epic';
+  if (score < 2) return 'Poor';
+  if (score < 3.5) return 'Poor–Fair';
+  if (score < 5) return 'Fair';
+  if (score < 6.5) return 'Fair–Good';
+  if (score <= 9) return 'Good';
+  return 'Epic';
 }
 
 export const SUIT_COLOR: Record<Suit, string> = {
   good: '#16a34a',
   ok: '#65a30d',
+  stretch: '#0891b2',
   challenging: '#d97706',
   unsuitable: '#dc2626',
+};
+
+export const SUIT_LABEL: Record<Suit, string> = {
+  good: 'Good for you',
+  ok: 'OK for you',
+  stretch: 'Stretch session',
+  challenging: 'Challenging',
+  unsuitable: 'Not for you',
 };

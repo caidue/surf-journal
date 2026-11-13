@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { Level, Session, Settings, Spot } from '../types';
+import type { Session, Settings, Spot } from '../types';
 import { saveSettings } from '../db';
 import { useConditions, useMediaQuery } from '../hooks';
 import { bboxAround, bboxOf, inBBox, type BBox } from '../lib/geo';
 import { geocode, parseRegionQuery, PART_LABEL, subBox } from '../lib/geocode';
 import { buildHistory, confidence, explain, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec } from '../lib/recommend';
-import { LEVELS, scoreColor } from '../lib/rating';
+import { scoreColor } from '../lib/rating';
+import { bodyRange, bodyWord } from '../lib/skill';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
 import { fmtFeature, fmtSurfRange, fmtWind } from '../lib/format';
 import { tideLabel, windKind, WIND_LABEL, type Derived } from '../lib/conditions';
@@ -14,7 +15,7 @@ import MapView, { type MapMarker } from './MapView';
 import SpotSheet from './SpotSheet';
 import SpotThumb from './SpotThumb';
 import { Icon } from './icons';
-import { Card, ConditionsStatus, DirArrow, Empty, ScoreBadge, Segmented, SuitBadge } from './ui';
+import { Card, ConditionsStatus, DirArrow, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons } from './ui';
 
 interface Region {
   label: string;
@@ -40,8 +41,6 @@ function storeRegion(r: Region | null) {
     /* private mode */
   }
 }
-
-export const LEVEL_OPTIONS = LEVELS.map((l) => ({ id: l, label: l[0].toUpperCase() + l.slice(1) }));
 
 export default function Explore({ spots, sessions, settings, go }: { spots: Spot[]; sessions: Session[]; settings: Settings; go: (p: string) => void }) {
   const [query, setQuery] = useState(settings.lastQuery ?? DEFAULT_QUERY);
@@ -158,7 +157,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
       const s = bySpot.get(spot.id);
       if (!s) continue;
       const nowMin = dayOffset === 0 ? nowMinutesAt(s.utcOffsetSeconds) : null;
-      out.push(recommendSpotDay(spot, s.hours, s.days, sessions, settings, settings.level, date, today, nowMin));
+      out.push(recommendSpotDay(spot, s.hours, s.days, sessions, settings, settings.profile, date, today, nowMin));
     }
     return out.sort((a, b) => (b.best?.score ?? -1) - (a.best?.score ?? -1));
   }, [regionSpots, bySpot, sessions, settings, date, today, dayOffset]);
@@ -226,7 +225,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
       lon: s.lon,
       color: !inRegion ? '#cbd5e1' : unsuitable ? '#94a3b8' : scoreColor(best?.score ?? null),
       label: !inRegion || !best ? '·' : unsuitable ? '✕' : Math.round(best.score).toString(),
-      title: `${s.name}${best ? ` – best ${best.score.toFixed(1)}/10` : ''}${unsuitable ? ' (not for your level)' : ''}`,
+      title: `${s.name}${best ? ` – best ${best.score.toFixed(1)}/10` : ''}${unsuitable ? ' (not for you)' : ''}`,
       muted: !inRegion || !!unsuitable,
     };
   });
@@ -254,20 +253,15 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
           </button>
         </form>
         <div className="toolbar">
-          <div className="tb-item">
-            <span className="tb-label">Level</span>
-            {phone ? (
-              <select value={settings.level} onChange={(e) => saveSettings({ level: e.target.value as Level })} aria-label="Your level">
-                {LEVEL_OPTIONS.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <Segmented options={LEVEL_OPTIONS} value={settings.level} onChange={(l: Level) => saveSettings({ level: l })} />
-            )}
-          </div>
+          {settings.profile && (
+            <div className="tb-item">
+              <span className="tb-label">You</span>
+              <button className="tb-you" onClick={() => go('settings')} title="Your surfing: stage and the size you're comfortable in. Change it under Settings.">
+                Stage {settings.profile.stage}
+                {phone ? '' : ` · comfortable to ${bodyWord(settings.profile.comfort)}`}
+              </button>
+            </div>
+          )}
           <div className="tb-item">
             <span className="tb-label">Day</span>
             <Segmented options={dayOptions} value={String(dayOffset)} onChange={(v) => setDayOffset(Number(v))} />
@@ -315,7 +309,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
               </div>
               {picks.length === 0 ? (
                 <p className="muted small">
-                  {darkNow ? "It's dark at the spots right now. Switch to Today, or look at tomorrow." : 'Nothing really works for your level right now. Switch to Today to see the best times later.'}
+                  {darkNow ? "It's dark at the spots right now. Switch to Today, or look at tomorrow." : 'Nothing really works for you right now. Switch to Today to see the best times later.'}
                 </p>
               ) : (
                 <ol className="pick-list">
@@ -340,14 +334,20 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                             </>
                           )
                         )}
-                        <span>
+                        <span title={hour.derived.hb != null ? bodyRange(hour.derived.hb * 0.8, hour.derived.hb * 1.2) : undefined}>
                           <strong>{fmtSurfRange(hour.derived.hb, settings.heightUnit)}</strong>
+                          {hour.derived.tDom ? ` · ${Math.round(hour.derived.tDom)} s` : ''}
                         </span>
                         <span>
                           {WIND_LABEL[windKind(hour.derived) ?? 'glassy']} {fmtWind(hour.derived.windSpeed, settings.windUnit)}
                         </span>
                         <span>tide {tideLabel(hour.derived.tideNorm, hour.derived.tideTrend)}</span>
                       </div>
+                      {hour.peak && (
+                        <div className="peak-pick">
+                          Best for you: <strong>{hour.peak.name}</strong>
+                        </div>
+                      )}
                       {/* The top pick also says why; the others stay compact. */}
                       {i === 0 && (
                         <ul className="explain">
@@ -360,6 +360,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                         <SuitBadge status={hour.suit.status} />
                         <span className="muted small">confidence: {confidence(hour.pred)}</span>
                       </div>
+                      {i === 0 && <SuitReasons suit={hour.suit} />}
                     </li>
                   ))}
                 </ol>
@@ -382,7 +383,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                 </>
               ) : (
                 <>
-                  <strong>Nothing really works for your level {dayOffset === 0 ? 'today' : 'that day'}.</strong>
+                  <strong>Nothing really works for you {dayOffset === 0 ? 'today' : 'that day'}.</strong>
                   <p className="muted small">Check the spots below for details, or try another day.</p>
                 </>
               )}
@@ -413,7 +414,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                   {show ? (
                     <div className="cond-line">
                       <span className="muted small">{r?.now && dayOffset === 0 ? 'Now' : `At ${fmtMin(isoToMin(show.time) ?? 0)}`}:</span>
-                      <span>
+                      <span title={show.derived.hb != null ? bodyRange(show.derived.hb * 0.8, show.derived.hb * 1.2) : undefined}>
                         <strong>{fmtSurfRange(show.derived.hb, settings.heightUnit)}</strong> {show.derived.tDom ? `${Math.round(show.derived.tDom)} s` : ''}{' '}
                         <DirArrow from={show.derived.dirDom} />
                       </span>
@@ -428,6 +429,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                   {r?.best && (
                     <div className="row gap wrap">
                       <SuitBadge status={r.best.suit.status} />
+                      {r.best.peak && <span className="small">best for you: {r.best.peak.name}</span>}
                       {r.bestWindow && r.best.score > 0.5 && (
                         <span className="small">
                           best {fmtMin(r.bestWindow[0])}–{fmtMin(r.bestWindow[1])}
@@ -557,7 +559,7 @@ function SpotHead({ spot, score, scoreTitle, onOpen }: { spot: Spot; score: numb
           {spot.name}
         </button>
         <div className="muted small">
-          {spot.breakType} · {spot.bottom} · level: {spot.level}
+          {spot.breakType} · {spot.bottom} · {spot.level === 'all' ? 'all levels' : spot.level}
           {spot.peaks.length > 1 ? ` · ${spot.peaks.length} peaks` : ''}
         </div>
       </div>

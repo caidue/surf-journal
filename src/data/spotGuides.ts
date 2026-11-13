@@ -361,6 +361,69 @@ export const SPOT_GUIDES: Record<string, { peaks: Peak[]; guide: SpotGuide }> = 
       ]
     }
   },
+  "fv-suicides": {
+    "peaks": [
+      {
+        "id": "main",
+        "name": "Main reef",
+        "description": "Fast, hollow and powerful over sharp lava, breaking close to rocks. Mostly rights (surf-forecast), with a left section too (Wannasurf). Rides are short, about 50–150 m.",
+        "breakType": "reef",
+        "bottom": "reef",
+        "direction": "right and left",
+        "level": "expert",
+        "goodWhen": "Mid to high tide on a NW–NNW swell with S–SE (offshore) wind."
+      },
+      {
+        "id": "inside-left",
+        "name": "Inside left",
+        "description": "The less risky of the two sections, though still shallow lava with rocks close by.",
+        "breakType": "reef",
+        "bottom": "reef",
+        "direction": "left",
+        "level": "advanced",
+        "goodWhen": "Mid to high tide on a NW swell with S–SE wind."
+      }
+    ],
+    "guide": {
+      "season": [
+        1,
+        2,
+        3,
+        11,
+        12
+      ],
+      "seasonNote": "Winter NW swells; mostly flat in summer.",
+      "boards": [
+        "shortboard",
+        "step-up on bigger days",
+        "bodyboard (popular with locals)"
+      ],
+      "access": {
+        "paddleOut": "From the lava shelf straight onto the reef; on bigger swells even getting into the water is hard.",
+        "paddleIn": "Wait for a lull and come in where you went out: rocks sit close to both sections.",
+        "easier": "Mid to high tide, with more water over the reef.",
+        "harder": "Low tide and big swells."
+      },
+      "warnings": [
+        "experts only",
+        "sharp, shallow lava reef",
+        "rocks close to both sections",
+        "rips and undertow",
+        "respect the locals, bodyboarders included"
+      ],
+      "parking": "Take the North Shore dirt track west from Corralejo to the lava field by the coast, then under 5 minutes on foot. Don't leave valuables in the car.",
+      "facilities": [
+        "no facilities",
+        "nearest cafés and shops in Corralejo, about 3–4 km"
+      ],
+      "sources": [
+        "https://en.wannasurf.com/spot/Europe/Canary/Fuerte_Ventura/suicidios/index.html",
+        "https://www.surf-forecast.com/breaks/Suicides_2",
+        "https://www.surf-forecast.com/regions/Fuerteventura",
+        "https://www.openstreetmap.org/"
+      ]
+    }
+  },
   "fv-la-caleta": {
     "peaks": [
       {
@@ -1066,6 +1129,112 @@ export const SPOT_GUIDES: Record<string, { peaks: Peak[]; guide: SpotGuide }> = 
         "https://www.surf-forecast.com/breaks/Spew-Pits",
         "https://www.worldbeachguide.com/spain/surf/spew-pits.htm",
         "https://www.windsurf.co.uk/featured/boss-beach/4/"
+      ]
+    }
+  },
+  "fv-playa-los-matos": {
+    "peaks": [
+      {
+        "id": "main",
+        "name": "Playa los Matos",
+        "description": "Open beach break in front of the dunes with shifting sandbar peaks, lefts and rights. Gentle on small days.",
+        "breakType": "beach",
+        "bottom": "sand",
+        "direction": "left and right",
+        "level": "all",
+        "goodWhen": "Any tide on a N–NE swell with light W–SW (offshore) wind, ideally early before the NE trades."
+      }
+    ],
+    "guide": {
+      "season": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "seasonNote": "Like the other dune beaches: mainly spring–summer N–NE swell; winter needs a big N–NW swell to wrap in.",
+      "boards": [
+        "soft-top",
+        "longboard or mid-length",
+        "fish on punchier days"
+      ],
+      "access": {
+        "paddleOut": "Straight out from the sand between sets; there is no reef to cross.",
+        "paddleIn": "Ride a wave in to the beach; watch the drift along the shore.",
+        "easier": "Small days and mornings, before the trade wind gets up.",
+        "harder": "Big N swells (heavy shorebreak, strong drift) and windy afternoons."
+      },
+      "warnings": [
+        "shorebreak on bigger swells",
+        "currents and drift along the beach",
+        "NE trade winds blow it out in the afternoon"
+      ],
+      "parking": "Roadside parking along the FV-1 dune road; never drive onto the dunes.",
+      "facilities": [
+        "no cafés or toilets on the sand",
+        "Corralejo town about 4–5 km north"
+      ],
+      "sources": [
+        "https://www.surfline.com/surf-report/playa-los-matos/640b893a4878eb50bf195f71",
+        "https://thesurfatlas.com/surfing-in-canary-islands/corralejo-surf/",
+        "https://www.spain.info/es/playa/grandes-playas-corralejo/",
+        "https://www.openstreetmap.org/"
+      ]
+    }
+  },
+  "fv-corralejo-beach": {
+    "peaks": [
+      {
+        "id": "main",
+        "name": "Corralejo Beach",
+        "description": "The long Grandes Playas south of town: shifting sand peaks, lefts and rights. Friendly on small days; a heavy shorebreak when a big N swell wraps in.",
+        "breakType": "beach",
+        "bottom": "sand",
+        "direction": "left and right",
+        "level": "all",
+        "goodWhen": "Any tide on a N–NE swell with light W–SW (offshore) wind, ideally early before the NE trades."
+      }
+    ],
+    "guide": {
+      "season": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "seasonNote": "Like the other dune beaches: mainly spring–summer N–NE swell; winter needs a big N–NW swell to wrap in.",
+      "boards": [
+        "soft-top",
+        "longboard or mid-length",
+        "fish on punchier days"
+      ],
+      "access": {
+        "paddleOut": "Straight out from the sand between sets; there is no reef to cross.",
+        "paddleIn": "Ride a wave in to the beach; watch the drift along the shore.",
+        "easier": "Small days and mornings, before the trade wind gets up.",
+        "harder": "Big N swells (heavy shorebreak, strong drift) and windy afternoons."
+      },
+      "warnings": [
+        "shorebreak on bigger swells",
+        "currents and drift along the beach",
+        "no lifeguard on most of the beach",
+        "NE trade winds blow it out in the afternoon"
+      ],
+      "parking": "Parking along the FV-1 dune road; never drive onto the dunes.",
+      "facilities": [
+        "showers at the beach entrance",
+        "sunbed and parasol hire at Bajo Negro, in front of the hotels",
+        "Corralejo town about 4–5 km north"
+      ],
+      "sources": [
+        "https://www.surfline.com/surf-report/corralejo-beach/584204204e65fad6a77096a4",
+        "https://hellocanaryislands.com/beaches/fuerteventura/corralejo-beach",
+        "https://thesurfatlas.com/surfing-in-canary-islands/corralejo-beaches/",
+        "https://www.openstreetmap.org/"
       ]
     }
   },

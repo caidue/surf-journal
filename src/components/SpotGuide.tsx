@@ -51,7 +51,16 @@ export default function SpotGuide({ spot, compact }: { spot: Spot; compact?: boo
           <h4>{spot.peaks.length === 1 ? 'The wave' : `The peaks (${spot.peaks.length})`}</h4>
           <div className="peak-cards">
             {spot.peaks.map((p) => {
-              const tags = [p.breakType && `${p.breakType} break`, p.bottom && `${p.bottom} bottom`, p.direction, p.level && `level: ${p.level}`].filter(Boolean) as string[];
+              const tags = [
+                p.breakType && `${p.breakType} break`,
+                p.bottom && `${p.bottom} bottom`,
+                p.direction,
+                p.level && (p.level === 'all' ? 'all levels' : p.level),
+                p.power,
+                p.peel && `${p.peel} peel`,
+                p.tide && (p.tide === 'all' ? 'all tides' : `${p.tide} tide`),
+                p.minSize != null && p.maxSize != null ? `${p.minSize}–${p.maxSize} m` : p.minSize != null ? `from ${p.minSize} m` : p.maxSize != null ? `up to ${p.maxSize} m` : null,
+              ].filter(Boolean) as string[];
               return (
                 <div key={p.id} className="peak-card">
                   <strong>{p.name}</strong>

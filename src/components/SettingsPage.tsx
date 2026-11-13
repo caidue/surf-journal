@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import type { Session, Settings, Spot } from '../types';
-import { db, exportAll, importAll, saveSettings, type Backup } from '../db';
+import type { Session, Settings, SkillProfile, Spot } from '../types';
+import { CONDITIONS_VERSION } from '../types';
+import { db, exportAll, importAll, refreshSeedSpots, saveSettings, type Backup } from '../db';
 import { SEED_SPOTS } from '../data/seedSpots';
 import { addDemoSessions, removeDemoSessions } from '../lib/demo';
-import { uid } from '../lib/time';
-import { Card, LevelPicker, Segmented } from './ui';
+import { todayAt, uid } from '../lib/time';
+import { boardInfo, bodyWord, PADDLE_OPTIONS, profileCheck, profileSummary, REEF_OPTIONS, rustyOffer, STEEP_OPTIONS, stageInfo, undoLastChange, WATER_OPTIONS } from '../lib/skill';
+import { Card, Segmented } from './ui';
 import { isIOS, promptInstall, requestPersistence, storageStatus, usePwa } from '../lib/pwa';
 import { syncPendingSessions } from '../lib/sync';
 import { useDebounced } from './SpotPicker';
@@ -18,7 +20,7 @@ function PhoneCard({ sessions }: { sessions: Session[] }) {
   useEffect(() => {
     storageStatus().then(setStore);
   }, [sessions.length]);
-  const pending = sessions.filter((s) => s.conditionsPending || !s.conditions.length).length;
+  const pending = sessions.filter((s) => s.conditionsPending || !s.conditions.length || s.conditionsVersion !== CONDITIONS_VERSION).length;
 
   return (
     <Card>
@@ -87,13 +89,113 @@ function PhoneCard({ sessions }: { sessions: Session[] }) {
   );
 }
 
+/** Your surfing: the skill profile every recommendation is checked against. */
+function ProfileCard({ settings, sessions, go }: { settings: Settings; sessions: Session[]; go: (p: string) => void }) {
+  const p = settings.profile;
+  if (!p)
+    return (
+      <Card>
+        <h3>Your surfing</h3>
+        <p className="small">Answer a few questions so the app knows which waves suit you.</p>
+        <button className="btn primary" onClick={() => go('surfing')}>
+          Set up your surfing
+        </button>
+      </Card>
+    );
+  const unit = settings.heightUnit;
+  const h = (m: number) => (unit === 'ft' ? `${Math.round(m * 3.281)} ft` : `${m.toFixed(1)} m`);
+  const check = profileCheck(p);
+  const rusty = rustyOffer(p, sessions, todayAt());
+  const save = (patch: Partial<SkillProfile>) => saveSettings({ profile: { ...p, ...patch, updatedAt: Date.now() } });
+  const edit = (step: string) => (
+    <a href={`#/surfing?step=${step}`} className="small">
+      Edit
+    </a>
+  );
+  return (
+    <Card className="profile-card" id="your-surfing">
+      <div className="section-head">
+        <h3>Your surfing</h3>
+        <button className="btn small" onClick={() => go('surfing')}>
+          Edit all
+        </button>
+      </div>
+      <p className="profile-line">{profileSummary(p, unit)}</p>
+      <dl className="profile-facts">
+        <dt>Stage</dt>
+        <dd>
+          {p.stage}: {stageInfo(p.stage).title} {edit('stage')}
+        </dd>
+        <dt>Comfortable in</dt>
+        <dd>
+          {bodyWord(p.comfort)} ({h(p.comfort)}) {edit('comfort')}
+        </dd>
+        <dt>Biggest caught</dt>
+        <dd>
+          {bodyWord(Math.max(p.max, p.comfort))} ({h(Math.max(p.max, p.comfort))}) {edit('max')}
+        </dd>
+        <dt>Board</dt>
+        <dd>
+          {boardInfo(p.board).label} {edit('board')}
+        </dd>
+        <dt>Reef</dt>
+        <dd>
+          {REEF_OPTIONS[p.reefExp].label} {edit('reef')}
+        </dd>
+        <dt>Getting out</dt>
+        <dd>
+          {PADDLE_OPTIONS[p.paddleOut].label} {edit('paddle')}
+        </dd>
+        <dt>Steep waves</dt>
+        <dd>
+          {p.steepExp != null ? STEEP_OPTIONS[p.steepExp].label : 'not answered'} {edit('steep')}
+        </dd>
+        <dt>Out of your depth</dt>
+        <dd>
+          {p.waterConfidence ? WATER_OPTIONS.find((o) => o.v === p.waterConfidence)?.label : 'not answered'} {edit('water')}
+        </dd>
+      </dl>
+      <label className="row gap" style={{ alignItems: 'flex-start' }}>
+        <input type="checkbox" checked={!!p.wantsChallenge} onChange={(e) => save({ wantsChallenge: e.target.checked })} />
+        <span className="small">
+          I want to push my limits: waves between your comfortable size and the biggest you've caught show as “Stretch session”.
+        </span>
+      </label>
+      {check && <div className="alert soft">{check}</div>}
+      {rusty != null && (
+        <div className="alert info">
+          It's been more than six months since your last session. Lower your comfortable size to {bodyWord(rusty)} ({h(rusty)}) for now?{' '}
+          <button className="link" onClick={() => save({ comfort: rusty })}>
+            Lower it
+          </button>{' '}
+          ·{' '}
+          <button className="link" onClick={() => save({})}>
+            Keep {h(p.comfort)}
+          </button>
+        </div>
+      )}
+      {p.lastChange && (
+        <div className="small muted">
+          Last change from a session ({new Date(p.lastChange.at).toLocaleDateString()}): {p.lastChange.reasons.join(' ')}{' '}
+          <button className="link" onClick={() => saveSettings({ profile: undoLastChange(p) })}>
+            Undo
+          </button>
+        </div>
+      )}
+      <p className="muted tiny">
+        Sessions you log with “How did it feel?” nudge your comfortable size and biggest wave in small steps. Your stage only changes when you change it.
+      </p>
+    </Card>
+  );
+}
+
 /** Add, edit and restore spots (the spot editor opens from here). */
 function SpotsCard({ spots, sessions, go, run }: { spots: Spot[]; sessions: Session[]; go: (p: string) => void; run: (label: string, fn: () => Promise<string>) => void }) {
   const [q, setQ] = useState('');
   const query = useDebounced(q);
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const list = spots
-    .filter((s) => words.every((w) => `${s.name} ${s.region}`.toLowerCase().includes(w)))
+    .filter((s) => words.every((w) => `${s.name} ${(s.aliases ?? []).join(' ')} ${s.region}`.toLowerCase().includes(w)))
     .sort((a, b) => a.region.localeCompare(b.region) || a.name.localeCompare(b.name));
   const count = (id: string) => sessions.filter((s) => s.spotId === id).length;
   return (
@@ -128,7 +230,7 @@ function SpotsCard({ spots, sessions, go, run }: { spots: Spot[]; sessions: Sess
         className="btn small"
         onClick={() =>
           run('seed', async () => {
-            await db.spots.bulkPut(SEED_SPOTS);
+            await refreshSeedSpots();
             return `Restored ${SEED_SPOTS.length} built-in Fuerteventura spots (your own spots are kept).`;
           })
         }
@@ -173,12 +275,10 @@ export default function SettingsPage({ settings, spots, sessions, go }: { settin
     <div className="page narrow">
       <h1>Settings</h1>
 
+      <ProfileCard settings={settings} sessions={sessions} go={go} />
+
       <Card>
-        <h3>You</h3>
-        <div className="field">
-          <span>Surf level</span>
-          <LevelPicker value={settings.level} onChange={(l) => saveSettings({ level: l })} />
-        </div>
+        <h3>Units</h3>
         <div className="form-grid">
           <label>
             Wave height
@@ -186,7 +286,15 @@ export default function SettingsPage({ settings, spots, sessions, go }: { settin
           </label>
           <label>
             Wind
-            <Segmented options={[{ id: 'kmh', label: 'km/h' }, { id: 'kn', label: 'knots' }]} value={settings.windUnit} onChange={(v) => saveSettings({ windUnit: v })} />
+            <Segmented
+              options={[
+                { id: 'kmh', label: 'km/h' },
+                { id: 'kn', label: 'knots' },
+                { id: 'mph', label: 'mph' },
+              ]}
+              value={settings.windUnit}
+              onChange={(v) => saveSettings({ windUnit: v })}
+            />
           </label>
         </div>
       </Card>
@@ -214,7 +322,7 @@ export default function SettingsPage({ settings, spots, sessions, go }: { settin
             <span className="muted tiny">Use after a big jump in skill. Individual sessions can also be marked “not relevant” in the journal.</span>
           </label>
         </div>
-        <p className="muted small">Sessions logged at a different skill level automatically count less (½ for one level apart).</p>
+        <p className="muted small">Sessions logged at a different surfing stage automatically count less (¾ one stage apart, ½ two, ¼ more).</p>
       </Card>
 
       <Card>
@@ -301,14 +409,18 @@ export default function SettingsPage({ settings, spots, sessions, go }: { settin
         <h3>About the data</h3>
         <ul className="small">
           <li>
-            Wave, swell, tide (sea level) and wind data: <a href="https://open-meteo.com/">Open-Meteo.com</a>, CC BY 4.0 (free for non-commercial use).
+            Wave, swell, tide (sea level) and wind data: <a href="https://open-meteo.com/">Open-Meteo.com</a>, CC BY 4.0 (free for non-commercial use). Wave height from Météo-France
+            MFWAM, peak period from ECMWF WAM, swell trains from NOAA GFS-Wave. Periods are peak periods, the ones surf sites show.
           </li>
           <li>
             Map: <a href="https://openfreemap.org/">OpenFreeMap</a>, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. Place search:{' '}
             <a href="https://nominatim.org/">Nominatim</a>.
           </li>
           <li>Surf height at a spot is an estimate from offshore model data (Komar–Gaughan breaker formula, swell window, spot factor). Calibrate it by noting the size you saw.</li>
-          <li>Spot details for Fuerteventura were compiled from public spot guides; several locations are approximate. Check local conditions and your own limits before paddling out.</li>
+          <li>
+            Spot names follow Surfline where Surfline has the spot (other names are searchable). Spot details were compiled from public spot guides; several locations are
+            approximate. Check local conditions and your own limits before paddling out.
+          </li>
         </ul>
       </Card>
     </div>

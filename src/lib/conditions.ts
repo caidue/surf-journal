@@ -1,4 +1,4 @@
-import type { HourConditions, Spot } from '../types';
+import type { HourConditions, Spot, WaveTrain } from '../types';
 import { angdiff, toRad } from './geo';
 
 /**
@@ -10,7 +10,7 @@ export interface Derived {
   time: string;
   /** Estimated breaking wave height at the spot (m). */
   hb: number | null;
-  /** Energy-weighted dominant period (s) and direction (deg) of the swell reaching the spot. */
+  /** Energy-weighted dominant PEAK period (s) and direction (deg) of the swell reaching the spot. */
   tDom: number | null;
   dirDom: number | null;
   /** Offshore-model "energy" proxy Σ a·H²·T. */
@@ -46,20 +46,20 @@ export function exposure(spot: Pick<Spot, 'idealSwellDir' | 'swellWindow'>, dir:
   return 0.5 * (1 + Math.cos((Math.PI * (d - core)) / (w - core)));
 }
 
-interface Partition {
+export interface Partition {
   h: number;
+  /** Peak period (s). */
   t: number;
   dir: number;
+  /** Wind sea counts 0.7: short, disorganised waves break weaker than swell of the same height. */
   weight: number;
+  kind: WaveTrain['kind'];
 }
 
+/** The hour's swell trains and wind sea; the total sea when the model has no trains (flat or old data). */
 export function partitions(c: HourConditions): Partition[] {
-  const out: Partition[] = [];
-  if (c.swellH != null && c.swellPer != null && c.swellDir != null) out.push({ h: c.swellH, t: c.swellPer, dir: c.swellDir, weight: 1 });
-  if (c.swell2H != null && c.swell2Per != null && c.swell2Dir != null) out.push({ h: c.swell2H, t: c.swell2Per, dir: c.swell2Dir, weight: 1 });
-  if (c.windWaveH != null && c.windWavePer != null && c.windWaveDir != null) out.push({ h: c.windWaveH, t: c.windWavePer, dir: c.windWaveDir, weight: 0.7 });
-  // Older archive data (ERA5) has no partitions: fall back to the total sea state.
-  if (!out.length && c.waveH != null && c.wavePer != null && c.waveDir != null) out.push({ h: c.waveH, t: c.wavePer, dir: c.waveDir, weight: 1 });
+  const out: Partition[] = (c.trains ?? []).map((t) => ({ h: t.h, t: t.tp, dir: t.dir, weight: t.kind === 'wind' ? 0.7 : 1, kind: t.kind }));
+  if (!out.length && c.waveH != null && c.waveTp != null && c.waveDir != null) out.push({ h: c.waveH, t: c.waveTp, dir: c.waveDir, weight: 1, kind: 'swell' });
   return out;
 }
 
@@ -177,21 +177,39 @@ export function tideLabel(norm: number | null, trend: number | null): string {
 
 /* ---------- wave energy & tide extremes (for the hourly forecast table) ---------- */
 
-/** ρ g² / (16 π) in kJ: energy of one wave per metre of crest is ≈ 1.96 · H² · T² kJ (H in m, T in s). */
+/** ρ g² / (16 π) in kJ: energy of one wave per metre of crest is ≈ 1.96 · H² · T² kJ (H in m, T = peak period in s). */
 const ENERGY_K = (1025 * 9.81 * 9.81) / (16 * Math.PI) / 1000;
 
+/** Wave energy (kJ per metre of crest) of one train: 1.96 · H² · Tp², the number surf-forecast.com shows. */
+export function trainEnergyKJ(h: number, tp: number): number {
+  return ENERGY_K * h * h * tp * tp;
+}
+
+export interface TrainInfo extends Partition {
+  kj: number;
+}
+
+/** The hour's trains with their energy, most energetic first. */
+export function trainsByEnergy(c: HourConditions): TrainInfo[] {
+  return partitions(c)
+    .map((p) => ({ ...p, kj: trainEnergyKJ(p.h, p.t) }))
+    .sort((a, b) => b.kj - a.kj);
+}
+
 /**
- * Wave energy of the Open-Meteo grid cell (kJ per metre of wave crest): the sum over the cell's
- * swell trains and wind sea of 1.96 · H² · T². It depends only on the model cell, not on the spot,
- * so every spot whose forecast comes from the same cell shows the same value. Long-period swell
- * carries far more energy than the same height of short wind sea.
+ * Headline wave energy (kJ per metre of crest) of the Open-Meteo grid cell: the MOST ENERGETIC
+ * train, as surf-forecast.com shows it (not the sum). It depends only on the model cell, not on
+ * the spot, so every spot whose forecast comes from the same cell shows the same value.
+ * Rough guide: ~100 kJ barely surfable, 200–1,000 increasingly punchy, 1,000–5,000+ heavy.
  */
 export function waveEnergyKJ(c: HourConditions): number | null {
-  const parts = partitions(c);
-  if (!parts.length) return null;
-  let e = 0;
-  for (const p of parts) e += ENERGY_K * p.h * p.h * p.t * p.t;
-  return e;
+  return trainsByEnergy(c)[0]?.kj ?? null;
+}
+
+/** Sum over all trains (shown as a tooltip next to the headline). */
+export function totalEnergyKJ(c: HourConditions): number | null {
+  const t = trainsByEnergy(c);
+  return t.length ? t.reduce((a, p) => a + p.kj, 0) : null;
 }
 
 export interface TideExtreme {

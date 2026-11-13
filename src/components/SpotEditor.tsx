@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Bottom, BreakType, Peak, Session, Spot, SpotGuide, SpotLevel, TidePref } from '../types';
+import type { Bottom, BreakType, Peak, Peel, Power, Session, Spot, SpotGuide, SpotLevel, TidePref } from '../types';
 import { db } from '../db';
 import { compass } from '../lib/geo';
 import { uid } from '../lib/time';
@@ -30,6 +30,9 @@ function DirInput({ label, value, onChange, help }: { label: string; value: numb
   );
 }
 
+const POWER: Power[] = ['mellow', 'punchy', 'hollow', 'slab'];
+const PEEL: Peel[] = ['slow', 'medium', 'fast', 'sectiony'];
+
 export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?: Spot; sessions: Session[]; regions: string[]; go: (p: string) => void; at?: { lat: number; lon: number } }) {
   const [s, setS] = useState<Spot>(
     spot ?? {
@@ -56,6 +59,7 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
     },
   );
   const [hazardText, setHazardText] = useState(s.hazards.join(', '));
+  const [aliasText, setAliasText] = useState((s.aliases ?? []).join(', '));
   const [guide, setGuide] = useState<SpotGuide>(spot?.guide ?? {});
   const setG = <K extends keyof SpotGuide>(k: K, v: SpotGuide[K]) => setGuide((g) => ({ ...g, [k]: v }));
   const setAccess = (k: 'paddleOut' | 'paddleIn' | 'easier' | 'harder', v: string) => setGuide((g) => ({ ...g, access: { ...g.access, [k]: v } }));
@@ -79,7 +83,22 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
       facilities: lines(facText),
       boards: boardText.split(',').map((b) => b.trim()).filter(Boolean),
     };
-    await db.spots.put({ ...s, name: s.name.trim(), region: s.region.trim() || 'My spots', hazards, peaks, guide: g, updatedAt: Date.now() });
+    const aliases = aliasText
+      .split(',')
+      .map((a) => a.trim())
+      .filter(Boolean);
+    const ext = { surfline: s.externalIds?.surfline?.trim() || undefined, surfForecast: s.externalIds?.surfForecast?.trim() || undefined };
+    await db.spots.put({
+      ...s,
+      name: s.name.trim(),
+      region: s.region.trim() || 'My spots',
+      aliases: aliases.length ? aliases : undefined,
+      externalIds: ext.surfline || ext.surfForecast ? ext : undefined,
+      hazards,
+      peaks,
+      guide: g,
+      updatedAt: Date.now(),
+    });
     go('settings');
   };
 
@@ -112,6 +131,25 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
             </datalist>
           </label>
         </div>
+        <label className="field">
+          Also called (comma separated)
+          <input value={aliasText} onChange={(e) => setAliasText(e.target.value)} placeholder="other names people use; search finds them all" />
+        </label>
+        <div className="form-grid">
+          <label>
+            Surfline spot
+            <input
+              value={s.externalIds?.surfline ?? ''}
+              onChange={(e) => set('externalIds', { ...s.externalIds, surfline: e.target.value })}
+              placeholder="slug/id, e.g. majanicho/584204204e65fad6a77096a2"
+            />
+          </label>
+          <label>
+            surf-forecast.com break
+            <input value={s.externalIds?.surfForecast ?? ''} onChange={(e) => set('externalIds', { ...s.externalIds, surfForecast: e.target.value })} placeholder="e.g. Majanicho" />
+          </label>
+        </div>
+        {!s.custom && <p className="muted tiny">A built-in spot: app updates refresh its details (your sessions stay).</p>}
         <p className="muted small">Tap or click the map, or drag the marker, to where the waves break (not the car park).</p>
         <MapView
           markers={[{ id: s.id, lat: s.lat, lon: s.lon, color: '#0b6e99', label: '●', title: s.name || 'New spot', draggable: true }]}
@@ -170,6 +208,24 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
           <span>Suitable from level</span>
           <Chips small options={(['beginner', 'all', 'intermediate', 'advanced', 'expert'] as SpotLevel[]).map((t) => ({ id: t, label: t }))} value={s.level} onChange={(v) => v && set('level', v)} />
         </div>
+        <div className="field">
+          <span>Wave shape</span>
+          <Chips small options={POWER.map((t) => ({ id: t, label: t }))} value={s.power} onChange={(v) => set('power', v ?? undefined)} />
+        </div>
+        <div className="field">
+          <span>Peels</span>
+          <Chips small options={PEEL.map((t) => ({ id: t, label: t }))} value={s.peel} onChange={(v) => set('peel', v ?? undefined)} />
+        </div>
+        <div className="field">
+          <span>Crowds · localism</span>
+          <div className="row gap wrap">
+            <Chips small options={(['low', 'medium', 'high'] as const).map((t) => ({ id: t, label: `${t} crowds` }))} value={s.crowd} onChange={(v) => set('crowd', v ?? undefined)} />
+            <Chips small options={(['none', 'some', 'strong'] as const).map((t) => ({ id: t, label: `${t} localism` }))} value={s.localism} onChange={(v) => set('localism', v ?? undefined)} />
+          </div>
+        </div>
+        <label className="check">
+          <input type="checkbox" checked={!!s.lifeguard} onChange={(e) => set('lifeguard', e.target.checked)} /> lifeguard on duty (usually)
+        </label>
         <label className="field">
           Hazards (comma separated)
           <input value={hazardText} onChange={(e) => setHazardText(e.target.value)} placeholder="shallow reef, rips, urchins" />
@@ -182,7 +238,9 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
 
       <Card>
         <h3>Peaks / waves at this spot</h3>
-        <p className="muted small">Add peaks (e.g. Inside and Outside) to record how long you spent at each during a session.</p>
+        <p className="muted small">
+          Peaks show in the guide. Give two or more peaks their own level, size range, tide or wave shape and the forecast rates each one and tells you which suits you best.
+        </p>
         {s.peaks.map((p, i) => (
           <div key={p.id} className="peak-edit">
             <div className="row gap">
@@ -199,6 +257,14 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
               <Chips small options={['left', 'right', 'left and right'].map((t) => ({ id: t, label: t }))} value={p.direction} onChange={(v) => setPeak(i, { direction: v ?? undefined })} />
             </div>
             <Chips small options={(['beginner', 'all', 'intermediate', 'advanced', 'expert'] as SpotLevel[]).map((t) => ({ id: t, label: t }))} value={p.level} onChange={(v) => setPeak(i, { level: v ?? undefined })} />
+            <div className="row gap wrap small">
+              <span>Works from / up to (m)</span>
+              <input type="number" step={0.1} min={0.1} value={p.minSize ?? ''} placeholder={String(s.minSize)} onChange={(e) => setPeak(i, { minSize: e.target.value === '' ? undefined : Number(e.target.value) })} style={{ width: 72 }} aria-label="Peak works from (m)" />
+              <span>–</span>
+              <input type="number" step={0.1} min={0.2} value={p.maxSize ?? ''} placeholder={String(s.maxSize)} onChange={(e) => setPeak(i, { maxSize: e.target.value === '' ? undefined : Number(e.target.value) })} style={{ width: 72 }} aria-label="Peak works up to (m)" />
+            </div>
+            <Chips small options={(['low', 'low-mid', 'mid', 'mid-high', 'high', 'all'] as TidePref[]).map((t) => ({ id: t, label: `${t} tide` }))} value={p.tide} onChange={(v) => setPeak(i, { tide: v ?? undefined })} />
+            <Chips small options={POWER.map((t) => ({ id: t, label: t }))} value={p.power} onChange={(v) => setPeak(i, { power: v ?? undefined })} />
           </div>
         ))}
         <button className="btn small" onClick={() => set('peaks', [...s.peaks, { id: uid(), name: s.peaks.length === 0 ? 'Inside' : s.peaks.length === 1 ? 'Outside' : '' }])}>

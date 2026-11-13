@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { DayInfo, HourConditions, Level, Session, SessionFields, Settings, Spot } from '../types';
+import type { DayInfo, HourConditions, Session, SessionFields, Settings, SkillProfile, Spot } from '../types';
+import { CONDITIONS_VERSION } from '../types';
 import { db, saveSettings } from '../db';
 import { fetchOne, isOfflineError } from '../lib/openMeteo';
 import { requestPersistence } from '../lib/pwa';
 import { syncPendingSessions } from '../lib/sync';
 import { samplePoint } from '../lib/geo';
 import { deriveSeries, tideLabel, windKind, WIND_LABEL } from '../lib/conditions';
-import { recommendability } from '../lib/rating';
-import { calibratedGain, OBSERVED_SIZES } from '../lib/recommend';
+import { rateSpot, reasonsText, SUIT_LABEL } from '../lib/rating';
+import { calibratedGain } from '../lib/recommend';
+import { bodyRange, DEFAULT_PROFILE, FEEL_OPTIONS, learnFromSession, OBSERVED_SIZES, sessionSize, snapshot } from '../lib/skill';
 import { fmtDate, fmtDuration, fmtMin, isoToMin, todayAt, uid } from '../lib/time';
 import { fmtSurfRange, fmtWind } from '../lib/format';
 import Timeline, { type HourScore, type Range } from './Timeline';
-import { ActionBar, Card, Chips, LevelPicker, Segmented } from './ui';
+import { ActionBar, Card, Chips, Segmented } from './ui';
 import SpotPicker from './SpotPicker';
 
 const WETSUITS = ['Boardshorts', 'Shorty / top', '3/2', '4/3', '5/4+'].map((x) => ({ id: x, label: x }));
@@ -48,13 +50,16 @@ export default function SessionEditor({
   const [fields, setFields] = useState<SessionFields>(existing?.fields ?? {});
   const [tags, setTags] = useState<string[]>(existing?.tags ?? []);
   const [notes, setNotes] = useState(existing?.notes ?? '');
-  const [skill, setSkill] = useState<Level>(existing?.skillAtTime ?? settings.level);
+  /** Your skill when the session was logged: kept with the session (weights it later). */
+  const skillThen = existing?.skillAtTime ?? snapshot(settings.profile ?? DEFAULT_PROFILE);
+  const profileThen: SkillProfile = { ...(settings.profile ?? DEFAULT_PROFILE), ...skillThen };
   const hasSaved = !!existing?.conditions?.length;
   const [conditions, setConditions] = useState<HourConditions[] | null>(hasSaved ? existing!.conditions : null);
   /** Conditions come from an older saved forecast (offline); replaced when back online. */
   const [stale, setStale] = useState<{ at: number } | null>(existing?.conditionsPending && hasSaved ? { at: existing.updatedAt } : null);
   const [days, setDays] = useState<DayInfo[]>(existing?.days ?? []);
   const [source, setSource] = useState(existing?.conditionsSource ?? '');
+  const [condVersion, setCondVersion] = useState(existing?.conditionsVersion);
   const [condState, setCondState] = useState<{ loading: boolean; error: string | null; offline?: boolean }>({ loading: false, error: null });
   const narrow = typeof window !== 'undefined' && window.innerWidth < 700;
   const [zoom, setZoom] = useState<'session' | 'daylight' | 'full'>(existing && narrow ? 'session' : 'daylight');
@@ -77,6 +82,7 @@ export default function SessionEditor({
       setConditions(hours);
       setDays(s.days);
       setSource(s.stale ? `${s.source} · saved ${new Date(s.fetchedAt).toLocaleString()}` : s.source);
+      setCondVersion(CONDITIONS_VERSION);
       setStale(s.stale ? { at: s.fetchedAt } : null);
       setCondKey(`${spot.id}|${date}`);
       if (!s.stale) setLoadedKey(`${spot.id}|${date}`);
@@ -103,6 +109,7 @@ export default function SessionEditor({
       setConditions(existing.conditions);
       setDays(existing.days ?? []);
       setSource(existing.conditionsSource);
+      setCondVersion(existing.conditionsVersion);
       setStale(null);
       setCondState({ loading: false, error: null });
       setCondKey(`${existing.spotId}|${existing.date}`);
@@ -118,11 +125,13 @@ export default function SessionEditor({
     () =>
       spot
         ? derived.map((d) => {
-            const r = recommendability(spot, d, skill);
-            return { score: r.score, unsuitable: r.suit.status === 'unsuitable', title: `${r.score.toFixed(1)}/10 for ${skill}${r.suit.reasons.length ? ' – ' + r.suit.reasons.join('; ') : ''}` };
+            const r = rateSpot(spot, d, profileThen, settings.heightUnit);
+            const why = reasonsText(r.suit);
+            return { score: r.score, unsuitable: r.suit.status === 'unsuitable', title: `${r.score.toFixed(1)}/10 for you · ${SUIT_LABEL[r.suit.status]}${r.peak ? ` (${r.peak.name})` : ''}${why ? ' – ' + why : ''}` };
           })
         : [],
-    [derived, spot, skill],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [derived, spot, settings.profile, settings.heightUnit],
   );
 
   const dayInfo = days.find((d) => d.date === date);
@@ -154,8 +163,11 @@ export default function SessionEditor({
     const mid = sessionHours[Math.floor(sessionHours.length / 2)];
     const wk = windKind(mid);
     return {
-      size: hbs.length ? `${fmtSurfRange(Math.min(...hbs), settings.heightUnit).split('–')[0]}–${fmtSurfRange(Math.max(...hbs), settings.heightUnit).split('–')[1]}` : '–',
-      period: mid.tDom ? `${Math.round(mid.tDom)} s` : '–',
+      size: hbs.length
+        ? `${fmtSurfRange(Math.min(...hbs), settings.heightUnit).split('–')[0]}–${fmtSurfRange(Math.max(...hbs), settings.heightUnit).split('–')[1]} (${bodyRange(Math.min(...hbs) * 0.8, Math.max(...hbs) * 1.2)})`
+        : '–',
+      hbMean: hbs.length ? hbs.reduce((a, b) => a + b, 0) / hbs.length : null,
+      period: mid.tDom ? `${Math.round(mid.tDom)} s peak` : '–',
       wind: wk ? `${WIND_LABEL[wk]} ${fmtWind(mid.windSpeed, settings.windUnit)}` : '–',
       tide: `${tideLabel(first.tideNorm, first.tideTrend)} → ${tideLabel(last.tideNorm, last.tideTrend)}`,
     };
@@ -180,6 +192,7 @@ export default function SessionEditor({
       ratings: Object.fromEntries(Object.entries(ratings).filter((e): e is [string, number] => e[1] != null)),
       conditions: conditions ?? [],
       conditionsSource: conditions ? source : '',
+      conditionsVersion: conditions?.length ? condVersion ?? CONDITIONS_VERSION : undefined,
       conditionsPending: pending,
       days: days.filter((d) => d.date === date),
       fields,
@@ -187,13 +200,19 @@ export default function SessionEditor({
       notes,
       // Relevance is set in the Journal (per session) or Settings (cut-off date), not here.
       excluded: existing?.excluded ?? false,
-      skillAtTime: skill,
+      skillAtTime: skillThen,
       demo: existing?.demo,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
     await db.sessions.put(sess);
     if (fields.board && !settings.boards.includes(fields.board)) await saveSettings({ boards: [...settings.boards, fields.board] });
+    // "How did it feel?" nudges your profile (explained, with undo) when it is new or changed.
+    const changed = !existing || existing.fields.feel !== fields.feel || existing.fields.observedSize !== fields.observedSize;
+    if (settings.profile && fields.feel && changed) {
+      const next = learnFromSession(settings.profile, sess, spot, sessionSize(sess, summary?.hbMean ?? null), sessions, spots, settings.heightUnit);
+      if (next) await saveSettings({ profile: next });
+    }
     requestPersistence();
     if (pending && navigator.onLine) syncPendingSessions().catch(() => {});
     setSaving(false);
@@ -228,10 +247,6 @@ export default function SessionEditor({
           <label>
             Date
             <input type="date" value={date} max={today} min="2021-11-01" onChange={(e) => setDate(e.target.value)} />
-          </label>
-          <label>
-            Your level that day
-            <LevelPicker value={skill} onChange={setSkill} label="Your level that day" />
           </label>
         </div>
       </Card>
@@ -275,7 +290,7 @@ export default function SessionEditor({
                 emptyText="Conditions are added when you're online"
                 derived={derived}
                 scores={scores}
-                scoreLabel="Guide"
+                scoreLabel="For you"
                 sunrise={rise}
                 sunset={set}
                 heightUnit={settings.heightUnit}
@@ -341,7 +356,12 @@ export default function SessionEditor({
           <div className="field first">
             <span>Wave size you actually saw</span>
             <Chips small options={OBSERVED_SIZES.map((o) => ({ id: o.id, label: o.label }))} value={fields.observedSize} onChange={(v) => setFields({ ...fields, observedSize: v ?? undefined })} />
-            <span className="muted tiny">Used to calibrate this spot's surf-height estimate.</span>
+            <span className="muted tiny">Face height. Calibrates this spot's surf-height estimate.</span>
+          </div>
+          <div className="field">
+            <span>How did the size feel?</span>
+            <Chips small options={FEEL_OPTIONS} value={fields.feel} onChange={(v) => setFields({ ...fields, feel: v ?? undefined })} />
+            <span className="muted tiny">Nudges your comfortable size in small steps; the app tells you what changed and lets you undo it.</span>
           </div>
           <div className="field">
             <span>Compared with the forecast</span>

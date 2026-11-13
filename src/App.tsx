@@ -1,4 +1,7 @@
-import { queryParam, useRoute, useSessions, useSettings, useSpots } from './hooks';
+import { queryParam, useRoute, useSessions, useSpots, useStoredSettings } from './hooks';
+import { DEFAULT_SETTINGS, saveSettings } from './db';
+import Onboarding from './components/Onboarding';
+import { undoLastChange } from './lib/skill';
 import Explore from './components/Explore';
 import SessionEditor from './components/SessionEditor';
 import Journal from './components/Journal';
@@ -20,12 +23,17 @@ export default function App() {
   const [route, go] = useRoute();
   const spots = useSpots();
   const sessions = useSessions();
-  const settings = useSettings();
+  const stored = useStoredSettings();
+  const settings = stored ?? DEFAULT_SETTINGS;
   const page = route[0] ?? 'explore';
   const pwa = usePwa();
+  const change = settings.profile?.lastChange;
 
   let body: JSX.Element;
-  if (!spots || !sessions) body = <div className="page muted">Loading…</div>;
+  if (!spots || !sessions || !stored) body = <div className="page muted">Loading…</div>;
+  // First launch: the few questions about your surfing come before anything else.
+  else if (!settings.profile) body = <Onboarding settings={settings} go={go} first />;
+  else if (page === 'surfing') body = <Onboarding key={queryParam('step') ?? 'all'} settings={settings} go={go} first={false} startAt={queryParam('step')} />;
   else if (page === 'log') body = <SessionEditor key={`new-${queryParam('spot')}`} spots={spots} sessions={sessions} settings={settings} preset={{ spotId: queryParam('spot'), date: queryParam('date') }} go={go} />;
   else if (page === 'session') {
     const s = sessions.find((x) => x.id === route[1]);
@@ -51,7 +59,7 @@ export default function App() {
     );
   } else body = <Explore spots={spots} sessions={sessions} settings={settings} go={go} />;
 
-  const active = page === 'session' ? 'journal' : page.startsWith('spot') ? 'explore' : page;
+  const active = page === 'session' ? 'journal' : page === 'surfing' ? 'settings' : page.startsWith('spot') ? 'explore' : page;
 
   return (
     <div className="app">
@@ -81,8 +89,27 @@ export default function App() {
         </div>
       </header>
       <main>{body}</main>
-      {(pwa.updateReady || pwa.synced > 0) && (
+      {(pwa.updateReady || pwa.synced > 0 || (change && !change.seen && page !== 'surfing')) && (
         <div className="toasts" role="status">
+          {change && !change.seen && page !== 'surfing' && settings.profile && (
+            <div className="toast">
+              <span>
+                <strong>Your surfing profile changed.</strong> {change.reasons.join(' ')}
+                {change.stagePrompt && (
+                  <>
+                    {' '}
+                    Your comfortable size now fits stage {change.stagePrompt}: <a href="#/surfing?step=stage">update your stage?</a>
+                  </>
+                )}
+              </span>
+              <button className="btn small" onClick={() => saveSettings({ profile: undoLastChange(settings.profile!) })}>
+                Undo
+              </button>
+              <button className="btn small primary" onClick={() => saveSettings({ profile: { ...settings.profile!, lastChange: { ...change, seen: true } } })}>
+                OK
+              </button>
+            </div>
+          )}
           {pwa.updateReady && (
             <div className="toast">
               A new version of Surf Journal is ready.
@@ -93,7 +120,7 @@ export default function App() {
           )}
           {pwa.synced > 0 && (
             <div className="toast">
-              Back online: conditions added to {pwa.synced} session{pwa.synced === 1 ? '' : 's'} you logged offline.
+              Conditions added or updated for {pwa.synced} session{pwa.synced === 1 ? '' : 's'}.
               <button className="btn small" onClick={clearSynced}>
                 OK
               </button>

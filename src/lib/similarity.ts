@@ -1,6 +1,7 @@
 import type { HourConditions, Spot } from '../types';
 import type { Derived } from './conditions';
 import { angdiff, toRad } from './geo';
+import { trainsByEnergy } from './conditions';
 
 /**
  * Analog-style similarity (weighted, tolerance-scaled Euclidean distance, Gower-style
@@ -22,7 +23,7 @@ export interface FeatureSpec {
 export const SPOT_FEATURES: FeatureSpec[] = [
   // Size on a log scale: 0.3 m matters at 0.8 m, much less at 3 m.
   { key: 'size', label: 'wave size', weight: 3, tol: 0.25, get: (d) => (d.hb == null ? null : Math.log(d.hb + 0.2)) },
-  { key: 'period', label: 'swell period', weight: 1.5, tol: 2, get: (d) => d.tDom },
+  { key: 'period', label: 'swell period (peak)', weight: 1.5, tol: 2, get: (d) => d.tDom },
   // 20°: model swell directions are uncertain by ~10–15°, and a swell turning out of the spot's
   // window already shows up in the size feature (via exposure), so don't double-punish it.
   { key: 'swellDir', label: 'swell direction', weight: 1.5, tol: 20, angular: true, get: (d) => d.dirDom },
@@ -103,10 +104,12 @@ export interface AbsFeatures {
   windV: number | null;
 }
 
+/** Regional sea state: the most energetic train (height, peak period, direction) and the wind. */
 export function absFeatures(c: HourConditions): AbsFeatures {
-  const h = c.swellH ?? c.waveH;
-  const t = c.swellPer ?? c.wavePer;
-  const dir = c.swellDir ?? c.waveDir;
+  const top = trainsByEnergy(c)[0];
+  const h = top?.h ?? c.waveH;
+  const t = top?.t ?? c.waveTp;
+  const dir = top?.dir ?? c.waveDir;
   let windU: number | null = null;
   let windV: number | null = null;
   if (c.windSpeed != null && c.windDir != null) {

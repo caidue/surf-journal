@@ -12,7 +12,7 @@ export function useDebounced<T>(value: T, ms = 180): T {
   return v;
 }
 
-/** Lower case, accents removed: "Cotillo" finds "El Cotillo – Piedra Playa", "lobos" finds "Isla de Lobos". */
+/** Lower case, accents removed: "cotillo" finds "Cotillo", "generoso" finds "Generosa" (an alias). */
 const norm = (s: string) =>
   s
     .normalize('NFD')
@@ -35,7 +35,7 @@ export default function SpotPicker({ spots, value, onChange, label = 'Spot' }: {
   const matches = useMemo(() => {
     const words = norm(q).split(/\s+/).filter(Boolean);
     return spots
-      .filter((s) => words.every((w) => norm(`${s.name} ${s.region}`).includes(w)))
+      .filter((s) => words.every((w) => norm(`${s.name} ${(s.aliases ?? []).join(' ')} ${s.region}`).includes(w)))
       .sort((a, b) => a.region.localeCompare(b.region) || a.name.localeCompare(b.name));
   }, [spots, q]);
   useEffect(() => setActive(0), [q]);
@@ -131,9 +131,17 @@ export default function SpotPicker({ spots, value, onChange, label = 'Spot' }: {
                   onMouseEnter={() => setActive(i)}
                   onClick={() => choose(s)}
                 >
-                  <span>{s.name}</span>
+                  <span>
+                    {s.name}
+                    {(() => {
+                      // Searched by another name: show which one matched.
+                      const words = norm(q).split(/\s+/).filter(Boolean);
+                      const alias = words.length && !words.every((w) => norm(s.name).includes(w)) ? s.aliases?.find((a) => words.some((w) => norm(a).includes(w))) : undefined;
+                      return alias ? <span className="muted tiny"> · {alias}</span> : null;
+                    })()}
+                  </span>
                   <span className="muted tiny">
-                    {s.breakType} · {s.level}
+                    {s.breakType} · {s.level === 'all' ? 'all levels' : s.level}
                   </span>
                 </div>
               </li>

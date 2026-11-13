@@ -1,8 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Level } from '../types';
-import { LEVELS } from '../lib/rating';
-import { useMediaQuery } from '../hooks';
-import { scoreColor, SUIT_COLOR, type Suit } from '../lib/rating';
+import { scoreColor, SUIT_COLOR, SUIT_LABEL, type Suit, type Suitability } from '../lib/rating';
 
 export function Chips<T extends string>({
   options,
@@ -90,11 +87,32 @@ export function ScoreBadge({ score, size = 'md', title }: { score: number | null
 }
 
 export function SuitBadge({ status }: { status: Suit }) {
-  const label = { good: 'Good for you', ok: 'OK for you', challenging: 'Challenging', unsuitable: 'Not for your level' }[status];
   return (
     <span className="badge" style={{ color: SUIT_COLOR[status], borderColor: SUIT_COLOR[status] }}>
-      {label}
+      {SUIT_LABEL[status]}
     </span>
+  );
+}
+
+/** Why an hour is (not) right for you: up to three reasons, worst first; size reasons link to your comfort size. */
+export function SuitReasons({ suit }: { suit: Suitability }) {
+  if (!suit.reasons.length) return null;
+  return (
+    <ul className="suit-reasons">
+      {suit.reasons.map((r) => (
+        <li key={r.text} className={r.positive ? 'plus' : `s-${r.status}`}>
+          {r.text}
+          {r.kind === 'size' && !r.positive && (
+            <>
+              {' '}
+              <a href="#/surfing?step=comfort" className="small">
+                Edit comfort size
+              </a>
+            </>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -151,22 +169,4 @@ export function ConditionsStatus({ error, offline, savedAt, onRetry }: { error: 
       </div>
     );
   return null;
-}
-
-const LEVEL_LABELS = LEVELS.map((l) => ({ id: l, label: l[0].toUpperCase() + l.slice(1) }));
-
-/** Surf level: segmented buttons on wide screens, a native picker on phones (it never wraps). */
-export function LevelPicker({ value, onChange, label = 'Your level' }: { value: Level; onChange: (l: Level) => void; label?: string }) {
-  const phone = useMediaQuery('(max-width: 600px)');
-  return phone ? (
-    <select className="level-select" value={value} onChange={(e) => onChange(e.target.value as Level)} aria-label={label}>
-      {LEVEL_LABELS.map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-  ) : (
-    <Segmented options={LEVEL_LABELS} value={value} onChange={onChange} />
-  );
 }

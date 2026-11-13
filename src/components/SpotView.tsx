@@ -6,14 +6,15 @@ import { buildHistory, calibratedGain, confidence, explain, insights, matchSessi
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
 import { compass, haversineKm } from '../lib/geo';
 import { similarityPct } from '../lib/similarity';
-import { fmtSurfRange, fmtWind } from '../lib/format';
+import { fmtSurf, fmtWind } from '../lib/format';
+import { surfForecastUrl, surflineUrl } from '../lib/links';
 import { gridKey } from '../lib/openMeteo';
 import ForecastTable from './ForecastTable';
 import { Icon, type IconName } from './icons';
 import MapView from './MapView';
 import SpotGuide from './SpotGuide';
 import { sessionSummary } from './Journal';
-import { ConditionsStatus, Empty, ScoreBadge, Segmented, SuitBadge } from './ui';
+import { ConditionsStatus, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons } from './ui';
 
 export type SpotTab = 'forecast' | 'guide' | 'sessions' | 'info';
 const TAB_KEY = 'surf-journal.spotTab';
@@ -73,7 +74,7 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
   const rec = useMemo(() => {
     if (!series) return null;
     const nowMin = dayOffset === 0 ? nowMinutesAt(series.utcOffsetSeconds) : null;
-    return recommendSpotDay(spot, series.hours, series.days, sessions, settings, settings.level, date, today, nowMin);
+    return recommendSpotDay(spot, series.hours, series.days, sessions, settings, settings.profile, date, today, nowMin);
   }, [series, spot, sessions, settings, date, today, dayOffset]);
   const tides = useMemo(() => (series ? tideExtremes(series.hours, date) : []), [series, date]);
 
@@ -119,9 +120,10 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
           )}
           <h2 id={titleId}>{spot.name}</h2>
           <div className="muted small">
-            {spot.region} · {spot.breakType} break{spot.bottom !== spot.breakType ? ` · ${spot.bottom} bottom` : ''} · level: {spot.level}
+            {spot.region} · {spot.breakType} break{spot.bottom !== spot.breakType ? ` · ${spot.bottom} bottom` : ''} · {spot.level === 'all' ? 'all levels' : spot.level}
             {spot.peaks.length > 1 ? ` · ${spot.peaks.length} peaks` : ''}
           </div>
+          {!!spot.aliases?.length && <div className="muted tiny">Also called {spot.aliases.join(', ')}</div>}
         </div>
         <div className="row gap">
           {best && <ScoreBadge score={best.score} size="lg" title={`Best predicted score for you ${dayWord}`} />}
@@ -166,13 +168,20 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                         Best {fmtMin(rec.bestWindow[0])}–{fmtMin(rec.bestWindow[1])}
                       </strong>
                     ) : (
-                      <strong>Not much for your level {dayWord}</strong>
+                      <strong>Not much for you {dayWord}</strong>
                     )}
                     <span className="small">
-                      {fmtSurfRange(best.derived.hb, settings.heightUnit)} · {WIND_LABEL[windKind(best.derived) ?? 'glassy']} {fmtWind(best.derived.windSpeed, settings.windUnit)}
+                      {fmtSurf(best.derived.hb, settings.heightUnit)} · {best.derived.tDom ? `${Math.round(best.derived.tDom)} s · ` : ''}
+                      {WIND_LABEL[windKind(best.derived) ?? 'glassy']} {fmtWind(best.derived.windSpeed, settings.windUnit)}
                     </span>
                     <span className="muted small">confidence: {confidence(best.pred)}</span>
                   </div>
+                  {best.peak && (
+                    <div className="peak-pick">
+                      Best for you: <strong>{best.peak.name}</strong>
+                    </div>
+                  )}
+                  <SuitReasons suit={best.suit} />
                   <ul className="explain">
                     {explain(best, (s) => fmtDate(s.date)).map((l) => (
                       <li key={l}>{l}</li>
@@ -181,8 +190,8 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                 </div>
               )}
               {tides.length > 0 && (
-                <div className="tide-line">
-                  <span className="muted small">Tide</span>
+                <div className="tide-line" title="Heights relative to mean sea level">
+                  <span className="muted small">Tide (vs mean sea level)</span>
                   {tides.map((t) => (
                     <span key={t.min} className={`tide-chip ${t.type}`}>
                       {t.type === 'high' ? '▲ High' : '▼ Low'} {fmtMin(t.min)}{' '}
@@ -256,8 +265,37 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                 <dd>{spot.tide === 'all' ? 'all tides' : spot.tide}</dd>
                 <dt>Break</dt>
                 <dd>
-                  {spot.breakType} · {spot.bottom} bottom · level: {spot.level}
+                  {spot.breakType} · {spot.bottom} bottom · {spot.level === 'all' ? 'all levels' : spot.level}
+                  {spot.power ? ` · ${spot.power}` : ''}
+                  {spot.peel ? ` · ${spot.peel} peel` : ''}
                 </dd>
+                {(spot.crowd || spot.localism || spot.lifeguard != null) && (
+                  <>
+                    <dt>In the water</dt>
+                    <dd>
+                      {[spot.crowd && `${spot.crowd} crowds`, spot.localism && spot.localism !== 'none' && `${spot.localism} localism`, spot.lifeguard ? 'lifeguard listed' : spot.lifeguard === false ? 'no lifeguard' : null]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </dd>
+                  </>
+                )}
+                {(spot.externalIds?.surfline || spot.externalIds?.surfForecast) && (
+                  <>
+                    <dt>Elsewhere</dt>
+                    <dd className="ext-links">
+                      {spot.externalIds.surfline && (
+                        <a href={surflineUrl(spot.externalIds.surfline)} target="_blank" rel="noopener noreferrer">
+                          Surfline
+                        </a>
+                      )}
+                      {spot.externalIds.surfForecast && (
+                        <a href={surfForecastUrl(spot.externalIds.surfForecast)} target="_blank" rel="noopener noreferrer">
+                          surf-forecast.com
+                        </a>
+                      )}
+                    </dd>
+                  </>
+                )}
                 <dt>Size factor</dt>
                 <dd>
                   {calib.n >= 2

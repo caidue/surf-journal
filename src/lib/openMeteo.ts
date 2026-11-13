@@ -1,31 +1,56 @@
-import type { ConditionsSeries, DayInfo, HourConditions } from '../types';
+import type { ConditionsSeries, DayInfo, HourConditions, WaveTrain } from '../types';
+import { CONDITIONS_VERSION } from '../types';
 import { db } from '../db';
 import { addDays, daysBetween, todayAt } from './time';
 
 /**
- * Open-Meteo (CC BY 4.0, free for non-commercial use, no API key):
- *  - Marine API: swell partitions, wind waves, sea level incl. tide, SST. Partition history from ~Nov 2021.
- *  - Forecast API (recent past ~3 months + 16-day forecast), Historical Forecast API (2022+),
- *    ERA5 Archive (1940+) for wind, sunrise/sunset.
+ * Open-Meteo (CC BY 4.0, free for non-commercial use, no API key).
+ *
+ * Marine API, four models in ONE request (`models=a,b,…`; every key comes back suffixed `_<model>`):
+ *  - meteofrance_wave (MFWAM): total sea height and direction (the reference height) and the
+ *    energy period Tm-1,0. Its swell periods are MEAN periods (Tm01), ~25 % below what surf sites show.
+ *  - ecmwf_wam: peak period Tp of the total sea (archive from 2025-10-30).
+ *  - ncep_gfswave016 (GFS-Wave 0.16°): primary/secondary/tertiary swell and wind sea with PEAK
+ *    periods (archive from 2024-10-02; secondary and tertiary from 2025-04-29). A missing train
+ *    comes back as 0 m / 0 s, not null.
+ *  - meteofrance_currents: sea level incl. tide, and sea surface temperature.
+ * Train heights are scaled so they add up to MFWAM's total sea (GFS sees less island sheltering).
+ * Dates without GFS data fall back to MFWAM's trains with Tp ≈ 1.3 × the mean period (flagged).
+ *
+ * Forecast API (recent past ~3 months + 16-day forecast), Historical Forecast API (2022+) and the
+ * ERA5 archive (1940+) for wind, air temperature, sunrise and sunset.
  */
 
+const MODELS = { mf: 'meteofrance_wave', ec: 'ecmwf_wam', gfs: 'ncep_gfswave016', cur: 'meteofrance_currents' } as const;
 const MARINE_VARS = [
   'wave_height',
   'wave_direction',
   'wave_period',
+  'wave_peak_period',
+  'wind_wave_height',
+  'wind_wave_period',
+  'wind_wave_direction',
   'swell_wave_height',
   'swell_wave_period',
   'swell_wave_direction',
   'secondary_swell_wave_height',
   'secondary_swell_wave_period',
   'secondary_swell_wave_direction',
-  'wind_wave_height',
-  'wind_wave_period',
-  'wind_wave_direction',
+  'tertiary_swell_wave_height',
+  'tertiary_swell_wave_period',
+  'tertiary_swell_wave_direction',
   'sea_level_height_msl',
   'sea_surface_temperature',
 ];
 const WEATHER_VARS = ['wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m', 'temperature_2m'];
+/** Peak period ≈ 1.3 × mean period (Tm01) for typical swell spectra (JONSWAP, γ ≈ 1–3.3: 1.29–1.34). */
+export const TP_FROM_MEAN = 1.3;
+const TRAIN_PREFIXES: [string, WaveTrain['kind']][] = [
+  ['swell_wave', 'swell'],
+  ['secondary_swell_wave', 'swell'],
+  ['tertiary_swell_wave', 'swell'],
+  ['wind_wave', 'wind'],
+];
 
 export interface Point {
   lat: number;
@@ -66,6 +91,56 @@ function qs(points: Point[], vars: string[], start: string, end: string, extra =
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const r2 = (v: number) => Math.round(v * 100) / 100;
+
+/** One hour of marine data from the four-model response (index i of the hourly arrays). */
+export function marineHour(mh: Json, i: number): Omit<HourConditions, 'time' | 'windSpeed' | 'windDir' | 'windGust' | 'airTemp'> {
+  const v = (name: string, model: string) => num(mh[`${name}_${model}`]?.[i]);
+  const hsMF = v('wave_height', MODELS.mf);
+  const hsGFS = v('wave_height', MODELS.gfs);
+  const waveH = hsMF ?? v('wave_height', MODELS.ec) ?? hsGFS;
+  const waveDir = v('wave_direction', MODELS.mf) ?? v('wave_direction', MODELS.ec) ?? v('wave_direction', MODELS.gfs);
+  const waveTe = v('wave_period', MODELS.mf);
+  const trains: WaveTrain[] = [];
+  let tpEstimated = false;
+  if (hsGFS != null) {
+    // GFS-Wave trains with peak periods, scaled to MFWAM's total height. Zeros mean "no such train".
+    const scale = waveH != null && hsGFS > 0.05 ? waveH / hsGFS : 1;
+    for (const [p, kind] of TRAIN_PREFIXES) {
+      const h = v(`${p}_height`, MODELS.gfs);
+      const t = v(`${p}_period`, MODELS.gfs);
+      const d = v(`${p}_direction`, MODELS.gfs);
+      if (h != null && t != null && d != null && h > 0.02 && t > 0) trains.push({ kind, h: r2(h * scale), tp: t, dir: d });
+    }
+  } else {
+    // Older dates: MFWAM's trains have mean periods only.
+    for (const [p, kind] of TRAIN_PREFIXES) {
+      const h = v(`${p}_height`, MODELS.mf);
+      const t = v(`${p}_period`, MODELS.mf);
+      const d = v(`${p}_direction`, MODELS.mf);
+      if (h != null && t != null && d != null && h > 0.02 && t > 0) {
+        trains.push({ kind, h, tp: r2(t * TP_FROM_MEAN), dir: d });
+        tpEstimated = true;
+      }
+    }
+  }
+  let waveTp = v('wave_peak_period', MODELS.ec) ?? v('wave_period', MODELS.gfs);
+  if (waveTp == null && waveTe != null) {
+    waveTp = r2(waveTe * TP_FROM_MEAN);
+    tpEstimated = true;
+  }
+  const any = (name: string) => v(name, MODELS.cur) ?? v(name, MODELS.mf) ?? v(name, MODELS.ec);
+  return {
+    waveH,
+    waveDir,
+    waveTp,
+    waveTe,
+    trains,
+    ...(tpEstimated ? { tpEstimated } : {}),
+    seaLevel: any('sea_level_height_msl'),
+    waterTemp: any('sea_surface_temperature'),
+  };
+}
 
 function merge(marine: Json | undefined, weather: Json | undefined): { hours: HourConditions[]; days: DayInfo[] } {
   const times: string[] = marine?.hourly?.time ?? weather?.hourly?.time ?? [];
@@ -77,23 +152,10 @@ function merge(marine: Json | undefined, weather: Json | undefined): { hours: Ho
     const w = (k: string) => (j == null ? null : num(wh[k]?.[j]));
     return {
       time,
-      waveH: num(mh.wave_height?.[i]),
-      waveDir: num(mh.wave_direction?.[i]),
-      wavePer: num(mh.wave_period?.[i]),
-      swellH: num(mh.swell_wave_height?.[i]),
-      swellPer: num(mh.swell_wave_period?.[i]),
-      swellDir: num(mh.swell_wave_direction?.[i]),
-      swell2H: num(mh.secondary_swell_wave_height?.[i]),
-      swell2Per: num(mh.secondary_swell_wave_period?.[i]),
-      swell2Dir: num(mh.secondary_swell_wave_direction?.[i]),
-      windWaveH: num(mh.wind_wave_height?.[i]),
-      windWavePer: num(mh.wind_wave_period?.[i]),
-      windWaveDir: num(mh.wind_wave_direction?.[i]),
+      ...marineHour(mh, i),
       windSpeed: w('wind_speed_10m'),
       windDir: w('wind_direction_10m'),
       windGust: w('wind_gusts_10m'),
-      seaLevel: num(mh.sea_level_height_msl?.[i]),
-      waterTemp: num(mh.sea_surface_temperature?.[i]),
       airTemp: w('temperature_2m'),
     } satisfies HourConditions;
   });
@@ -123,6 +185,7 @@ export async function findSaved(ck: string, start: string, end: string): Promise
   const rows = await db.forecasts.where('key').startsWith(`${ck}|`).toArray();
   let best: ConditionsSeries | null = null;
   for (const r of rows) {
+    if (r.version !== CONDITIONS_VERSION) continue;
     const [, s, e] = r.key.split('|');
     if (s <= start && e >= end && (!best || r.fetchedAt > best.fetchedAt)) best = r;
   }
@@ -160,7 +223,7 @@ export async function fetchSeries(points: Point[], start: string, end: string, o
   for (const [ck, p] of unique) {
     const key = `${ck}|${start}|${end}`;
     const cached = opts.force ? undefined : await db.forecasts.get(key);
-    if (cached && (permanent || Date.now() - cached.fetchedAt < 60 * 60 * 1000)) out.set(ck, cached);
+    if (cached && cached.version === CONDITIONS_VERSION && (permanent || Date.now() - cached.fetchedAt < 60 * 60 * 1000)) out.set(ck, cached);
     else if (inflight.has(key)) {
       try {
         out.set(ck, await inflight.get(key)!);
@@ -174,7 +237,7 @@ export async function fetchSeries(points: Point[], start: string, end: string, o
     const chunk = missing.slice(i, i + 25);
     const run = (async () => {
       const [marine, weather] = await Promise.all([
-        getJson(`https://marine-api.open-meteo.com/v1/marine?${qs(chunk, MARINE_VARS, start, end)}`).catch((e) => {
+        getJson(`https://marine-api.open-meteo.com/v1/marine?${qs(chunk, MARINE_VARS, start, end, `&models=${Object.values(MODELS).join(',')}`)}`).catch((e) => {
           if (isOfflineError(e)) throw e;
           console.warn('marine', e);
           return [] as Json[];
@@ -193,9 +256,10 @@ export async function fetchSeries(points: Point[], start: string, end: string, o
           utcOffsetSeconds: w?.utc_offset_seconds ?? m?.utc_offset_seconds ?? 0,
           hours,
           days,
+          version: CONDITIONS_VERSION,
           gridLat: num(m?.latitude) ?? undefined,
           gridLon: num(m?.longitude) ?? undefined,
-          source: `Open-Meteo marine (${m ? `grid ${num(m.latitude)?.toFixed(2)}, ${num(m.longitude)?.toFixed(2)}` : 'unavailable'}) + ${weatherEndpoint(start, today).includes('archive') ? 'ERA5 archive' : 'weather model'} wind`,
+          source: `Open-Meteo marine: MFWAM height, ECMWF WAM peak period, GFS-Wave 0.16° swell trains${hours.some((h) => h.tpEstimated) ? ' (periods partly estimated)' : ''} (${m ? `grid ${num(m.latitude)?.toFixed(2)}, ${num(m.longitude)?.toFixed(2)}` : 'unavailable'}) + ${weatherEndpoint(start, today).includes('archive') ? 'ERA5 archive' : 'weather model'} wind`,
           fetchedAt: Date.now(),
         };
         return s;
@@ -239,7 +303,7 @@ export async function pruneCache(): Promise<void> {
   await db.forecasts.where('fetchedAt').below(cutoff).delete();
 }
 
-/** Centre of the marine model grid cell a series comes from. */
+/** Centre of the marine model grid cell a series comes from (MFWAM's; GFS-Wave's cells are coarser). */
 export function gridOf(s: ConditionsSeries | undefined): { lat: number; lon: number } | null {
   return s?.gridLat != null && s.gridLon != null ? { lat: s.gridLat, lon: s.gridLon } : null;
 }

@@ -5,6 +5,7 @@ import { deriveSeries, windKind, WIND_LABEL } from '../lib/conditions';
 import { sessionOverall, surfedHourIdx } from '../lib/recommend';
 import { fmtDate, fmtDuration, fmtMin } from '../lib/time';
 import { fmtSurfRange, fmtWind } from '../lib/format';
+import { FEEL_OPTIONS } from '../lib/skill';
 import { Card, Empty, ScoreBadge } from './ui';
 
 export function sessionSummary(s: Session, spot: Spot | undefined, settings: Settings): string {
@@ -16,7 +17,8 @@ export function sessionSummary(s: Session, spot: Spot | undefined, settings: Set
   if (!mid) return '';
   const hb = hbs.length ? hbs.reduce((a, b) => a + b, 0) / hbs.length : null;
   const wk = windKind(mid);
-  return `${fmtSurfRange(hb, settings.heightUnit)} · ${mid.tDom ? Math.round(mid.tDom) + ' s' : '–'} · ${wk ? WIND_LABEL[wk] : '–'} ${fmtWind(mid.windSpeed, settings.windUnit)}`;
+  const feel = FEEL_OPTIONS.find((f) => f.id === s.fields.feel)?.label.toLowerCase();
+  return `${fmtSurfRange(hb, settings.heightUnit)} · ${mid.tDom ? Math.round(mid.tDom) + ' s' : '–'} · ${wk ? WIND_LABEL[wk] : '–'} ${fmtWind(mid.windSpeed, settings.windUnit)}${feel ? ` · felt ${feel}` : ''}`;
 }
 
 export default function Journal({ spots, sessions, settings, go }: { spots: Spot[]; sessions: Session[]; settings: Settings; go: (p: string) => void }) {

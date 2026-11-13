@@ -1,6 +1,7 @@
-import type { DayInfo, HourConditions, Level, Session, Settings, Spot } from '../types';
+import type { DayInfo, HourConditions, Peak, Session, Settings, SkillProfile, Spot } from '../types';
 import { deriveSeries, windKind, type Derived } from './conditions';
-import { recommendability, type Quality, type Suitability } from './rating';
+import { rateSpot, type Quality, type Suitability } from './rating';
+import { DEFAULT_PROFILE, OBSERVED_SIZES, stageGapWeight } from './skill';
 import { distance, kernel, mostDifferent, mostDifferentKey } from './similarity';
 import { daysBetween, isoToMin } from './time';
 
@@ -30,8 +31,6 @@ export function surfedHourIdx(s: Session): number[] {
   return out;
 }
 
-const LEVEL_RANK: Record<Level, number> = { beginner: 0, intermediate: 1, advanced: 2, expert: 3 };
-
 export interface SessionWeight {
   w: number;
   why: string | null;
@@ -39,34 +38,25 @@ export interface SessionWeight {
 
 /**
  * How much a past session counts as evidence today: excluded → 0, before the
- * "ignore before" date → 0, exponential time decay, and down-weighting when the
- * surfer's level at the time differs from today's.
+ * "ignore before" date → 0, exponential time decay, and down-weighting when you were at
+ * another surfing stage then (one stage apart ¾, two ½, more ¼).
  */
-export function sessionWeight(s: Session, settings: Pick<Settings, 'halfLifeMonths' | 'ignoreBefore' | 'level'>, today: string): SessionWeight {
+export function sessionWeight(s: Session, settings: Pick<Settings, 'halfLifeMonths' | 'ignoreBefore' | 'profile'>, today: string): SessionWeight {
   if (s.excluded) return { w: 0, why: 'marked not relevant' };
   if (settings.ignoreBefore && s.date < settings.ignoreBefore) return { w: 0, why: 'before your cut-off date' };
   const ageMonths = Math.max(0, daysBetween(s.date, today)) / 30.44;
   const decay = Math.pow(0.5, ageMonths / Math.max(1, settings.halfLifeMonths));
-  const gap = Math.abs(LEVEL_RANK[s.skillAtTime] - LEVEL_RANK[settings.level]);
-  const kappa = gap === 0 ? 1 : gap === 1 ? 0.5 : 0.2;
-  return { w: decay * kappa, why: gap ? 'logged at a different skill level' : null };
+  const then = s.skillAtTime?.stage;
+  const now = settings.profile?.stage;
+  const kappa = then && now ? stageGapWeight(then, now) : 1;
+  return { w: decay * kappa, why: kappa < 1 ? `logged at stage ${then} (you're stage ${now} now)` : null };
 }
 
 /* ------------------------------------------------------------------ */
 /* Size calibration from observed sizes                                */
 /* ------------------------------------------------------------------ */
 
-export const OBSERVED_SIZES: { id: string; label: string; m: number }[] = [
-  { id: 'flat', label: 'Flat', m: 0.15 },
-  { id: 'ankle', label: 'Ankle', m: 0.3 },
-  { id: 'knee', label: 'Knee', m: 0.45 },
-  { id: 'waist', label: 'Waist', m: 0.75 },
-  { id: 'chest', label: 'Chest', m: 1.1 },
-  { id: 'head', label: 'Head high', m: 1.6 },
-  { id: 'overhead', label: 'Overhead', m: 2.2 },
-  { id: 'double', label: 'Double overhead', m: 3.4 },
-  { id: 'bigger', label: 'Bigger', m: 5 },
-];
+export { OBSERVED_SIZES };
 
 /** Median ratio observed/modelled breaking height over sessions where the size was noted. */
 export function calibratedGain(spot: Spot, sessions: Session[]): { gain: number; n: number } {
@@ -190,11 +180,14 @@ export interface HourRec {
   time: string;
   daylight: boolean;
   derived: Derived;
+  /** Spot rating: how good the waves are (the best peak), whoever you are. */
   quality: Quality;
+  /** For you: the peak that suits you best, and why. */
   suit: Suitability;
+  peak: Peak | null;
   rule: number;
   pred: Prediction;
-  /** Final score 0-10 (0 when unsuitable for the level). */
+  /** Final score 0-10 for you (0 when unsuitable). */
   score: number;
 }
 
@@ -225,11 +218,12 @@ export function recommendSpotDay(
   days: DayInfo[] | undefined,
   sessions: Session[],
   settings: Settings,
-  level: Level,
+  profile: SkillProfile | null,
   date: string,
   today: string,
   nowMin: number | null,
 ): SpotRec {
+  const me = profile ?? DEFAULT_PROFILE;
   const { gain } = calibratedGain(spot, sessions);
   const derivedAll = deriveSeries(spot, hours, gain);
   const history = buildHistory(spot, sessions, settings, today, gain);
@@ -242,10 +236,11 @@ export function recommendSpotDay(
     // (otherwise the best window can come out as e.g. 18:00–18:02).
     const daylight = Math.min(m + 60, set) - Math.max(m, rise) >= 30;
     const d = derivedAll[i];
-    const r = recommendability(spot, d, level);
+    // Spots whose peaks differ (level, size range, tide, shape) are rated per peak.
+    const r = rateSpot(spot, d, me, settings.heightUnit);
     const pred = predict(spot, d, r.score, history);
     const score = r.suit.status === 'unsuitable' ? 0 : pred.yhat;
-    recs.push({ idx: i, time: h.time, daylight, derived: d, quality: r.quality, suit: r.suit, rule: r.score, pred, score });
+    recs.push({ idx: i, time: h.time, daylight, derived: d, quality: r.quality, suit: r.suit, peak: r.peak, rule: r.score, pred, score });
   });
 
   // Daylight hours only; upcoming ones only when looking at today.
@@ -277,6 +272,7 @@ export function recommendSpotDay(
 
 /* ------------------------------------------------------------------ */
 /* Explanations (generated only from computed numbers)                 */
+/* The suitability reasons are shown separately (ui.tsx → SuitReasons). */
 /* ------------------------------------------------------------------ */
 
 export function explain(r: HourRec, fmtSessionDate: (s: Session) => string): string[] {
@@ -294,19 +290,18 @@ export function explain(r: HourRec, fmtSessionDate: (s: Session) => string): str
   } else if (rated.length) {
     const c = rated[0];
     out.push(
-      `Your closest session here (${fmtSessionDate(c.session)}, ${Math.round(c.k * 100)}% similar${c.differs ? `, differs mainly in ${c.differs}` : ''}) is too different to count much: the score is mostly the spot guide for your level.`,
+      `Your closest session here (${fmtSessionDate(c.session)}, ${Math.round(c.k * 100)}% similar${c.differs ? `, differs mainly in ${c.differs}` : ''}) is too different to count much: the score is mostly the spot guide and your surfing profile.`,
     );
   } else {
-    out.push('No logged sessions here yet: the score comes from the spot guide for your level.');
+    out.push('No logged sessions here yet: the score comes from the spot guide and your surfing profile.');
   }
   const f = r.quality.factors;
   const weak: string[] = [];
   if (f.size < 0.4) weak.push('size outside the range this spot likes');
-  if (f.period < 0.6) weak.push('short-period swell');
+  if (f.period < 0.6) weak.push('short-period swell (peak period under 8 s)');
   if (f.wind < 0.5) weak.push('wind is hurting it');
   if (f.tide < 0.7) weak.push('tide not ideal');
   if (weak.length) out.push(`Held back by: ${weak.join(', ')}.`);
-  if (r.suit.reasons.length) out.push(`For your level: ${r.suit.reasons.join('; ')}.`);
   return out;
 }
 

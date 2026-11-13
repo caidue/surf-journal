@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { HourConditions, Session, Settings, Spot } from '../types';
+import type { HourConditions, Session, Settings, Spot, WaveTrain } from '../types';
 import { SLOTS } from '../types';
 import { angdiff, destination, haversineKm } from './geo';
-import { breakingHeight, deriveHour, deriveSeries, exposure, tideExtremes, waveEnergyKJ, windKind } from './conditions';
-import { quality, suitability } from './rating';
+import { breakingHeight, deriveHour, deriveSeries, exposure, tideExtremes, totalEnergyKJ, waveEnergyKJ, windKind } from './conditions';
+import { fPeriod, quality, rateSpot, ratedPeaks, scoreLabel, suitability } from './rating';
+import { bodyRange, learnFromSession, profileForStage, profileSummary, snapshot, undoLastChange } from './skill';
+import { SEED_SPOTS } from '../data/seedSpots';
 import { distance, kernel, SIMILAR_MIN_K } from './similarity';
 import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, insights, ratingFor, sessionOverall } from './recommend';
 import { parseRegionQuery, subBox } from './geocode';
@@ -32,40 +34,42 @@ const spot: Spot = {
   gain: 1,
 };
 
-function hour(time: string, o: Partial<HourConditions> = {}): HourConditions {
+type T3 = [number, number, number] | null; // height, peak period, direction
+
+/** One hour offshore: a 1.5 m @ 11 s swell from 320° unless told otherwise. */
+function hour(time: string, o: Partial<HourConditions> & { swell?: T3; swell2?: T3; wind?: T3 } = {}): HourConditions {
+  const { swell = [1.5, 11, 320], swell2 = null, wind = null, ...rest } = o;
+  const trains: WaveTrain[] = [];
+  if (swell) trains.push({ kind: 'swell', h: swell[0], tp: swell[1], dir: swell[2] });
+  if (swell2) trains.push({ kind: 'swell', h: swell2[0], tp: swell2[1], dir: swell2[2] });
+  if (wind) trains.push({ kind: 'wind', h: wind[0], tp: wind[1], dir: wind[2] });
   return {
     time,
     waveH: null,
     waveDir: null,
-    wavePer: null,
-    swellH: 1.5,
-    swellPer: 11,
-    swellDir: 320,
-    swell2H: null,
-    swell2Per: null,
-    swell2Dir: null,
-    windWaveH: null,
-    windWavePer: null,
-    windWaveDir: null,
+    waveTp: null,
+    waveTe: null,
+    trains,
     windSpeed: 10,
     windDir: 180,
     windGust: 15,
     seaLevel: 0,
     waterTemp: 20,
     airTemp: 22,
-    ...o,
+    ...rest,
   };
 }
 
-function day(date: string, o: (h: number) => Partial<HourConditions> = () => ({})): HourConditions[] {
+function day(date: string, o: (h: number) => Parameters<typeof hour>[1] = () => ({})): HourConditions[] {
   return Array.from({ length: 24 }, (_, h) =>
     hour(`${date}T${String(h).padStart(2, '0')}:00`, { seaLevel: Math.sin((h / 12.4) * 2 * Math.PI), ...o(h) }),
   );
 }
 
+const stage4 = profileForStage(4);
 const settings: Settings = {
   id: 'settings',
-  level: 'intermediate',
+  profile: stage4,
   categories: [{ id: 'fun', name: 'Fun', color: '#000' }],
   halfLifeMonths: 24,
   ignoreBefore: null,
@@ -88,7 +92,7 @@ function session(date: string, fun: number, o: Partial<Session> = {}, cond = day
     tags: [],
     notes: '',
     excluded: false,
-    skillAtTime: 'intermediate',
+    skillAtTime: snapshot(stage4),
     createdAt: 0,
     updatedAt: 0,
     ...o,
@@ -128,7 +132,7 @@ describe('conditions', () => {
     expect(windKind(on)).toBe('onshore');
   });
   it('falls back to total sea state without partitions', () => {
-    const d = deriveHour(spot, hour('t', { swellH: null, swellPer: null, swellDir: null, waveH: 2, wavePer: 10, waveDir: 320 }));
+    const d = deriveHour(spot, hour('t', { swell: null, waveH: 2, waveTp: 10, waveDir: 320 }));
     expect(d.hb).toBeGreaterThan(1);
   });
 });
@@ -150,15 +154,17 @@ describe('tide extremes & energy', () => {
     expect(ex[1].level).toBeCloseTo(-1.2, 1);
   });
 
-  it('energy is a property of the grid cell: grows with period², ignores direction, adds up trains', () => {
-    const e10 = waveEnergyKJ(hour('t', { swellH: 1.5, swellPer: 10, swellDir: 320, swell2H: null, windWaveH: null }))!;
-    const e14 = waveEnergyKJ(hour('t', { swellH: 1.5, swellPer: 14, swellDir: 320, swell2H: null, windWaveH: null }))!;
+  it('energy is a property of the grid cell: the strongest train, growing with peak period²', () => {
+    const e10 = waveEnergyKJ(hour('t', { swell: [1.5, 10, 320] }))!;
+    const e14 = waveEnergyKJ(hour('t', { swell: [1.5, 14, 320] }))!;
     expect(e10).toBeCloseTo(1.96 * 1.5 * 1.5 * 100, -1);
     expect(e14 / e10).toBeCloseTo(1.96, 1);
     // Same sea state from the opposite direction: same energy (no spot swell window applied).
-    expect(waveEnergyKJ(hour('t', { swellH: 1.5, swellPer: 10, swellDir: 140, swell2H: null, windWaveH: null }))).toBeCloseTo(e10, 6);
-    const withWindSea = waveEnergyKJ(hour('t', { swellH: 1.5, swellPer: 10, swellDir: 320, swell2H: null, windWaveH: 0.8, windWavePer: 5, windWaveDir: 30 }))!;
-    expect(withWindSea - e10).toBeCloseTo(1.96 * 0.64 * 25, -1);
+    expect(waveEnergyKJ(hour('t', { swell: [1.5, 10, 140] }))).toBeCloseTo(e10, 6);
+    // Headline = strongest train (as surf-forecast.com shows it); the total adds the others.
+    const mixed = hour('t', { swell: [1.5, 10, 320], wind: [0.8, 5, 30] });
+    expect(waveEnergyKJ(mixed)).toBeCloseTo(e10, 6);
+    expect(totalEnergyKJ(mixed)! - e10).toBeCloseTo(1.96 * 0.64 * 25, -1);
   });
 });
 
@@ -169,18 +175,138 @@ describe('rating', () => {
     expect(off.q).toBeGreaterThan(on.q * 2);
     expect(on.potential).toBeCloseTo(off.potential, 5);
   });
-  it('beginners are kept away from big surf and expert spots', () => {
-    const big = deriveHour(spot, hour('t', { swellH: 3, swellPer: 14 }));
-    expect(suitability(spot, big, 'beginner').status).toBe('unsuitable');
-    expect(suitability({ ...spot, level: 'expert' }, deriveHour(spot, hour('t')), 'advanced').status).toBe('unsuitable');
-    expect(suitability(spot, deriveHour(spot, hour('t', { swellH: 0.8, swellPer: 9 })), 'intermediate').status).toBe('good');
+  it('scores the PEAK period: chop below 6 s, groundswell from 12 s', () => {
+    expect(fPeriod(5)).toBe(0.25);
+    expect(fPeriod(9)).toBeCloseTo(0.75);
+    expect(fPeriod(12)).toBe(1);
+    expect(scoreLabel(9.5)).toBe('Epic');
+    expect(scoreLabel(9)).toBe('Good');
+    expect(scoreLabel(4)).toBe('Fair');
+  });
+});
+
+describe('suitability rules', () => {
+  const small = deriveHour(spot, hour('t', { swell: [0.5, 9, 320] })); // ~0.85 m face
+  it('beginners are kept away from big surf, and spots far above your stage', () => {
+    const big = deriveHour(spot, hour('t', { swell: [3, 14, 320] }));
+    expect(suitability(spot, big, profileForStage(2)).status).toBe('unsuitable');
+    expect(suitability({ ...spot, level: 'expert' }, small, profileForStage(5)).status).toBe('unsuitable');
+    expect(suitability({ ...spot, level: 'expert' }, small, profileForStage(6)).status).toBe('challenging');
+  });
+  it('good in your range, with a positive reason', () => {
+    const r = suitability(spot, small, stage4);
+    expect(r.status).toBe('good');
+    expect(r.reasons.some((x) => x.positive && /Right in your range/.test(x.text))).toBe(true);
+  });
+  it('size reasons name both sizes, and "push my limits" makes it a stretch session', () => {
+    const mid = { ...small, hb: 1.4 }; // between C 1.2 and M 1.5
+    const r = suitability(spot, mid, stage4);
+    expect(r.status).toBe('challenging');
+    const size = r.reasons.find((x) => x.kind === 'size')!;
+    expect(size.text).toContain('1.4 m');
+    expect(size.text).toContain('1.2 m');
+    // (paddleOut 2: with 1, getting out through sets above C keeps it challenging anyway)
+    const stretch = suitability(spot, mid, { ...stage4, paddleOut: 2, wantsChallenge: true });
+    expect(stretch.status).toBe('stretch');
+    expect(stretch.factor).toBe(0.7);
+  });
+  it('compares sizes as shown: ~2.2 m is not "bigger" than a 2.2 m comfort size', () => {
+    const r = suitability(spot, { ...small, hb: 2.248 }, profileForStage(6));
+    expect(r.reasons.find((x) => x.kind === 'size')?.text).toMatch(/^Top of your comfort zone/);
+  });
+  it('beyond your biggest wave is unsuitable below stage 6', () => {
+    expect(suitability(spot, { ...small, hb: 1.65 }, stage4).status).toBe('unsuitable');
+    expect(suitability(spot, { ...small, hb: 3.3 }, profileForStage(6)).status).toBe('challenging');
+  });
+  it('says plainly when size is fine but the reef is the problem', () => {
+    const r = suitability(spot, small, { ...stage4, reefExp: 0 });
+    expect(r.status).toBe('challenging');
+    expect(r.reasons[0].text).toMatch(/^Size is fine; it's the reef/);
+  });
+  it('long-period groundswell is flagged for stage 5 and below', () => {
+    const d = { ...small, hb: 1.0, tDom: 14 };
+    expect(suitability(spot, d, stage4).reasons.some((x) => x.kind === 'period')).toBe(true);
+    expect(suitability(spot, d, profileForStage(6)).reasons.some((x) => x.kind === 'period')).toBe(false);
+  });
+});
+
+describe('skill profile', () => {
+  it('summarises the profile in one line', () => {
+    expect(profileSummary(stage4)).toBe('Stage 4 · comfortable to chest high (1.2 m) · caught up to 1.5 m · some reef · mid-length');
+    expect(bodyRange(1.8, 2.3)).toBe('head to overhead');
+    expect(bodyRange(1.0, 1.4)).toBe('waist to shoulder high');
+  });
+  const sess = (feel: Session['fields']['feel'], observedSize: string, o: Partial<Session> = {}) => session('2026-03-01', 7, { id: `${feel}-${observedSize}`, fields: { feel, observedSize }, ...o });
+  it('comfortable in bigger waves moves C a quarter of the way, at most one step', () => {
+    const next = learnFromSession(stage4, sess('comfortable', 'shoulder'), spot, 1.5, [], [spot])!;
+    expect(next.comfort).toBeCloseTo(1.3, 2); // 1.2 + (1.5 − 1.2) / 4 = 1.275 → 1.3 (5 cm steps)
+    expect(next.lastChange?.reasons[0]).toMatch(/Comfortable size 1\.2 m → 1\.3 m/);
+    const far = learnFromSession(stage4, sess('comfortable', 'bigger'), spot, 5, [], [spot])!;
+    expect(far.comfort).toBe(1.5); // capped at the next body-scale step without a second session
+    expect(far.max).toBe(5);
+  });
+  it('out of my depth at or below C lowers it; undo restores the profile', () => {
+    const next = learnFromSession(stage4, sess('over', 'chest'), spot, 1.2, [], [spot])!;
+    expect(next.comfort).toBeLessThan(1.2);
+    expect(undoLastChange(next).comfort).toBe(1.2);
+  });
+  it('never changes the stage on its own, but asks', () => {
+    const p = { ...profileForStage(5), comfort: 2.0, max: 2.2 };
+    const next = learnFromSession(p, sess('comfortable', 'well-overhead'), spot, 3.0, [], [spot])!;
+    expect(next.stage).toBe(5);
+    expect(next.lastChange?.stagePrompt).toBe(6);
+  });
+  it('fun alone changes nothing', () => {
+    expect(learnFromSession(stage4, session('2026-03-01', 10, { fields: {} }), { ...spot, bottom: 'sand' }, 2, [], [spot])).toBeNull();
+  });
+});
+
+describe('spots and peaks', () => {
+  const hierro = SEED_SPOTS.find((s) => s.id === 'fv-el-hierro')!;
+  it('uses Surfline names, keeps other names as aliases, and merged The Bubble into El Hierro', () => {
+    const gen = SEED_SPOTS.find((s) => s.id === 'fv-generoso')!;
+    expect(gen.name).toBe('Generosa');
+    expect(gen.aliases).toContain('Generoso');
+    expect(SEED_SPOTS.some((s) => s.id === 'fv-the-bubble')).toBe(false);
+    expect(hierro.peaks.map((p) => p.id).sort()).toEqual(['bubble', 'derecha', 'izquierda']);
+    expect(hierro.externalIds?.surfline).toContain('5842041f4e65fad6a7708cbf');
+  });
+  it('rates El Hierro per peak and names the best one for you', () => {
+    expect(ratedPeaks(hierro)).toHaveLength(3);
+    // ~1.9 m face: within a stage-6 surfer's comfort size; The Bubble is an expert (stage 7) peak.
+    const d = deriveHour({ ...hierro, gain: 1 }, hour('2026-01-01T10:00', { swell: [1.2, 12, 320], seaLevel: 0 }), { norm: 0.9, trend: 0 });
+    const r = rateSpot(hierro, d, profileForStage(6));
+    expect(r.peak).not.toBeNull();
+    expect(r.peak?.id).not.toBe('bubble');
+    const expert = rateSpot(hierro, d, profileForStage(7));
+    expect(expert.score).toBeGreaterThan(0);
+  });
+  it('includes the spots other services list, each with a guide', () => {
+    const byId = (id: string) => SEED_SPOTS.find((s) => s.id === id)!;
+    expect(new Set(SEED_SPOTS.map((s) => s.id)).size).toBe(SEED_SPOTS.length);
+    expect(SEED_SPOTS.every((s) => s.guide && s.peaks.length > 0)).toBe(true);
+    expect(byId('fv-corralejo-beach').externalIds?.surfline).toContain('584204204e65fad6a77096a4');
+    expect(byId('fv-playa-los-matos').externalIds?.surfline).toContain('640b893a4878eb50bf195f71');
+    const suicides = byId('fv-suicides');
+    expect(suicides.externalIds?.surfForecast).toBe('Suicides_2');
+    expect(suicides.aliases).toContain('Suicidios');
+    // West to east along the North Shore: Mejillones, Suicides, Generosa (as the forecast sites order them).
+    expect(byId('fv-mejillones').lon).toBeLessThan(suicides.lon);
+    expect(suicides.lon).toBeLessThan(byId('fv-generoso').lon);
+  });
+  it('rates Suicides per peak: the inside left for an advanced surfer', () => {
+    const suicides = SEED_SPOTS.find((s) => s.id === 'fv-suicides')!;
+    expect(ratedPeaks(suicides).map((p) => p.id)).toEqual(['main', 'inside-left']);
+    // ~1.8 m face: in a stage-6 surfer's range; the main reef is an expert (stage 7) wave.
+    const d = deriveHour({ ...suicides, gain: 1 }, hour('2026-01-01T10:00', { swell: [1.1, 13, 330], seaLevel: 0.5 }), { norm: 0.8, trend: 0 });
+    expect(rateSpot(suicides, d, profileForStage(6)).peak?.id).toBe('inside-left');
   });
 });
 
 describe('similarity & prediction', () => {
   it('identical conditions have distance 0, different ones are far', () => {
     const a = deriveSeries(spot, day('2026-01-01'))[9];
-    const b = deriveSeries(spot, day('2026-01-02', () => ({ swellH: 3, windDir: 0, windSpeed: 30 })))[9];
+    const b = deriveSeries(spot, day('2026-01-02', () => ({ swell: [3, 11, 320], windDir: 0, windSpeed: 30 })))[9];
     expect(distance(a, a, spot).d).toBe(0);
     expect(kernel(distance(a, b, spot).d)).toBeLessThan(0.05);
     // One tolerance off in size only -> clearly similar but not identical.
@@ -218,6 +344,11 @@ describe('similarity & prediction', () => {
     expect(p.neighbours.length).toBe(2);
   });
 
+  it('sessions from another stage count less', () => {
+    const then = session('2026-02-01', 5, { skillAtTime: snapshot(profileForStage(2)) });
+    expect(sessionWeight(then, settings, '2026-02-01').w).toBeCloseTo(0.5, 5);
+  });
+
   it('excluded sessions and sessions before the cut-off carry no weight', () => {
     expect(sessionWeight(session('2026-01-01', 5, { excluded: true }), settings, '2026-03-01').w).toBe(0);
     expect(sessionWeight(session('2025-01-01', 5), { ...settings, ignoreBefore: '2025-06-01' }, '2026-03-01').w).toBe(0);
@@ -231,7 +362,7 @@ describe('similarity & prediction', () => {
 
   it('dissimilar sessions barely move the prediction', () => {
     const target = deriveSeries(spot, day('2026-03-01'))[9];
-    const otherDay = day('2026-02-01', () => ({ swellH: 3.5, swellPer: 15, windDir: 0, windSpeed: 35 }));
+    const otherDay = day('2026-02-01', () => ({ swell: [3.5, 15, 320], windDir: 0, windSpeed: 35 }));
     const hist = buildHistory(spot, [session('2026-02-01', 1, {}, otherDay)], settings, '2026-03-01');
     expect(predict(spot, target, 6, hist).yhat).toBeCloseTo(6, 1);
   });
@@ -246,14 +377,14 @@ describe('similarity & prediction', () => {
 
   it('recommends a daylight window', () => {
     const hours = day('2026-03-01');
-    const rec = recommendSpotDay(spot, hours, [{ date: '2026-03-01', sunrise: '2026-03-01T07:30', sunset: '2026-03-01T19:00' }], [], settings, 'intermediate', '2026-03-01', '2026-03-01', null);
+    const rec = recommendSpotDay(spot, hours, [{ date: '2026-03-01', sunrise: '2026-03-01T07:30', sunset: '2026-03-01T19:00' }], [], settings, settings.profile, '2026-03-01', '2026-03-01', null);
     expect(rec.hours.length).toBe(24);
     expect(rec.hours.filter((h) => h.daylight).length).toBe(12);
     expect(rec.best).not.toBeNull();
     expect(rec.bestWindow![0]).toBeGreaterThanOrEqual(450);
     expect(rec.dayOver).toBe(false);
     // Evening: no daylight left, but "now" is still reported.
-    const late = recommendSpotDay(spot, hours, [{ date: '2026-03-01', sunrise: '2026-03-01T07:30', sunset: '2026-03-01T19:00' }], [], settings, 'intermediate', '2026-03-01', '2026-03-01', 20 * 60 + 15);
+    const late = recommendSpotDay(spot, hours, [{ date: '2026-03-01', sunrise: '2026-03-01T07:30', sunset: '2026-03-01T19:00' }], [], settings, settings.profile, '2026-03-01', '2026-03-01', 20 * 60 + 15);
     expect(late.dayOver).toBe(true);
     expect(late.best).toBeNull();
     expect(late.now?.time).toBe('2026-03-01T20:00');

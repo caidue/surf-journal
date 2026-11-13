@@ -1,23 +1,43 @@
-import type { Spot } from '../types';
+import type { Peak, Spot } from '../types';
 import { SPOT_GUIDES } from './spotGuides';
 
 /**
  * Seed spots for northern Fuerteventura, compiled from public spot guides
  * (vvanat.fr / Planet Surf Camps, The Surf Atlas, surf-forecast.com, fuerteventuraplayas.com,
- * Wannasurf) and OpenStreetMap. Sources disagree on wind/tide/level for several spots;
- * values here are a reasonable middle ground. Only El Muelle and Bristol have OSM-sourced
- * coordinates; the rest are approximate (flagged) and can be corrected in the spot editor.
+ * Wannasurf) and OpenStreetMap.
+ *
+ * Names follow Surfline (the best-known service) wherever Surfline has the spot; spots it lacks
+ * keep their surf-forecast / Wannasurf names. Every other name goes into `aliases` so search finds
+ * it. `externalIds` only power links out: no data is copied from those services.
+ * Ids never change (a renamed spot keeps its id, e.g. fv-generoso shows as "Generosa").
+ *
+ * Bump SEED_VERSION whenever this list changes: devices then refresh the built-in spots
+ * (db.ts → refreshSeedSpots) and move sessions of RETIRED_SPOTS to their new spot.
  */
+export const SEED_VERSION = 5; // 5: Suicides, Playa los Matos, Corralejo Beach added; Mejillones pin moved (3 was used by an earlier build)
 
-const SRC = 'Public spot guides (vvanat.fr, Planet Surf Camps, The Surf Atlas, surf-forecast.com, fuerteventuraplayas.com) + OSM';
+/** Spots that were merged into another one: old id → new id. */
+export const RETIRED_SPOTS: Record<string, string> = {
+  'fv-the-bubble': 'fv-el-hierro', // one Surfline spot with three peaks (seed 4)
+};
 
-type SeedSpot = Omit<Spot, 'region' | 'source' | 'gain' | 'coordsApprox'> & Partial<Pick<Spot, 'gain' | 'coordsApprox'>>;
+const SRC = 'Public spot guides (vvanat.fr, Planet Surf Camps, The Surf Atlas, surf-forecast.com, fuerteventuraplayas.com, Wannasurf), Surfline and surf-forecast spot lists (names, pins), OSM';
+
+type SeedSpot = Omit<Spot, 'region' | 'source' | 'gain' | 'coordsApprox' | 'peaks'> &
+  Partial<Pick<Spot, 'gain' | 'coordsApprox'>> & {
+    /** Rating overrides merged onto the researched guide peaks (by peak id). */
+    peakOverrides?: Record<string, Partial<Peak>>;
+    /** Extra peaks (e.g. from a merged spot's guide). */
+    extraPeaks?: Peak[];
+  };
 
 const seed: SeedSpot[] = [
   {
     id: 'fv-rocky-point',
     name: 'Rocky Point',
-    lat: 28.7335, // Wannasurf; in Corralejo bay by Punta Elena (OSM), south of the harbour
+    aliases: ['Punta Elena', 'Bajo del Medio', 'Punta del Corralejo'],
+    externalIds: { surfline: 'rocky-point/584204204e65fad6a77096a0', surfForecast: 'Rocky-Point_Bajodel-Medio' },
+    lat: 28.7335, // Wannasurf; Surfline's pin (28.7328, -13.8569) is 80 m away, by Punta Elena
     lon: -13.8558,
     facing: 15, // offshore wind from S–SW (guides)
     idealSwellDir: 345, // N–NW swell
@@ -28,17 +48,22 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'reef',
     level: 'all',
+    power: 'punchy',
+    peel: 'medium',
+    crowd: 'high',
     hazards: ['long reef walk', 'shallow sections', 'crowds'],
     description:
       'Corralejo reef with long lefts and shorter rights. The inside is the classic all-levels wave at high tide; the outside reef ("Bajo del Medio") holds more size but suffers more from wind. Enter from the side.',
-    peaks: [
-      { id: 'inside', name: 'Inside', description: 'Softer, all levels, best at high tide' },
-      { id: 'outside', name: 'Outside (Bajo del Medio)', description: 'More size, longboard/SUP friendly, wind-exposed' },
-    ],
+    peakOverrides: {
+      inside: { tide: 'mid-high', maxSize: 2.2 },
+      outside: { minSize: 1.8, maxSize: 4, power: 'mellow' },
+    },
   },
   {
     id: 'fv-el-muelle',
-    name: 'El Muelle (Harbour Wall)',
+    name: 'El Muelle',
+    aliases: ['Harbour Wall', 'Corralejo harbour', 'Waikiki'],
+    externalIds: { surfForecast: 'El-Muelle' },
     lat: 28.7465,
     lon: -13.8672,
     coordsApprox: false,
@@ -51,13 +76,18 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'rock',
     level: 'advanced',
+    power: 'slab',
+    peel: 'fast',
+    crowd: 'high',
+    localism: 'some',
     hazards: ['shallow rock', 'slabby', 'crowds'],
     description: 'Left off the Corralejo harbour wall. Shallow and slabby; high tide risks hitting the reef. Mostly flat in summer.',
-    peaks: [],
   },
   {
     id: 'fv-bristol',
-    name: 'Bristol (Shooting Gallery)',
+    name: 'Bristol',
+    aliases: ['Shooting Gallery'],
+    externalIds: { surfline: 'bristol/584204204e65fad6a77096a3', surfForecast: 'Bristol' },
     lat: 28.7455,
     lon: -13.8718,
     coordsApprox: false,
@@ -70,15 +100,22 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'reef',
     level: 'advanced',
+    power: 'hollow',
+    peel: 'fast',
+    crowd: 'medium',
+    localism: 'strong',
     hazards: ['shallow lava reef', 'locals'],
-    description: 'Mainly a fast, steep left over lava reef; tricky take-off at low tide, smoother at high. Flat in summer.',
-    peaks: [],
+    description: 'Mainly a fast, steep left over lava reef; tricky take-off at low tide, smoother at high. Flat in summer. Also called Shooting Gallery.',
   },
   {
     id: 'fv-mejillones',
     name: 'Mejillones',
-    lat: 28.7561,
-    lon: -13.8933,
+    aliases: ['El Mejillón', 'Mechihonas'],
+    externalIds: { surfForecast: 'Mejillones' },
+    // surf-forecast's longitude, on the reef (its own point, 28.7597, is out to sea): west of Suicides,
+    // as both forecast sites order them. A Wannasurf comment puts it ~3 km east of La Caleta (-13.893). To verify.
+    lat: 28.7485,
+    lon: -13.9106,
     facing: 350,
     idealSwellDir: 335,
     swellWindow: 50,
@@ -88,14 +125,17 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'reef',
     level: 'expert',
+    power: 'punchy',
+    crowd: 'low',
     hazards: ['big-wave reef', 'urchins', 'rarely breaks'],
     description: 'One of the island’s biggest waves. Only breaks on large NNW winter swells (Nov–Mar). Experts only. Note: name/location is mixed up with La Caleta in some guides.',
-    peaks: [],
   },
   {
     id: 'fv-generoso',
-    name: 'Generoso',
-    lat: 28.7547, // Wannasurf / surf-forecast, past the power station
+    name: 'Generosa',
+    aliases: ['Generoso', 'La Generosa', 'La Hennerosa'],
+    externalIds: { surfline: 'generosa/640b892d606c4576c6ef960a', surfForecast: 'Genarosa' },
+    lat: 28.7547, // Wannasurf / surf-forecast, past the power station; Surfline 28.756, -13.8849
     lon: -13.8856,
     facing: 355,
     idealSwellDir: 330,
@@ -106,13 +146,41 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'reef',
     level: 'intermediate',
+    power: 'punchy',
+    peel: 'fast',
+    crowd: 'medium',
     hazards: ['powerful', 'rocky entry/exit', 'currents'],
-    description: 'Powerful lava-reef left. No beach: rocky entry and exit, currents. School guides call it "all levels", which understates the hazards.',
-    peaks: [],
+    description:
+      'Powerful lava-reef left. No beach: rocky entry and exit, currents. School guides call it "all levels", which understates the hazards. Forecast sites spell it Generosa; maps and locals often say Generoso.',
+  },
+  {
+    id: 'fv-suicides',
+    name: 'Suicides',
+    aliases: ['Suicidios'],
+    externalIds: { surfForecast: 'Suicides_2' },
+    lat: 28.7556, // Wannasurf (approximate), on the reef ~300 m out; surf-forecast's point (28.7638, -13.9058) is 1.7 km out to sea
+    lon: -13.8951,
+    facing: 350,
+    idealSwellDir: 325,
+    swellWindow: 50,
+    minSize: 1.2,
+    maxSize: 4,
+    tide: 'mid-high',
+    breakType: 'reef',
+    bottom: 'reef',
+    level: 'expert',
+    power: 'hollow',
+    peel: 'fast',
+    crowd: 'low',
+    localism: 'some',
+    hazards: ['sharp, shallow lava reef', 'rocks close to both sections', 'rips and undertow', 'hard entry and exit on big swells'],
+    description:
+      'Hollow, fast and powerful lava reef between Generosa and Mejillones, with two sections: the main reef and a less risky inside left. Experts only. Usually empty; respect the locals, bodyboarders included. Not on Surfline; the name follows surf-forecast.',
   },
   {
     id: 'fv-la-caleta',
     name: 'La Caleta',
+    aliases: ['Caletta'],
     lat: 28.7508, // fuerteventuraplayas, a few minutes east of Majanicho
     lon: -13.9234,
     facing: 345,
@@ -124,15 +192,19 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'reef',
     level: 'intermediate',
+    power: 'punchy',
+    peel: 'fast',
+    crowd: 'high',
     hazards: ['crowds', 'rips', 'shifty outside'],
     description: 'Reef with quick lefts (and rights), best on a mid-rising tide. Crowded and shifty on the outside.',
-    peaks: [],
   },
   {
     id: 'fv-majanicho',
     name: 'Majanicho',
-    lat: 28.742,
-    lon: -13.944,
+    externalIds: { surfline: 'majanicho/584204204e65fad6a77096a2', surfForecast: 'Majanicho' },
+    lat: 28.7493, // Surfline (surf-forecast 28.7473, -13.9349): the long right along the channel
+    lon: -13.9332,
+    coordsApprox: false,
     facing: 0,
     idealSwellDir: 340,
     swellWindow: 70,
@@ -142,58 +214,55 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'reef',
     level: 'intermediate',
+    power: 'punchy',
+    peel: 'medium',
+    crowd: 'high',
     hazards: ['rocks', 'crowds'],
     description: 'Fishing hamlet with several reef peaks; a good backup when the main spots are too big. Popular with SUP and windsurfers.',
-    peaks: [
-      { id: 'inside-a', name: 'Inside A-frame' },
-      { id: 'inside-right', name: 'Inside right', description: 'Best on a rising tide, no wind' },
-      { id: 'outside', name: 'Outside', description: 'Lefts and rights, works on all tides' },
-    ],
+    peakOverrides: {
+      'inside-a': { tide: 'mid-high', minSize: 0.8 },
+      'inside-right': { tide: 'mid-high', maxSize: 1.9 },
+      outside: { tide: 'all', minSize: 0.8, maxSize: 2.4 },
+    },
   },
   {
     id: 'fv-el-hierro',
     name: 'El Hierro',
-    lat: 28.7395,
-    lon: -13.958,
+    aliases: ['The Bubble', 'Hierro Left', 'Hierro Right', 'La Izquierda', 'Izquierda del Hierro', 'Derecha de los Alemanes', 'German Right', 'Yarro'],
+    externalIds: { surfline: 'the-bubble-hierro-right-/5842041f4e65fad6a7708cbf', surfForecast: 'Izquierda' },
+    lat: 28.7442, // Surfline's single point, between the El Hierro bay and The Bubble just east
+    lon: -13.9481,
+    coordsApprox: false,
     facing: 340,
     idealSwellDir: 315,
     swellWindow: 70,
     minSize: 1,
     maxSize: 3.5,
-    tide: 'low-mid',
+    tide: 'all',
     breakType: 'reef',
     bottom: 'reef',
     level: 'advanced',
-    hazards: ['shallow reef', 'crowds'],
-    description: 'Two classic reef waves: the right "Derecha de los Alemanes" (best at low tide, mid-size swell) and a long, fast, powerful left ("La Izquierda", all tides).',
-    peaks: [
-      { id: 'derecha', name: 'Derecha de los Alemanes', description: 'Right, low tide' },
-      { id: 'izquierda', name: 'La Izquierda', description: 'Left, all tides' },
-    ],
-  },
-  {
-    id: 'fv-the-bubble',
-    name: 'The Bubble',
-    lat: 28.738,
-    lon: -13.966,
-    facing: 335,
-    idealSwellDir: 315,
-    swellWindow: 60,
-    minSize: 1.2,
-    maxSize: 3.5,
-    tide: 'mid-high',
-    breakType: 'reef',
-    bottom: 'reef',
-    level: 'expert',
-    hazards: ['shallow volcanic reef', 'heavy wipeouts', 'crowds'],
-    description: 'Hollow A-frame barrels over shallow volcanic reef. Experts only; crowded at weekends.',
-    peaks: [],
+    power: 'punchy',
+    peel: 'fast',
+    crowd: 'high',
+    localism: 'some',
+    hazards: ['shallow volcanic reef', 'currents', 'urchins', 'crowds'],
+    description:
+      'Three reef waves around the El Hierro bay: the long, fast left "La Izquierda" (all tides), the right "Derecha de los Alemanes" (best at low tide) and, just east, The Bubble, a hollow A-frame over very shallow reef that needs more swell (experts). Surfline lists them as one spot, "The Bubble (Hierro Right)"; "Hierro Right" means different waves to different people, so the app avoids it.',
+    peakOverrides: {
+      izquierda: { tide: 'all', minSize: 1, maxSize: 3.5, power: 'punchy', peel: 'fast' },
+      derecha: { tide: 'low-mid', minSize: 1.2, maxSize: 3, power: 'punchy', peel: 'sectiony' },
+      bubble: { tide: 'mid-high', minSize: 1.4, maxSize: 3.5, power: 'hollow', peel: 'fast' },
+    },
+    extraPeaks: SPOT_GUIDES['fv-the-bubble'].peaks.map((p) => ({ ...p, id: 'bubble' })),
   },
   {
     id: 'fv-punta-blanca',
     name: 'Punta Blanca',
-    lat: 28.7164, // OSM "Punta Blanca" beach, east of the Tostón lighthouse; the reef is just offshore
-    lon: -14.0014,
+    aliases: ['Playa Punta Blanca'],
+    externalIds: { surfline: 'playa-punta-blanca/666b3248646e832432d19dd2' },
+    lat: 28.724, // Surfline and Windguru (our earlier OSM beach pin was 1.5 km west)
+    lon: -13.9891,
     facing: 315,
     idealSwellDir: 300,
     swellWindow: 70,
@@ -203,16 +272,20 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'reef',
     level: 'intermediate',
+    power: 'punchy',
+    crowd: 'medium',
     hazards: ['long paddle', 'rocks', 'rips', 'urchins'],
     description: 'Reef A-frame, lefts and rights, reached via a dirt track. The inside reforms and is a good practice zone.',
-    peaks: [
-      { id: 'outside', name: 'Outside reef' },
-      { id: 'inside', name: 'Inside reform', description: 'Smaller practice zone' },
-    ],
+    peakOverrides: {
+      outside: { minSize: 0.9 },
+      inside: { maxSize: 1.5, power: 'mellow' },
+    },
   },
   {
     id: 'fv-esquinzo',
     name: 'Esquinzo',
+    aliases: ['Playa de Esquinzo'],
+    externalIds: { surfForecast: 'Playade-Esquinzo_1' },
     lat: 28.6348, // OSM "Playa de Esquinzo", ~5 km south of El Cotillo
     lon: -14.027,
     coordsApprox: false,
@@ -225,13 +298,16 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'mixed',
     level: 'intermediate',
+    power: 'punchy',
+    crowd: 'low',
     hazards: ['heavy at low tide'],
     description: 'Powerful left over sand and reef south of El Cotillo, reached by dirt track. Needs a solid NW swell and light easterly wind; heavy and unpredictable at low tide.',
-    peaks: [],
   },
   {
     id: 'fv-cotillo-piedra-playa',
-    name: 'El Cotillo – Piedra Playa',
+    name: 'Cotillo',
+    aliases: ['El Cotillo', 'Piedra Playa', 'El Cotillo – Piedra Playa', 'Playa del Castillo'],
+    externalIds: { surfline: 'cotillo/6052148c589a23368a742cb4', surfForecast: 'Cotillo' },
     lat: 28.672,
     lon: -14.016,
     facing: 280,
@@ -243,13 +319,21 @@ const seed: SeedSpot[] = [
     breakType: 'beach',
     bottom: 'sand',
     level: 'all',
+    power: 'punchy',
+    peel: 'sectiony',
+    crowd: 'medium',
     hazards: ['closeouts on big swell', 'shore break'],
-    description: 'West-coast beach break with A-frame wedges. Beginner-friendly in small summer swells (3–5 ft); closes out when it gets heavy.',
-    peaks: [],
+    description: 'West-coast beach break with A-frame wedges (Piedra Playa). Beginner-friendly in small summer swells (3–5 ft); closes out when it gets heavy. Not Surfline’s "Castillo", which is on Lanzarote.',
+    peakOverrides: {
+      castillo: { power: 'mellow', minSize: 0.8 },
+      'piedra-peaks': { tide: 'mid-high' },
+    },
   },
   {
     id: 'fv-cotillo-spew-pits',
-    name: 'El Cotillo – Spew Pits',
+    name: 'Spew Pits',
+    aliases: ['El Cotillo – Spew Pits'],
+    externalIds: { surfForecast: 'Spew-Pits' },
     lat: 28.703, // north of town by the lagoons (Wannasurf, surf-forecast); some guides place it off the harbour
     lon: -14.025,
     facing: 280,
@@ -261,13 +345,16 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'reef',
     level: 'expert',
+    power: 'hollow',
+    crowd: 'low',
     hazards: ['spiky reef', 'heavy'],
-    description: 'Rights and lefts over spiky reef that need a strong swell. Experts only.',
-    peaks: [],
+    description: 'Rights and lefts over spiky reef north of El Cotillo that need a strong swell. Experts only.',
   },
   {
     id: 'fv-lobos',
-    name: 'Isla de Lobos',
+    name: 'Los Lobos',
+    aliases: ['Isla de Lobos', 'Lobos'],
+    externalIds: { surfline: 'los-lobos/5842041f4e65fad6a7708cb9', surfForecast: 'Los-Lobos' },
     lat: 28.7555,
     lon: -13.828,
     facing: 300,
@@ -279,16 +366,22 @@ const seed: SeedSpot[] = [
     breakType: 'point',
     bottom: 'reef',
     level: 'advanced',
+    power: 'punchy',
+    peel: 'fast',
+    crowd: 'medium',
+    localism: 'some',
     hazards: ['ferry dependent', 'localism', 'long hold-downs'],
     description: 'Right-hand point on Lobos island with rides of up to ~400 m on big N/NW swells. Access by ferry/boat from Corralejo.',
-    peaks: [
-      { id: 'top', name: 'Top of the point' },
-      { id: 'inside', name: 'Inside section' },
-    ],
+    peakOverrides: {
+      top: { tide: 'low-mid' },
+      inside: { tide: 'mid', power: 'hollow' },
+    },
   },
   {
     id: 'fv-flag-beach',
     name: 'Flag Beach',
+    aliases: ['Playa de Corralejo'],
+    externalIds: { surfline: 'flag-beach/640b894d4519055a3bdbaeaf' },
     lat: 28.723,
     lon: -13.842,
     facing: 55,
@@ -300,13 +393,63 @@ const seed: SeedSpot[] = [
     breakType: 'beach',
     bottom: 'sand',
     level: 'all',
+    power: 'mellow',
+    peel: 'medium',
+    crowd: 'high',
     hazards: ['reef ramp ~100 m out', 'kitesurfers'],
     description: 'Long sandy beach at the start of the Corralejo dunes, mainly lefts. Needs a big N/NW swell to wrap in; popular with surf schools and kiters.',
-    peaks: [],
+  },
+  {
+    id: 'fv-playa-los-matos',
+    name: 'Playa los Matos',
+    aliases: ['Playa de los Matos', 'Los Matos'],
+    externalIds: { surfline: 'playa-los-matos/640b893a4878eb50bf195f71' },
+    lat: 28.6984, // Surfline's latitude, on the shoreline (Surfline's pin is 180 m out to sea)
+    lon: -13.8327,
+    facing: 75,
+    idealSwellDir: 30,
+    swellWindow: 60,
+    minSize: 0.4,
+    maxSize: 2,
+    tide: 'all',
+    breakType: 'beach',
+    bottom: 'sand',
+    level: 'all',
+    power: 'mellow',
+    peel: 'medium',
+    crowd: 'low',
+    hazards: ['shorebreak on bigger swells', 'currents and drift along the beach'],
+    description:
+      'A named stretch of the Grandes Playas in the Corralejo dunes: open sand with shifting peaks, lefts and rights, in N–NE swell. Surfline lists it next to Corralejo Beach, 200 m south; the guides describe no difference between the two.',
+  },
+  {
+    id: 'fv-corralejo-beach',
+    name: 'Corralejo Beach',
+    aliases: ['Grandes Playas', 'Grandes Playas de Corralejo'],
+    externalIds: { surfline: 'corralejo-beach/584204204e65fad6a77096a4' },
+    lat: 28.6966, // Surfline's latitude, on the shoreline (Surfline's pin is 420 m out to sea)
+    lon: -13.8316,
+    facing: 75,
+    idealSwellDir: 30,
+    swellWindow: 60,
+    minSize: 0.4,
+    maxSize: 2,
+    tide: 'all',
+    breakType: 'beach',
+    bottom: 'sand',
+    level: 'all',
+    power: 'mellow',
+    peel: 'medium',
+    crowd: 'low',
+    hazards: ['shorebreak on bigger swells', 'currents and drift along the beach', 'no lifeguard on most of the beach'],
+    description:
+      'Surfline’s spot for the Grandes Playas, the long dune beaches south of town: sand peaks, lefts and rights, gentle on small days, a heavy shorebreak when a big N swell wraps in. NE trade winds blow cross-onshore, so mornings are cleaner.',
   },
   {
     id: 'fv-glass-beach',
-    name: 'Glass Beach (El Burro)',
+    name: 'El Burro (Glass Beach)',
+    aliases: ['El Burro', 'Glass Beach', 'Glasbeach', 'Playa del Burro'],
+    externalIds: { surfline: 'el-burro-glasbeach-/640b89264519055221dba4e8', surfForecast: 'El-Burro' },
     lat: 28.688, // OSM / Wannasurf, Corralejo dunes
     lon: -13.832,
     facing: 70,
@@ -318,14 +461,18 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'mixed',
     level: 'all',
+    power: 'punchy',
+    peel: 'medium',
+    crowd: 'medium',
+    lifeguard: true,
     hazards: ['shallow reef on big days', 'kitesurfers'],
     description: 'Rocky sand/reef mainly-left in the dunes. Works on NE swell; strong easterly trades wreck it. Intermediates use the inside.',
-    peaks: [],
   },
   {
     id: 'fv-playa-del-moro',
     name: 'Playa del Moro',
-    lat: 28.6741, // OSM "Playa del Moro", Corralejo dunes park
+    externalIds: { surfline: 'playa-del-moro/640b89598284fe91dbacaee1' },
+    lat: 28.6741, // OSM "Playa del Moro", Corralejo dunes park (Surfline's pin is 1.2 km north; to verify)
     lon: -13.8339,
     coordsApprox: false,
     facing: 70,
@@ -337,22 +484,40 @@ const seed: SeedSpot[] = [
     breakType: 'beach',
     bottom: 'sand',
     level: 'beginner',
+    power: 'mellow',
+    peel: 'slow',
+    crowd: 'medium',
+    lifeguard: true,
     hazards: ['crowds', 'stony bottom in places'],
     description: 'Beach in the Corralejo dunes park with lefts and rights in N–NE swell and windswell. Mostly mellow and good for learning.',
-    peaks: [],
   },
 ];
 
-export const SEED_SPOTS: Spot[] = seed.map((s) => {
-  const g = SPOT_GUIDES[s.id];
+/** The El Hierro guide also covers The Bubble (merged in seed 4). */
+function guideFor(id: string) {
+  const g = SPOT_GUIDES[id];
+  if (id !== 'fv-el-hierro' || !g) return g?.guide;
+  const b = SPOT_GUIDES['fv-the-bubble'].guide;
+  const uniq = (xs: string[] = []) => [...new Set(xs)];
+  return { ...g.guide, warnings: uniq([...(g.guide.warnings ?? []), ...(b.warnings ?? []).filter((w) => /heavy|very shallow/.test(w))]), sources: uniq([...(g.guide.sources ?? []), ...(b.sources ?? [])]) };
+}
+
+/**
+ * Breaking-height gain. Calibrated (seed 4) so heights from PEAK periods match what the earlier
+ * mean-period heights showed (+11 %): beach 0.8 → 0.72, reef/point 0.85 → 0.77. Sessions with an
+ * observed size re-calibrate it per spot (lib/recommend.ts → calibratedGain).
+ */
+export const DEFAULT_GAIN = { beach: 0.72, reef: 0.77, point: 0.77 } as const;
+
+export const SEED_SPOTS: Spot[] = seed.map(({ peakOverrides, extraPeaks, ...s }) => {
+  const peaks = [...(SPOT_GUIDES[s.id]?.peaks ?? []), ...(extraPeaks ?? [])].map((p) => ({ ...p, ...peakOverrides?.[p.id] }));
   return {
     region: 'Fuerteventura',
     source: SRC,
-    gain: s.breakType === 'beach' ? 0.8 : 0.85,
+    gain: DEFAULT_GAIN[s.breakType],
     coordsApprox: true,
     ...s,
-    // Researched peaks replace the short seed list (ids are kept, so logged peak times still match).
-    peaks: g?.peaks.length ? g.peaks : s.peaks,
-    guide: g?.guide,
+    peaks,
+    guide: guideFor(s.id),
   };
 });

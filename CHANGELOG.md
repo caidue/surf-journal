@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0 — 2026-11-13
+
+- **Your surfing:** a short set of questions at first launch replaces the four levels: stage (1–8), comfortable size, biggest wave caught, board, reef experience, getting out, and optional steep waves, frequency and water confidence. Edit it under Settings → Your surfing.
+- **Clear reasons:** "For you" now comes from explicit rules that name both sizes ("Bigger than you're comfortable in: ~1.5 m vs chest high (1.2 m), but within the 1.6 m you've caught"), cover reef, wave shape, wind, paddle-out and the spot's level, and say when size is fine but something else isn't. Sizes are compared as shown, so a wave never counts as bigger than your comfort size when both read the same. Optional "Stretch session" for waves between your comfortable and biggest size.
+- **How did it feel?** in the session log nudges your comfortable size and biggest wave in small steps, explains every change and lets you undo it. Your stage never changes by itself.
+- **Periods like surf sites:** swell periods are now peak periods (they were mean periods, 2–3 s lower), from GFS-Wave swell trains, ECMWF WAM and Météo-France MFWAM combined. Energy is the strongest swell train's kJ, as on surf-forecast.com. Logged sessions are re-fetched automatically.
+- **New forecast table:** spot rating (Poor … Epic) and "For you" as separate rows, surf as a face-height range with body words, the strongest swell with every train on tap (trains outside the spot's swell window greyed out), total sea, energy, wind in km/h, knots or mph, tide heights vs mean sea level.
+- **Spot names follow Surfline**, other names stay searchable: Generosa (Generoso), Los Lobos, El Burro (Glass Beach), Cotillo (Piedra Playa), Bristol (Shooting Gallery), El Muelle. Links to Surfline and surf-forecast.com in each spot's Info tab. Majanicho, El Hierro and Punta Blanca pins moved to where the forecast services put them.
+- **Three more spots** that other services list, with guides: Corralejo Beach and Playa los Matos (dune beaches, all levels) and Suicides (expert lava reef on the North Shore, with a less risky inside left). Mejillones moved west of Suicides, as the forecast sites place it.
+- **El Hierro** is one spot with three peaks (La Izquierda, Derecha de los Alemanes, The Bubble), each rated on its own; the forecast tells you which suits you best. Spots also know their wave shape, peel, crowds, localism and lifeguard.
+- **Knowledge base** in `context/` (Open Knowledge Format), kept current with every change.
+
 ## 1.0.1 — 2026-11-13
 
 - Fixes the package lockfile in the 1.0.0 tag, where the version bump also changed a map dependency (`@mapbox/point-geometry`) and broke clean installs. No changes to the app itself.

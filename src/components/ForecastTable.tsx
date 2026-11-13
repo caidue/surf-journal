@@ -1,23 +1,35 @@
-import { useEffect, useRef } from 'react';
-import type { ConditionsSeries, Settings, Spot } from '../types';
-import { waveEnergyKJ, windKind, WIND_LABEL, type TideExtreme } from '../lib/conditions';
+import { useEffect, useRef, useState } from 'react';
+import type { ConditionsSeries, HourConditions, Settings, Spot } from '../types';
+import { exposure, totalEnergyKJ, trainsByEnergy, windKind, WIND_LABEL, type TideExtreme, type TrainInfo } from '../lib/conditions';
 import { daylight, type SpotRec } from '../lib/recommend';
-import { scoreColor } from '../lib/rating';
-import { compass } from '../lib/geo';
+import { reasonsText, scoreColor, scoreLabel, SUIT_LABEL } from '../lib/rating';
+import { bodyRange, bodyWord } from '../lib/skill';
 import { fmtMin, isoToMin, nowMinutesAt } from '../lib/time';
-import { energyColors, fmtEnergy } from '../lib/format';
+import { energyColors, fmtDir, fmtEnergy, fmtSurfRange, WIND_UNIT_LABEL, windIn } from '../lib/format';
 import { gridOf } from '../lib/openMeteo';
 import { WIND_BG } from './Timeline';
 import { DirArrow } from './ui';
 
-const COL_W = 46;
+const COL_W = 50;
+const OPEN_KEY = 'surf-journal.trainsOpen';
 
 function energyStyle(kj: number | null): React.CSSProperties {
   const c = energyColors(kj);
   return c ? { background: c.bg, color: c.fg } : {};
 }
 
-/** Hourly forecast table (surf-forecast style): rating, surf, swell, energy, wind, tide curve. */
+/** Swells by energy (1st, 2nd, 3rd) and the wind sea, for the expanded train rows. */
+function slots(h: HourConditions): { swell: TrainInfo[]; wind: TrainInfo | null } {
+  const all = trainsByEnergy(h);
+  return { swell: all.filter((t) => t.kind === 'swell'), wind: all.find((t) => t.kind === 'wind') ?? null };
+}
+
+/**
+ * Hourly forecast table (surf-forecast style). Spot rating = how good the waves are (word ladder),
+ * For you = your predicted fun with your skill profile. Surf = face range at the spot with a body
+ * descriptor. Swell = the most energetic train (peak period), expandable into every train;
+ * trains outside the spot's swell window are greyed out. Energy = the strongest train's kJ.
+ */
 export default function ForecastTable({
   spot,
   rec,
@@ -39,6 +51,21 @@ export default function ForecastTable({
 }) {
   const grid = gridOf(series);
   const scroller = useRef<HTMLDivElement>(null);
+  const [open, setOpenState] = useState(() => {
+    try {
+      return localStorage.getItem(OPEN_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const setOpen = (v: boolean) => {
+    setOpenState(v);
+    try {
+      localStorage.setItem(OPEN_KEY, v ? '1' : '0');
+    } catch {
+      /* per-viewer convenience only */
+    }
+  };
   const [rise, set] = daylight(series.days, date);
   const h0 = Math.max(0, Math.floor(rise / 60) - 1);
   const h1 = Math.min(23, Math.ceil(set / 60));
@@ -64,7 +91,13 @@ export default function ForecastTable({
   if (!cols.length) return <p className="muted">No forecast hours for this day.</p>;
 
   const raw = cols.map((r) => series.hours[r.idx]);
+  const trains = raw.map(slots);
+  const nSwell = Math.min(3, Math.max(0, ...trains.map((t) => t.swell.length)));
+  const anyWind = trains.some((t) => t.wind);
   const W = cols.length * COL_W;
+  const ft = settings.heightUnit === 'ft';
+  const hgt = (m: number) => (ft ? `${Math.round(m * 3.281)}` : m.toFixed(1));
+  const estimated = raw.some((h) => h.tpEstimated);
 
   // Tide curve across the columns (each column centre = that full hour).
   const lv = raw.map((h) => h.seaLevel);
@@ -80,10 +113,29 @@ export default function ForecastTable({
   const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
   const area = pts.length ? `${line} L${pts[pts.length - 1][0]},${TH} L${pts[0][0]},${TH} Z` : '';
 
+  const night = (c: (typeof cols)[number]) => (c.daylight ? '' : ' night');
+
+  /** One train cell: height, peak period, arrow; greyed out when the spot's swell window blocks it. */
+  const trainCell = (t: TrainInfo | null | undefined, key: string, extraClass = '') => {
+    if (!t) return <td key={key} className={`fc-swell empty${extraClass}`} />;
+    const blocked = exposure(spot, t.dir) === 0;
+    return (
+      <td
+        key={key}
+        className={`fc-swell${blocked ? ' blocked' : ''}${extraClass}`}
+        title={`${fmtDir(t.dir)} · ${hgt(t.h)} ${ft ? 'ft' : 'm'} @ ${Math.round(t.t)} s peak · ${Math.round(t.kj)} kJ${blocked ? ' · outside this spot’s swell window' : ''}`}
+      >
+        <div>{hgt(t.h)}</div>
+        <div className="muted">{Math.round(t.t)}s</div>
+        <DirArrow from={t.dir} size={13} />
+      </td>
+    );
+  };
+
   return (
     <div className="fc-wrap">
       <div className="fc-scroll" ref={scroller}>
-        <table className="fc" style={{ width: 72 + W }}>
+        <table className="fc" style={{ width: 84 + W }}>
           <tbody>
             <tr className="fc-time">
               <th scope="row">Time</th>
@@ -99,14 +151,40 @@ export default function ForecastTable({
               })}
             </tr>
             <tr>
-              <th scope="row" title={`Predicted fun for a ${settings.level} surfer (0–10)`}>
-                Rating
+              <th scope="row" title="How good the waves are at this spot, whoever you are (0–10): size, period, wind and tide. The faded part shows what the wind costs.">
+                Spot
+                <small>rating</small>
+              </th>
+              {cols.map((c) => {
+                const q = c.quality.q;
+                const pot = c.quality.potential;
+                return (
+                  <td key={c.time} className={`fc-rating${night(c)}`} title={`${scoreLabel(q)} · ${q.toFixed(1)}/10${pot - q > 0.3 ? ` · ${pot.toFixed(1)} without the wind` : ''}`}>
+                    <span className="fc-q" style={{ color: scoreColor(q) }}>
+                      {q.toFixed(q >= 9.95 ? 0 : 1)}
+                    </span>
+                    <span className="fc-qbar" aria-hidden>
+                      <span className="pot" style={{ width: `${pot * 10}%`, background: scoreColor(pot) }} />
+                      <span className="val" style={{ width: `${q * 10}%`, background: scoreColor(q) }} />
+                    </span>
+                  </td>
+                );
+              })}
+            </tr>
+            <tr>
+              <th scope="row" title="Predicted fun for you (0–10), from the spot rating, your surfing profile and your past sessions here">
+                For you
               </th>
               {cols.map((c) => {
                 const bad = c.suit.status === 'unsuitable';
+                const why = reasonsText(c.suit);
                 return (
-                  <td key={c.time} className={c.daylight ? '' : 'night'}>
-                    <span className="fc-score" style={{ background: bad ? '#e2e8f0' : scoreColor(c.score), color: bad ? '#64748b' : '#fff' }} title={c.suit.reasons.join('; ') || undefined}>
+                  <td key={c.time} className={night(c).trim()}>
+                    <span
+                      className={`fc-score s-${c.suit.status}`}
+                      style={{ background: bad ? '#e2e8f0' : scoreColor(c.score), color: bad ? '#64748b' : '#fff' }}
+                      title={`${SUIT_LABEL[c.suit.status]}${c.peak ? ` · best peak: ${c.peak.name}` : ''}${why ? ` – ${why}` : ''}`}
+                    >
                       {bad ? '✕' : c.score.toFixed(c.score >= 9.95 ? 0 : 1)}
                     </span>
                   </td>
@@ -116,46 +194,80 @@ export default function ForecastTable({
             <tr>
               <th scope="row">
                 Surf
-                <small>{settings.heightUnit === 'ft' ? 'ft, est.' : 'm, est.'}</small>
+                <small>{ft ? 'ft' : 'm'}, face</small>
               </th>
               {cols.map((c) => {
                 const hb = c.derived.hb;
+                const range = hb == null ? '–' : fmtSurfRange(hb, settings.heightUnit).replace(/ (m|ft)$/, '');
                 return (
-                  <td key={c.time} className={`fc-surf${c.daylight ? '' : ' night'}`}>
-                    <span className="fc-bar" style={{ height: `${Math.min(100, ((hb ?? 0) / 3) * 100)}%`, background: scoreColor(c.score) }} />
-                    <span className="fc-val">{hb == null ? '–' : settings.heightUnit === 'ft' ? Math.round(hb * 3.281) : hb.toFixed(1)}</span>
+                  <td key={c.time} className={`fc-surf${night(c)}`} title={hb == null ? undefined : `${fmtSurfRange(hb, settings.heightUnit)} · ${bodyRange(hb * 0.8, hb * 1.2)}`}>
+                    <span className="fc-bar" style={{ height: `${Math.min(100, ((hb ?? 0) / 3) * 100)}%`, background: scoreColor(c.quality.q) }} />
+                    <span className="fc-val">{range}</span>
+                    {hb != null && <span className="fc-body">{bodyWord(hb).replace(/ high$/, '').replace('double overhead', '2× OH').replace('well overhead', 'well OH')}</span>}
                   </td>
                 );
               })}
             </tr>
             <tr>
               <th scope="row">
-                Swell
-                <small>{settings.heightUnit === 'ft' ? 'ft' : 'm'} · s</small>
+                <button className="fc-toggle" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? 'Hide the swell trains' : 'Show every swell train'}>
+                  {open ? '▾' : '▸'} Swell
+                </button>
+                <small>{ft ? 'ft' : 'm'} · s peak</small>
               </th>
-              {cols.map((c, i) => {
-                const h = raw[i];
-                const sh = h.swellH ?? h.waveH;
-                const sp = h.swellPer ?? h.wavePer;
-                const sd = h.swellDir ?? h.waveDir;
-                return (
-                  <td key={c.time} className={`fc-swell${c.daylight ? '' : ' night'}`} title={sd != null ? `from ${compass(sd)} (${Math.round(sd)}°)` : undefined}>
-                    <div>{sh == null ? '–' : settings.heightUnit === 'ft' ? Math.round(sh * 3.281) : sh.toFixed(1)}</div>
-                    <div className="muted">{sp == null ? '' : `${Math.round(sp)}s`}</div>
-                    <DirArrow from={sd} size={13} />
-                  </td>
-                );
-              })}
+              {cols.map((c, i) => trainCell(trains[i].swell[0] ?? trains[i].wind, c.time, night(c)))}
             </tr>
+            {open && (
+              <>
+                {Array.from({ length: nSwell }, (_, k) => (
+                  <tr key={`sw${k}`} className="fc-train">
+                    <th scope="row">
+                      Swell {k + 1}
+                      <small>{k === 0 ? 'strongest' : 'by energy'}</small>
+                    </th>
+                    {cols.map((c, i) => trainCell(trains[i].swell[k], c.time, night(c)))}
+                  </tr>
+                ))}
+                {anyWind && (
+                  <tr className="fc-train">
+                    <th scope="row">
+                      Wind sea
+                      <small>local chop</small>
+                    </th>
+                    {cols.map((c, i) => trainCell(trains[i].wind, c.time, night(c)))}
+                  </tr>
+                )}
+                <tr className="fc-train">
+                  <th scope="row" title="All trains together: significant wave height (Météo-France MFWAM) and peak period">
+                    Total sea
+                    <small>Hs · Tp</small>
+                  </th>
+                  {cols.map((c, i) => {
+                    const h = raw[i];
+                    return (
+                      <td key={c.time} className={`fc-swell${night(c)}`} title={h.waveTe != null ? `Energy period Tm-1,0 ${h.waveTe.toFixed(1)} s` : undefined}>
+                        <div>{h.waveH == null ? '–' : hgt(h.waveH)}</div>
+                        <div className="muted">{h.waveTp == null ? '' : `${Math.round(h.waveTp)}s`}</div>
+                        <DirArrow from={h.waveDir} size={13} />
+                      </td>
+                    );
+                  })}
+                </tr>
+              </>
+            )}
             <tr>
-              <th scope="row" title="Wave energy of the Open-Meteo grid cell (kJ per metre of wave crest), the same for every spot in that cell. Long-period swell packs much more punch than the same height of wind sea.">
+              <th
+                scope="row"
+                title="Wave energy of the strongest swell train in the Open-Meteo grid cell (kJ per metre of crest), as surf-forecast.com shows it. Roughly: ~100 kJ barely surfable, 200–1,000 increasingly punchy, 1,000–5,000+ heavy."
+              >
                 Energy
                 <small>kJ</small>
               </th>
               {cols.map((c, i) => {
-                const e = waveEnergyKJ(raw[i]);
+                const e = trains[i].swell[0]?.kj ?? trains[i].wind?.kj ?? null;
+                const tot = totalEnergyKJ(raw[i]);
                 return (
-                  <td key={c.time} className={`fc-energy${c.daylight ? '' : ' night'}`}>
+                  <td key={c.time} className={`fc-energy${night(c)}`} title={e == null ? undefined : `Strongest train ${Math.round(e)} kJ · all trains ${Math.round(tot ?? e)} kJ`}>
                     <span style={energyStyle(e)}>{fmtEnergy(e)}</span>
                   </td>
                 );
@@ -164,23 +276,22 @@ export default function ForecastTable({
             <tr>
               <th scope="row">
                 Wind
-                <small>{settings.windUnit === 'kn' ? 'kn' : 'km/h'}</small>
+                <small>{WIND_UNIT_LABEL[settings.windUnit]}</small>
               </th>
               {cols.map((c) => {
                 const k = windKind(c.derived);
                 const sp = c.derived.windSpeed;
                 const g = c.derived.windGust;
-                const conv = (v: number) => Math.round(settings.windUnit === 'kn' ? v / 1.852 : v);
                 return (
                   <td
                     key={c.time}
-                    className={`fc-wind${c.daylight ? '' : ' night'}`}
+                    className={`fc-wind${night(c)}`}
                     style={{ background: k ? WIND_BG[k] : undefined }}
-                    title={k ? `${WIND_LABEL[k]}, from ${compass(c.derived.windDir)}` : undefined}
+                    title={k ? `${WIND_LABEL[k]}, from ${fmtDir(c.derived.windDir)}` : undefined}
                   >
                     <DirArrow from={c.derived.windDir} size={13} />
-                    <div>{sp == null ? '–' : conv(sp)}</div>
-                    {g != null && <div className="muted">{conv(g)}</div>}
+                    <div>{sp == null ? '–' : windIn(sp, settings.windUnit)}</div>
+                    {g != null && <div className="muted">{windIn(g, settings.windUnit)}</div>}
                   </td>
                 );
               })}
@@ -188,9 +299,7 @@ export default function ForecastTable({
             <tr className="fc-tide">
               <th scope="row">
                 Tide
-                <small>
-                  {vals.length ? `${lo >= 0 ? '+' : '−'}${Math.abs(lo).toFixed(1)}…${hi >= 0 ? '+' : '−'}${Math.abs(hi).toFixed(1)} m` : ''}
-                </small>
+                <small>{vals.length ? `${lo >= 0 ? '+' : '−'}${Math.abs(lo).toFixed(1)}…${hi >= 0 ? '+' : '−'}${Math.abs(hi).toFixed(1)} m` : ''}</small>
               </th>
               <td colSpan={cols.length}>
                 {pts.length > 1 ? (
@@ -220,14 +329,13 @@ export default function ForecastTable({
         </table>
       </div>
       <div className="fc-legend muted tiny">
-        <span>
-          Rating = predicted fun for {/^[aeiou]/.test(settings.level) ? 'an' : 'a'} {settings.level} surfer{rec.best && rec.best.pred.sumW > 0.05 ? ', from the spot guide and your sessions' : ' from the spot guide'}
-        </span>
-        <span>Surf = estimated breaking height at the spot · Swell and Energy = Open-Meteo grid cell offshore</span>
+        <span>Spot = how good the waves are (Poor, Poor–Fair, Fair, Fair–Good, Good, Epic above 9) · For you = predicted fun with your surfing profile{rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}</span>
+        <span>Surf = estimated face height at the spot (±20 %) · Swell = strongest train offshore, peak period (as surf sites show it){estimated ? ' · some periods estimated from mean periods' : ''}</span>
+        <span>Energy = strongest train, kJ per metre of crest; hover for the total</span>
         {grid && (
           <span>
             Grid cell {grid.lat.toFixed(2)}, {grid.lon.toFixed(2)}
-            {gridMates.length ? ` · same energy at ${gridMates.join(', ')}` : ' · no other spot in this cell'}
+            {gridMates.length ? ` · same swell and energy at ${gridMates.join(', ')}` : ' · no other spot in this cell'}
           </span>
         )}
         <span>

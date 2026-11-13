@@ -1,17 +1,19 @@
-import type { Session, Settings, Spot } from '../types';
+import type { Feel, Session, Settings, Spot } from '../types';
+import { CONDITIONS_VERSION } from '../types';
 import { db } from '../db';
 import { fetchSeries, cellKey } from './openMeteo';
 import { samplePoint } from './geo';
 import { deriveSeries, windKind } from './conditions';
-import { recommendability } from './rating';
-import { OBSERVED_SIZES } from './recommend';
+import { rateSpot } from './rating';
+import { DEFAULT_PROFILE, OBSERVED_SIZES, snapshot } from './skill';
 import { addDays, isoToMin, todayAt, uid } from './time';
 
 /**
  * Demo sessions on REAL past dates with REAL conditions from Open-Meteo, but an invented surfer:
  * random spots (a few favourites), days, times, gear and notes, and ratings that follow the actual
  * conditions (likes mid-to-high tide and clean wind). Different every time; marked demo:true so
- * they can be removed in one click. Adding again replaces the previous demo set.
+ * they can be removed in one click. Adding again replaces the previous demo set. Demo sessions
+ * never change your surfing profile.
  */
 
 const BOARDS = ["6'0 shortboard", "6'4 shortboard", "7'0 mid-length", "9'0 longboard", "5'10 fish"];
@@ -57,6 +59,7 @@ export async function addDemoSessions(spots: Spot[], settings: Settings): Promis
   const pts = [...new Map(plan.map((p) => [p.spot.id, samplePoint(p.spot)])).values()];
   const series = await fetchSeries(pts, start, end);
   const favouriteBoard = pick(BOARDS);
+  const profile = settings.profile ?? DEFAULT_PROFILE;
   const out: Session[] = [];
 
   for (const p of plan) {
@@ -67,7 +70,7 @@ export async function addDemoSessions(spots: Spot[], settings: Settings): Promis
     const idx = hours.map((h, k) => ({ k, m: isoToMin(h.time) ?? 0 })).filter(({ m }) => m + 60 > p.startMin && m < p.startMin + p.len);
     if (!idx.length) continue;
     const avg = (f: (k: number) => number) => idx.reduce((a, { k }) => a + f(k), 0) / idx.length;
-    const q = avg((k) => recommendability(p.spot, der[k], settings.level).quality.q);
+    const q = avg((k) => rateSpot(p.spot, der[k], profile).quality.q);
     const tideBonus = avg((k) => (der[k].tideNorm != null ? (der[k].tideNorm! - 0.4) * 2 : 0));
     const hb = avg((k) => der[k].hb ?? 1);
     const mid = der[idx[Math.floor(idx.length / 2)].k];
@@ -86,6 +89,9 @@ export async function addDemoSessions(spots: Spot[], settings: Settings): Promis
     // The size you saw: near the estimate, sometimes not noted.
     const target = hb * (0.8 + Math.random() * 0.4);
     const seen = Math.random() < 0.6 ? OBSERVED_SIZES.reduce((a, o) => (Math.abs(o.m - target) < Math.abs(a.m - target) ? o : a)) : null;
+    // How the size felt, against the comfortable size (sometimes not noted).
+    const feel: Feel | undefined =
+      Math.random() < 0.3 ? undefined : hb < profile.comfort * 0.6 ? 'small' : hb <= profile.comfort * 1.05 ? 'comfortable' : hb <= profile.max ? 'pushing' : 'over';
     const month = Number(p.date.slice(5, 7));
     const now = Date.now();
     out.push({
@@ -101,6 +107,7 @@ export async function addDemoSessions(spots: Spot[], settings: Settings): Promis
       },
       conditions: hours,
       conditionsSource: s!.source,
+      conditionsVersion: CONDITIONS_VERSION,
       days: s!.days.filter((x) => x.date === p.date),
       fields: {
         board: Math.random() < 0.7 ? favouriteBoard : pick(BOARDS),
@@ -109,11 +116,12 @@ export async function addDemoSessions(spots: Spot[], settings: Settings): Promis
         waves: between(3, 20),
         observedSize: seen && seen.id !== 'flat' ? seen.id : undefined,
         vsForecast: Math.random() < 0.5 ? pick(['Worse', 'As forecast', 'Better']) : undefined,
+        feel,
       },
       tags: [...tags],
       notes: pick(NOTES),
       excluded: false,
-      skillAtTime: settings.level,
+      skillAtTime: snapshot(profile),
       demo: true,
       createdAt: now,
       updatedAt: now,

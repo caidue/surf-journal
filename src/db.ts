@@ -1,7 +1,9 @@
 import Dexie, { type Table } from 'dexie';
 import type { ConditionsSeries, Session, Settings, Spot, UserPhoto } from './types';
+import { CONDITIONS_VERSION } from './types';
 import type { GeoResult } from './lib/geocode';
-import { SEED_SPOTS } from './data/seedSpots';
+import { RETIRED_SPOTS, SEED_SPOTS, SEED_VERSION } from './data/seedSpots';
+import { LEGACY_STAGE, stageInfo } from './lib/skill';
 
 export interface GeoCache {
   q: string;
@@ -23,15 +25,38 @@ class SurfDB extends Dexie {
 
   constructor() {
     super('surf-journal');
-    // One schema; its number is 2 only because test browsers already hold a version-2 database.
-    this.version(2).stores({
-      spots: 'id, region, name',
-      sessions: 'id, spotId, date',
-      forecasts: 'key, fetchedAt',
-      geocache: 'q',
-      settings: 'id',
-      photos: 'id, spotId',
-    });
+    // One schema. Version 3 (wave trains with peak periods, skill profile) drops the cached
+    // forecasts, marks older session snapshots for re-fetching (lib/sync.ts) and turns the old
+    // four-level "skill at the time" into a stage snapshot.
+    this.version(3)
+      .stores({
+        spots: 'id, region, name',
+        sessions: 'id, spotId, date',
+        forecasts: 'key, fetchedAt',
+        geocache: 'q',
+        settings: 'id',
+        photos: 'id, spotId',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('forecasts').clear();
+        await tx
+          .table('sessions')
+          .toCollection()
+          .modify((s: Record<string, any>) => {
+            if (typeof s.skillAtTime === 'string') {
+              const info = stageInfo(LEGACY_STAGE[s.skillAtTime] ?? 4);
+              s.skillAtTime = { stage: info.stage, comfort: info.comfort, max: info.max };
+            }
+            if (s.conditionsVersion !== CONDITIONS_VERSION) s.conditionsPending = true;
+          });
+        await tx
+          .table('settings')
+          .toCollection()
+          .modify((x: Record<string, any>) => {
+            if (!('profile' in x)) x.profile = null;
+            delete x.level;
+          });
+      });
   }
 }
 
@@ -39,7 +64,7 @@ export const db = new SurfDB();
 
 export const DEFAULT_SETTINGS: Settings = {
   id: 'settings',
-  level: 'intermediate',
+  profile: null,
   categories: [
     { id: 'fun', name: 'Fun', color: '#0ea5e9' },
     { id: 'exertion', name: 'Exertion', color: '#f97316' },
@@ -50,13 +75,32 @@ export const DEFAULT_SETTINGS: Settings = {
   boards: [],
   heightUnit: 'm',
   windUnit: 'kmh',
+  seedVersion: 0,
 };
 
 export async function initDb(): Promise<void> {
-  if ((await db.spots.count()) === 0) await db.spots.bulkPut(SEED_SPOTS);
   const settings = await db.settings.get('settings');
   if (!settings) await db.settings.put(DEFAULT_SETTINGS);
   else if (settings.categories.some((c) => c.id === 'waves')) await db.settings.put(withCurrentCategories(settings));
+  if ((await db.spots.count()) === 0 || settings?.seedVersion !== SEED_VERSION) await refreshSeedSpots();
+}
+
+/**
+ * Brings the built-in spots up to the current seed list (names, pins, peaks, guides): retired
+ * spots hand their sessions and photos to the spot they were merged into, then every built-in
+ * spot is rewritten. Your own spots (custom) are untouched.
+ */
+export async function refreshSeedSpots(): Promise<void> {
+  await db.transaction('rw', [db.spots, db.sessions, db.photos, db.settings], async () => {
+    for (const [old, now] of Object.entries(RETIRED_SPOTS)) {
+      await db.sessions.where('spotId').equals(old).modify({ spotId: now });
+      await db.photos.where('spotId').equals(old).modify({ spotId: now });
+      await db.spots.delete(old);
+    }
+    await db.spots.bulkPut(SEED_SPOTS);
+    const cur = (await db.settings.get('settings')) ?? DEFAULT_SETTINGS;
+    await db.settings.put({ ...cur, seedVersion: SEED_VERSION });
+  });
 }
 
 /**

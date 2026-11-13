@@ -1,6 +1,7 @@
 import type { Settings } from '../types';
 import { compass } from './geo';
 import { tideLabel, windKind, WIND_LABEL, type Derived } from './conditions';
+import { bodyRange } from './skill';
 
 export function fmtHeight(m: number | null | undefined, unit: Settings['heightUnit'], digits = 1): string {
   if (m == null) return '–';
@@ -16,14 +17,31 @@ export function fmtSurfRange(hb: number | null | undefined, unit: Settings['heig
   return `${lo.toFixed(1)}–${hi.toFixed(1)} m`;
 }
 
-export function fmtWind(kmh: number | null | undefined, unit: Settings['windUnit']): string {
-  if (kmh == null) return '–';
-  return unit === 'kn' ? `${Math.round(kmh / 1.852)} kn` : `${Math.round(kmh)} km/h`;
+/** Surf range with a body descriptor: "1.8–2.6 m · head high to overhead". */
+export function fmtSurf(hb: number | null | undefined, unit: Settings['heightUnit']): string {
+  if (hb == null) return '–';
+  return `${fmtSurfRange(hb, unit)} · ${bodyRange(hb * 0.8, hb * 1.2)}`;
 }
 
+export const WIND_UNIT_LABEL: Record<Settings['windUnit'], string> = { kmh: 'km/h', kn: 'kn', mph: 'mph' };
+
+/** Wind speed in the chosen unit (number only). */
+export function windIn(kmh: number, unit: Settings['windUnit']): number {
+  return Math.round(unit === 'kn' ? kmh / 1.852 : unit === 'mph' ? kmh / 1.609 : kmh);
+}
+
+export function fmtWind(kmh: number | null | undefined, unit: Settings['windUnit']): string {
+  if (kmh == null) return '–';
+  return `${windIn(kmh, unit)} ${WIND_UNIT_LABEL[unit]}`;
+}
+
+/** Compass point and degrees, inline: "NNW 333°". */
+export const fmtDir = (deg: number | null | undefined) => (deg == null ? '–' : `${compass(deg)} ${Math.round(deg)}°`);
+
+/** One swell train: "1.6 m @ 11 s NNW 333°" (period = peak period). */
 export function fmtSwell(h: number | null, t: number | null, dir: number | null, unit: Settings['heightUnit']): string {
   if (h == null) return '–';
-  return `${fmtHeight(h, unit)} @ ${t != null ? Math.round(t) : '–'} s ${compass(dir)}`;
+  return `${fmtHeight(h, unit)} @ ${t != null ? Math.round(t) : '–'} s ${fmtDir(dir)}`;
 }
 
 export const fmtScore = (v: number | null | undefined) => (v == null ? '–' : v.toFixed(1));
@@ -35,7 +53,7 @@ export function fmtFeature(key: string, d: Derived | undefined, s: Pick<Settings
     case 'size':
       return fmtHeight(d.hb, s.heightUnit);
     case 'period':
-      return d.tDom == null ? '–' : `${Math.round(d.tDom)} s`;
+      return d.tDom == null ? '–' : `${Math.round(d.tDom)} s peak`;
     case 'swellDir':
       return d.dirDom == null ? '–' : `${compass(d.dirDom)} ${Math.round(d.dirDom)}°`;
     case 'offshore':
