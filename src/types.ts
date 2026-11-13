@@ -188,8 +188,6 @@ export interface Settings {
   heightUnit: 'm' | 'ft';
   windUnit: 'kmh' | 'kn';
   lastQuery?: string;
-  /** Version of the built-in spot data last merged into this device's spots. */
-  seedVersion?: number;
 }
 
 export const SLOT_MIN = 5;

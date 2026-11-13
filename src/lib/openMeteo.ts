@@ -239,15 +239,12 @@ export async function pruneCache(): Promise<void> {
   await db.forecasts.where('fetchedAt').below(cutoff).delete();
 }
 
-/** Centre of the marine model grid cell a series comes from (older cached series: parsed from the source text). */
+/** Centre of the marine model grid cell a series comes from. */
 export function gridOf(s: ConditionsSeries | undefined): { lat: number; lon: number } | null {
-  if (!s) return null;
-  if (s.gridLat != null && s.gridLon != null) return { lat: s.gridLat, lon: s.gridLon };
-  const m = /grid (-?\d+\.\d+), (-?\d+\.\d+)/.exec(s.source);
-  return m ? { lat: Number(m[1]), lon: Number(m[2]) } : null;
+  return s?.gridLat != null && s.gridLon != null ? { lat: s.gridLat, lon: s.gridLon } : null;
 }
 
-/** Grid cells are ~0.08° apart, so 2 decimals identify one (and match older cached series). */
+/** Grid cells are ~0.08° apart, so 2 decimals identify one. */
 export const gridKey = (s: ConditionsSeries | undefined) => {
   const g = gridOf(s);
   return g ? `${g.lat.toFixed(2)},${g.lon.toFixed(2)}` : null;

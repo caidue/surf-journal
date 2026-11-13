@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { db, mergeSeedSpots } from '../db';
+import { db } from '../db';
 import { SEED_SPOTS } from '../data/seedSpots';
 import type { ConditionsSeries, HourConditions, Session } from '../types';
 import { SLOTS } from '../types';
@@ -191,35 +191,14 @@ describe('sessions logged offline', () => {
   });
 });
 
-describe('built-in spot data reaching existing devices', () => {
-  it('updates untouched spots and only adds details to spots you edited', async () => {
-    const [a, b] = SEED_SPOTS.filter((s) => s.peaks.length > 0);
-    await db.spots.bulkPut([
-      { ...a, description: 'old text', peaks: a.peaks.map((p) => ({ id: p.id, name: p.name })), guide: undefined, lat: 1, lon: 2 },
-      { ...b, peaks: b.peaks.map((p) => ({ id: p.id, name: `My ${p.name}` })), guide: undefined, updatedAt: 123, lat: 5, lon: 6 },
-    ]);
-    await mergeSeedSpots();
-    const ua = (await db.spots.get(a.id))!;
-    expect(ua.description).toBe(a.description);
-    expect(ua.peaks).toEqual(a.peaks);
-    expect(ua.guide).toEqual(a.guide);
-    expect([ua.lat, ua.lon]).toEqual([a.lat, a.lon]); // never edited: corrected position comes through
-    const ub = (await db.spots.get(b.id))!;
-    expect(ub.peaks.map((p) => p.name)).toEqual(b.peaks.map((p) => `My ${p.name}`));
-    expect(ub.peaks.map((p) => p.description)).toEqual(b.peaks.map((p) => p.description));
-    expect(ub.guide).toEqual(b.guide);
-    expect([ub.lat, ub.lon]).toEqual([5, 6]); // edited: your marker stays
-  });
-});
-
 describe('grid cells', () => {
-  it('identifies the same model cell from new and older cached series', () => {
-    const base = { key: 'k', lat: 0, lon: 0, timezone: 'UTC', utcOffsetSeconds: 0, hours: [], days: [], fetchedAt: 0 };
-    const fresh = { ...base, gridLat: 28.791664, gridLon: -13.958336, source: 'Open-Meteo marine (grid 28.79, -13.96) + weather model wind' };
-    const old = { ...base, source: 'Open-Meteo marine (grid 28.79, -13.96) + weather model wind' };
-    const other = { ...base, gridLat: 28.708336, gridLon: -14.041664, source: '' };
-    expect(gridKey(fresh)).toBe(gridKey(old));
-    expect(gridKey(fresh)).not.toBe(gridKey(other));
-    expect(gridKey({ ...base, source: 'Open-Meteo marine (unavailable)' })).toBeNull();
+  it('identifies a model cell by its centre, to 2 decimals', () => {
+    const base = { key: 'k', lat: 0, lon: 0, timezone: 'UTC', utcOffsetSeconds: 0, hours: [], days: [], fetchedAt: 0, source: '' };
+    const a = { ...base, gridLat: 28.791664, gridLon: -13.958336 };
+    const b = { ...base, gridLat: 28.7917, gridLon: -13.9583 };
+    const other = { ...base, gridLat: 28.708336, gridLon: -14.041664 };
+    expect(gridKey(a)).toBe(gridKey(b));
+    expect(gridKey(a)).not.toBe(gridKey(other));
+    expect(gridKey(base)).toBeNull();
   });
 });

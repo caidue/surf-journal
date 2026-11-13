@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie';
-import type { ConditionsSeries, Peak, Session, Settings, Spot, UserPhoto } from './types';
+import type { ConditionsSeries, Session, Settings, Spot, UserPhoto } from './types';
 import type { GeoResult } from './lib/geocode';
-import { SEED_SPOTS, SEED_VERSION } from './data/seedSpots';
+import { SEED_SPOTS } from './data/seedSpots';
 
 export interface GeoCache {
   q: string;
@@ -23,15 +23,15 @@ class SurfDB extends Dexie {
 
   constructor() {
     super('surf-journal');
-    this.version(1).stores({
+    // One schema; its number is 2 only because test browsers already hold a version-2 database.
+    this.version(2).stores({
       spots: 'id, region, name',
       sessions: 'id, spotId, date',
       forecasts: 'key, fetchedAt',
       geocache: 'q',
       settings: 'id',
+      photos: 'id, spotId',
     });
-    // v2: your own spot photos.
-    this.version(2).stores({ photos: 'id, spotId' });
   }
 }
 
@@ -54,37 +54,7 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export async function initDb(): Promise<void> {
   if ((await db.spots.count()) === 0) await db.spots.bulkPut(SEED_SPOTS);
-  let settings = await db.settings.get('settings');
-  if (!settings) {
-    settings = { ...DEFAULT_SETTINGS, seedVersion: SEED_VERSION };
-    await db.settings.put(settings);
-  }
-  if ((settings.seedVersion ?? 1) < SEED_VERSION) {
-    await mergeSeedSpots();
-    await db.settings.put({ ...settings, seedVersion: SEED_VERSION });
-  }
-}
-
-/**
- * Brings newer built-in spot data (guides, peak details) to spots already stored on this device.
- * Spots you never edited take the new built-in version (incl. corrected positions); spots you edited
- * keep your text and marker and only gain the guide and the details of matching peaks.
- */
-export async function mergeSeedSpots(): Promise<void> {
-  const stored = new Map((await db.spots.toArray()).map((s) => [s.id, s]));
-  const updates: Spot[] = [];
-  for (const seed of SEED_SPOTS) {
-    const cur = stored.get(seed.id);
-    if (!cur) continue;
-    if (!cur.updatedAt) {
-      updates.push({ ...seed }); // never edited: take the corrected built-in spot as a whole (incl. position)
-    } else {
-      const byId = new Map(seed.peaks.map((p) => [p.id, p]));
-      const peaks: Peak[] = cur.peaks.map((p) => ({ ...byId.get(p.id), ...p }));
-      updates.push({ ...cur, peaks, guide: cur.guide ?? seed.guide });
-    }
-  }
-  if (updates.length) await db.spots.bulkPut(updates);
+  if (!(await db.settings.get('settings'))) await db.settings.put(DEFAULT_SETTINGS);
 }
 
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {
@@ -99,8 +69,8 @@ export interface Backup {
   spots: Spot[];
   sessions: Session[];
   settings: Settings | undefined;
-  /** Your spot photos as data URLs (added in later versions; optional). */
-  photos?: (Omit<UserPhoto, 'blob'> & { dataUrl: string })[];
+  /** Your spot photos as data URLs. */
+  photos: (Omit<UserPhoto, 'blob'> & { dataUrl: string })[];
 }
 
 const blobToDataUrl = (b: Blob) =>

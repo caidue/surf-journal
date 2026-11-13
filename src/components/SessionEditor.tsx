@@ -343,7 +343,7 @@ export default function SessionEditor({
       {spot && (
         <Card>
           <h3>Details</h3>
-          <h4 className="subsection">Waves</h4>
+          <h4 className="subsection">Waves & conditions</h4>
           <div className="field first">
             <span>Wave size you actually saw</span>
             <Chips small options={OBSERVED_SIZES.map((o) => ({ id: o.id, label: o.label }))} value={fields.observedSize} onChange={(v) => setFields({ ...fields, observedSize: v ?? undefined })} />

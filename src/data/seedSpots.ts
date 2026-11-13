@@ -343,9 +343,6 @@ const seed: SeedSpot[] = [
   },
 ];
 
-/** Bump when the built-in spot data changes, so devices that already have the spots get it merged in. */
-export const SEED_VERSION = 3;
-
 export const SEED_SPOTS: Spot[] = seed.map((s) => {
   const g = SPOT_GUIDES[s.id];
   return {
