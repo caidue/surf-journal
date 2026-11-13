@@ -673,12 +673,16 @@ label.field,
   width: 38px;
   height: 38px;
 }
+/* Best pick: the same card as the spot list, marked by an accent edge and its label. */
 .best-pick {
-  border: 2px solid var(--accent);
-  background: linear-gradient(180deg, #f0f9ff, #fff);
+  border-color: #7dd3fc;
+  box-shadow: inset 4px 0 0 var(--accent), var(--shadow-1);
 }
-.best-pick h2 {
-  margin: 0;
+.best-pick .eyebrow {
+  margin-bottom: var(--sp-2);
+}
+.go-line {
+  margin-top: var(--sp-3);
 }
 .go-window {
   font-weight: 600;
@@ -2213,4 +2217,51 @@ h4.subsection {
     width: 100%;
     white-space: normal;
   }
+}
+
+/* spot card header: map thumbnail · name and details · score */
+.spot-head {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-3);
+}
+.spot-head-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.spot-head .score {
+  align-self: center;
+}
+.spot-thumb {
+  position: relative;
+  flex: none;
+  width: 48px;
+  min-height: 44px;
+  align-self: stretch;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: #dbeafe;
+  border: 1px solid var(--line);
+}
+.spot-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.thumb-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.25);
 }

@@ -31,7 +31,7 @@ interface Props {
 }
 
 // OpenFreeMap: free vector tiles, no API key (© OpenStreetMap contributors).
-const STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+export const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
 export default function MapView({ markers, fit, selectedId, onSelect, onMapClick, onMarkerDrag, height = 420, area, cooperative }: Props) {
   const el = useRef<HTMLDivElement>(null);
@@ -44,7 +44,7 @@ export default function MapView({ markers, fit, selectedId, onSelect, onMapClick
     if (!el.current) return;
     const m = new maplibregl.Map({
       container: el.current,
-      style: STYLE,
+      style: MAP_STYLE,
       center: [-13.92, 28.73],
       zoom: 10.5,
       ...(fit

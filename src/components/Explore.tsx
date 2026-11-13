@@ -12,6 +12,7 @@ import { tideLabel, windKind, WIND_LABEL, type Derived } from '../lib/conditions
 import { SIMILAR_MIN_K, similarityPct } from '../lib/similarity';
 import MapView, { type MapMarker } from './MapView';
 import SpotSheet from './SpotSheet';
+import SpotThumb from './SpotThumb';
 import { Icon } from './icons';
 import { Card, ConditionsStatus, DirArrow, Empty, ScoreBadge, Segmented, SuitBadge } from './ui';
 
@@ -21,17 +22,8 @@ interface Region {
 }
 
 const REGION_KEY = 'surf-journal.region';
-const VIEW_KEY = 'surf-journal.exploreView';
 /** Below this width Explore shows either the map or the list, never the map with content below it. */
 export const PHONE_QUERY = '(max-width: 899px)';
-
-function loadView(): 'map' | 'list' {
-  try {
-    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'map';
-  } catch {
-    return 'map';
-  }
-}
 const DEFAULT_QUERY = 'northern part of Fuerteventura';
 
 function loadRegion(): Region | null {
@@ -66,15 +58,11 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
     setSheet(id);
   };
   const phone = useMediaQuery(PHONE_QUERY);
-  const [view, setViewState] = useState<'map' | 'list'>(loadView);
+  // Phones start with the list; the Map | List bar at the bottom switches.
+  const [view, setViewState] = useState<'map' | 'list'>('list');
   const setView = (v: 'map' | 'list') => {
     setViewState(v);
     window.scrollTo({ top: 0 });
-    try {
-      localStorage.setItem(VIEW_KEY, v);
-    } catch {
-      /* per-viewer convenience only */
-    }
   };
   const fullMap = phone && view === 'map';
 
@@ -294,20 +282,27 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
 
         <div className="list-col">
           {top && top.best && (
-            <Card className="best-pick">
+            <Card
+              className="spot-item best-pick"
+              onClick={(e: React.MouseEvent) => {
+                if (!(e.target as Element).closest('a, button')) openSheet(top.spot.id);
+              }}
+            >
               <div className="eyebrow">Best pick for you {dayOffset === 0 ? 'today' : dayOptions[dayOffset].label.toLowerCase()}</div>
-              <div className="row between">
-                <h2>
-                  <button className="link spot-title" onClick={() => openSheet(top.spot.id)}>
-                    {top.spot.name}
-                  </button>
-                </h2>
-                <ScoreBadge score={top.best.score} size="lg" title="Predicted fun for you (0–10)" />
-              </div>
+              <SpotHead spot={top.spot} score={top.best.score} scoreTitle="Predicted fun for you (0–10)" onOpen={() => openSheet(top.spot.id)} />
               {top.bestWindow && (
-                <div className="go-window">
-                  Go {fmtMin(top.bestWindow[0])}–{fmtMin(top.bestWindow[1])} · {fmtSurfRange(top.best.derived.hb, settings.heightUnit)} ·{' '}
-                  {WIND_LABEL[windKind(top.best.derived) ?? 'glassy']} {fmtWind(top.best.derived.windSpeed, settings.windUnit)} · tide {tideLabel(top.best.derived.tideNorm, top.best.derived.tideTrend)}
+                <div className="cond-line go-line">
+                  <span className="muted small">Go</span>
+                  <strong>
+                    {fmtMin(top.bestWindow[0])}–{fmtMin(top.bestWindow[1])}
+                  </strong>
+                  <span>
+                    <strong>{fmtSurfRange(top.best.derived.hb, settings.heightUnit)}</strong>
+                  </span>
+                  <span>
+                    {WIND_LABEL[windKind(top.best.derived) ?? 'glassy']} {fmtWind(top.best.derived.windSpeed, settings.windUnit)}
+                  </span>
+                  <span>tide {tideLabel(top.best.derived.tideNorm, top.best.derived.tideTrend)}</span>
                 </div>
               )}
               <ul className="explain">
@@ -315,9 +310,9 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                   <li key={l}>{l}</li>
                 ))}
               </ul>
-              <div className="row gap">
+              <div className="row gap wrap">
                 <SuitBadge status={top.best.suit.status} />
-                <span className="muted small">Confidence: {confidence(top.best.pred)}</span>
+                <span className="muted small">confidence: {confidence(top.best.pred)}</span>
               </div>
             </Card>
           )}
@@ -363,20 +358,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                     if (!(e.target as Element).closest('a, button')) openSheet(spot.id);
                   }}
                 >
-                  <div className="row between">
-                    <div>
-                      <button className="spot-name link" onClick={() => openSheet(spot.id)}>
-                        {spot.name}
-                      </button>
-                      <div className="muted small">
-                        {spot.breakType} · {spot.bottom} · level: {spot.level}
-                        {spot.peaks.length ? ` · ${spot.peaks.length} peaks` : ''}
-                      </div>
-                    </div>
-                    <div className="scores">
-                      <ScoreBadge score={r?.best?.score} title="Best predicted score for you this day" />
-                    </div>
-                  </div>
+                  <SpotHead spot={spot} score={r?.best?.score} scoreTitle="Best predicted score for you this day" onOpen={() => openSheet(spot.id)} />
                   <p className="desc">{spot.description}</p>
                   {show ? (
                     <div className="cond-line">
@@ -456,13 +438,13 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
 
       {phone && (
         <div className="view-switch" role="tablist" aria-label="Show spots as">
-          <button role="tab" aria-selected={view === 'map'} className={view === 'map' ? 'on' : ''} onClick={() => setView('map')}>
-            <Icon name="map" size={20} />
-            Map
-          </button>
           <button role="tab" aria-selected={view === 'list'} className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}>
             <Icon name="list" size={20} />
             List · {regionSpots.length}
+          </button>
+          <button role="tab" aria-selected={view === 'map'} className={view === 'map' ? 'on' : ''} onClick={() => setView('map')}>
+            <Icon name="map" size={20} />
+            Map
           </button>
         </div>
       )}
@@ -512,5 +494,24 @@ function SimilarCard({ m, dayWord, settings, faded }: { m: SimilarMatch; dayWord
         {nb.session.excluded && <span className="badge muted">not relevant</span>}
       </div>
     </a>
+  );
+}
+
+/** Card header shared by the best pick and the spot list: map thumbnail, name, details, score. */
+function SpotHead({ spot, score, scoreTitle, onOpen }: { spot: Spot; score: number | null | undefined; scoreTitle: string; onOpen: () => void }) {
+  return (
+    <div className="spot-head">
+      <SpotThumb lat={spot.lat} lon={spot.lon} />
+      <div className="spot-head-text">
+        <button className="spot-name link" onClick={onOpen}>
+          {spot.name}
+        </button>
+        <div className="muted small">
+          {spot.breakType} · {spot.bottom} · level: {spot.level}
+          {spot.peaks.length > 1 ? ` · ${spot.peaks.length} peaks` : ''}
+        </div>
+      </div>
+      <ScoreBadge score={score} title={scoreTitle} />
+    </div>
   );
 }
