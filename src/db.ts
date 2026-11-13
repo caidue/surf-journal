@@ -54,7 +54,19 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export async function initDb(): Promise<void> {
   if ((await db.spots.count()) === 0) await db.spots.bulkPut(SEED_SPOTS);
-  if (!(await db.settings.get('settings'))) await db.settings.put(DEFAULT_SETTINGS);
+  const settings = await db.settings.get('settings');
+  if (!settings) await db.settings.put(DEFAULT_SETTINGS);
+  else if (settings.categories.some((c) => c.id === 'waves')) await db.settings.put(withCurrentCategories(settings));
+}
+
+/**
+ * Devices set up with the earlier default categories (Fun, Wave quality, Exertion) get today's
+ * defaults: "Wave quality" is dropped and "Confidence" added. Your own categories stay.
+ */
+export function withCurrentCategories(settings: Settings): Settings {
+  const cats = settings.categories.filter((c) => c.id !== 'waves');
+  for (const d of DEFAULT_SETTINGS.categories) if (!cats.some((c) => c.id === d.id)) cats.push(d);
+  return { ...settings, categories: cats };
 }
 
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {

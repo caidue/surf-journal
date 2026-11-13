@@ -336,7 +336,7 @@ export default function SessionEditor({
               );
             })}
           </div>
-          <p className="muted tiny">1 = very low, 10 = very high. Fun drives your recommendations; other categories are optional (add or rename them in Settings).</p>
+          <p className="muted tiny">1 = very low, 10 = very high. Fun drives your recommendations; other categories are optional.</p>
         </Card>
       )}
 

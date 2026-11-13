@@ -8,6 +8,7 @@ import { distance, kernel, SIMILAR_MIN_K } from './similarity';
 import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, insights, ratingFor, sessionOverall } from './recommend';
 import { parseRegionQuery, subBox } from './geocode';
 import { monthRanges } from './format';
+import { DEFAULT_SETTINGS, withCurrentCategories } from '../db';
 
 const spot: Spot = {
   id: 's',
@@ -303,5 +304,22 @@ describe('season', () => {
     expect(monthRanges([5])).toBe('May');
     expect(monthRanges(Array.from({ length: 12 }, (_, i) => i + 1))).toBe('all year');
     expect(monthRanges([])).toBe('');
+  });
+});
+
+describe('rating categories', () => {
+  it('replaces the old "Wave quality" default with Confidence and keeps your own categories', () => {
+    const old: Settings = {
+      ...settings,
+      categories: [
+        { id: 'fun', name: 'Fun', color: '#0ea5e9' },
+        { id: 'waves', name: 'Wave quality', color: '#16a34a' },
+        { id: 'exertion', name: 'Exertion', color: '#f97316' },
+        { id: 'mine', name: 'Paddling', color: '#123456' },
+      ],
+    };
+    const ids = withCurrentCategories(old).categories.map((c) => c.id);
+    expect(ids).toEqual(['fun', 'exertion', 'mine', 'confidence']);
+    expect(DEFAULT_SETTINGS.categories.map((c) => c.name)).toEqual(['Fun', 'Exertion', 'Confidence']);
   });
 });
