@@ -539,6 +539,15 @@ label.field,
 .spot-name {
   font-weight: 700;
   font-size: 1.02rem;
+  text-align: left;
+}
+button.spot-name,
+button.spot-title {
+  color: var(--accent);
+}
+button.spot-title {
+  font-weight: 700;
+  text-align: left;
 }
 .desc {
   margin: 0.4rem 0;
@@ -976,18 +985,6 @@ details.how p {
   box-shadow: 0 20px 60px rgba(15, 42, 55, 0.35);
   overflow: hidden;
 }
-.sheet-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.9rem 1rem 0.6rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-.sheet-head h2 {
-  margin: 0;
-  font-size: 1.25rem;
-}
 .sheet-close {
   border: 0;
   background: #f1f5f9;
@@ -1002,15 +999,6 @@ details.how p {
 }
 .sheet-close:hover {
   background: #e2e8f0;
-}
-.sheet-body {
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom));
-}
-.sheet-desc {
-  margin: 0 0 0.5rem;
-  line-height: 1.45;
 }
 .sheet-day {
   margin: 0.75rem 0 0.5rem;
@@ -1485,4 +1473,108 @@ details.sources ul {
 .months.toggle button.on {
   background: #16a34a;
   color: #fff;
+}
+
+/* ---------- unified spot view (popup + page) ---------- */
+.spot-view.sheet {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sv-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.spot-view.sheet .sv-head {
+  padding: 0.9rem 1rem 0.6rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+.spot-view.page .sv-head {
+  padding-bottom: 0.4rem;
+}
+.sv-head h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+.spot-view.sheet .sv-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom));
+}
+.sv-desc {
+  margin: 0 0 0.5rem;
+  line-height: 1.45;
+}
+.sv-actions {
+  margin-bottom: 0.25rem;
+}
+.sv-tabs {
+  display: flex;
+  gap: 0.15rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid #e2e8f0;
+  margin: 0.6rem 0 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--panel);
+}
+.spot-view.sheet .sv-tabs {
+  top: -0.75rem;
+  padding-top: 0.25rem;
+}
+.spot-view.page .sv-tabs {
+  top: 0;
+}
+.sv-tabs button {
+  position: relative;
+  border: 0;
+  background: none;
+  padding: 0.55rem 0.8rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sv-tabs button.on {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tab-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+  margin-left: 0.3rem;
+  vertical-align: middle;
+}
+.sv-panel h4 {
+  margin: 1rem 0 0.25rem;
+}
+.sv-panel h5 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.88rem;
+}
+.sv-sessions li {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.sv-sessions li::before {
+  content: none;
+}
+.sv-sessions .pct {
+  margin-left: auto;
+}
+@media (max-width: 600px) {
+  .sv-tabs button {
+    padding: 0.55rem 0.6rem;
+  }
 }

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Category, HourConditions, Peak, Settings } from '../types';
 import { SLOT_MIN, SLOTS } from '../types';
-import { windKind, type Derived, type WindKind } from '../lib/conditions';
+import { waveEnergyKJ, windKind, type Derived, type WindKind } from '../lib/conditions';
+import { energyColors, fmtEnergy } from '../lib/format';
 import { scoreColor } from '../lib/rating';
 import { fmtDuration, fmtMin, isoToMin } from '../lib/time';
 import { useElementWidth } from '../hooks';
@@ -105,6 +106,7 @@ export default function Timeline(p: Props) {
   const scoreRow = p.scores ? row(16) : null;
   const surf = row(104, 0);
   const swell = row(24, 2);
+  const energy = row(20, 2);
   const wind = row(28, 2);
   const tide = row(42, 6);
   const condBottom = y - 6;
@@ -423,6 +425,25 @@ export default function Timeline(p: Props) {
               </g>
             ) : null,
           )}
+
+          {/* wave energy of the model grid cell */}
+          {label(energy, 'Energy', 'kJ')}
+          {hours.map((r) => {
+            const e = waveEnergyKJ(r.h);
+            const c = energyColors(e);
+            return (
+              <g key={r.m}>
+                <rect x={x(r.m) + 1} y={energy.y} width={Math.max(1, pxPerHour - 2)} height={energy.h} rx={3} fill={c?.bg ?? '#f1f5f9'}>
+                  <title>{e == null ? 'no wave data' : `${Math.round(e)} kJ (grid cell wave energy)`}</title>
+                </rect>
+                {(r.m / 60) % every === 0 && e != null && pxPerHour * every >= 26 && (
+                  <text x={x(r.m) + pxPerHour / 2} y={energy.y + 14} textAnchor="middle" className="tl-val" fill={c?.fg} style={{ fill: c?.fg }}>
+                    {fmtEnergy(e)}
+                  </text>
+                )}
+              </g>
+            );
+          })}
 
           {/* wind */}
           {label(wind, 'Wind', p.windUnit === 'kn' ? 'kn' : 'km/h')}

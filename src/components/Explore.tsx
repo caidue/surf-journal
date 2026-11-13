@@ -12,7 +12,6 @@ import { tideLabel, windKind, WIND_LABEL, type Derived } from '../lib/conditions
 import { SIMILAR_MIN_K, similarityPct } from '../lib/similarity';
 import MapView, { type MapMarker } from './MapView';
 import SpotSheet from './SpotSheet';
-import { gridKey } from '../lib/openMeteo';
 import { Card, ConditionsStatus, DirArrow, Empty, ScoreBadge, Segmented, SuitBadge } from './ui';
 
 interface Region {
@@ -249,7 +248,9 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
               <div className="eyebrow">Best pick for you {dayOffset === 0 ? 'today' : dayOptions[dayOffset].label.toLowerCase()}</div>
               <div className="row between">
                 <h2>
-                  <a href={`#/spot/${top.spot.id}`}>{top.spot.name}</a>
+                  <button className="link spot-title" onClick={() => openSheet(top.spot.id)}>
+                    {top.spot.name}
+                  </button>
                 </h2>
                 <ScoreBadge score={top.best.score} size="lg" title="Predicted fun for you (0–10)" />
               </div>
@@ -314,9 +315,9 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                 >
                   <div className="row between">
                     <div>
-                      <a className="spot-name" href={`#/spot/${spot.id}`}>
+                      <button className="spot-name link" onClick={() => openSheet(spot.id)}>
                         {spot.name}
-                      </a>
+                      </button>
                       <div className="muted small">
                         {spot.breakType} · {spot.bottom} · level: {spot.level}
                         {spot.peaks.length ? ` · ${spot.peaks.length} peaks` : ''}
@@ -409,24 +410,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
           const spot = spots.find((x) => x.id === sheet);
           if (!spot) return null;
           return (
-            <SpotSheet
-              spot={spot}
-              rec={recBySpot.get(spot.id)}
-              series={bySpot.get(spot.id)}
-              gridMates={(() => {
-                const k = gridKey(bySpot.get(spot.id));
-                return k ? spots.filter((x) => x.id !== spot.id && gridKey(bySpot.get(x.id)) === k).map((x) => x.name) : [];
-              })()}
-              date={date}
-              today={today}
-              dayOptions={dayOptions}
-              dayOffset={dayOffset}
-              onDay={setDayOffset}
-              settings={settings}
-              loading={loading}
-              onClose={closeSheet}
-              go={go}
-            />
+            <SpotSheet spot={spot} spots={spots} sessions={sessions} settings={settings} initialDay={dayOffset} onClose={closeSheet} go={go} />
           );
         })()}
     </div>

@@ -68,3 +68,21 @@ export function monthRanges(months: number[]): string {
   }
   return out.join(', ');
 }
+
+/** Colour ramp for wave energy (kJ per metre of crest): light grey → deep blue. */
+export function energyColors(kj: number | null | undefined): { bg: string; fg: string } | null {
+  if (kj == null) return null;
+  const steps: [number, string, string][] = [
+    [100, '#f1f5f9', '#475569'],
+    [250, '#e0f2fe', '#0c4a6e'],
+    [500, '#bae6fd', '#0c4a6e'],
+    [1000, '#7dd3fc', '#0c4a6e'],
+    [2000, '#38bdf8', '#082f49'],
+    [3500, '#0284c7', '#ffffff'],
+    [Infinity, '#075985', '#ffffff'],
+  ];
+  const [, bg, fg] = steps.find(([max]) => kj < max)!;
+  return { bg, fg };
+}
+
+export const fmtEnergy = (kj: number | null | undefined) => (kj == null ? '–' : kj >= 1000 ? `${(kj / 1000).toFixed(1)}k` : `${Math.round(kj)}`);

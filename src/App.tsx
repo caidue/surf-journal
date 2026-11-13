@@ -33,7 +33,7 @@ export default function App() {
   else if (page === 'settings') body = <SettingsPage settings={settings} spots={spots} sessions={sessions} />;
   else if (page === 'spot') {
     const s = spots.find((x) => x.id === route[1]);
-    body = s ? <SpotPage key={s.id} spot={s} sessions={sessions} settings={settings} go={go} /> : <Empty>Spot not found.</Empty>;
+    body = s ? <SpotPage key={s.id} spot={s} spots={spots} sessions={sessions} settings={settings} go={go} /> : <Empty>Spot not found.</Empty>;
   } else if (page === 'spot-edit' || page === 'spot-new') {
     const s = spots.find((x) => x.id === route[1]);
     const lat = Number(queryParam('lat'));
