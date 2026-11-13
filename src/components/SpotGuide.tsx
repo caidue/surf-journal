@@ -5,6 +5,7 @@ import type { Spot, UserPhoto } from '../types';
 import { db } from '../db';
 import { uid } from '../lib/time';
 import { MONTH_NAMES, monthRanges } from '../lib/format';
+import { Icon } from './icons';
 
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
@@ -200,12 +201,22 @@ async function shrink(file: File): Promise<{ blob: Blob; width: number; height: 
   return { blob, width: w, height: h };
 }
 
+interface Draft {
+  blob: Blob;
+  width: number;
+  height: number;
+  url: string;
+  caption: string;
+}
+
 function Photos({ spot }: { spot: Spot }) {
   const own = useLiveQuery(() => db.photos.where('spotId').equals(spot.id).sortBy('addedAt'), [spot.id]);
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<Shown | null>(null);
+  /** Photos picked but not saved yet: you can describe each before adding it. */
+  const [drafts, setDrafts] = useState<Draft[]>([]);
 
   const urls = useMemo(() => new Map((own ?? []).map((p) => [p.id, URL.createObjectURL(p.blob)])), [own]);
   useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
@@ -220,82 +231,175 @@ function Photos({ spot }: { spot: Spot }) {
     })),
   ];
 
-  const add = async (files: FileList | null) => {
+  const pick = async (files: FileList | null) => {
     if (!files?.length) return;
     setBusy(true);
     setError(null);
     try {
+      const out: Draft[] = [];
       for (const f of Array.from(files)) {
         const { blob, width, height } = await shrink(f);
-        await db.photos.put({ id: uid(), spotId: spot.id, blob, width, height, addedAt: Date.now() });
+        out.push({ blob, width, height, url: URL.createObjectURL(blob), caption: '' });
       }
+      setDrafts(out);
     } catch (e: any) {
-      setError(e?.message ?? 'Could not add the photo');
+      setError(e?.message ?? 'Could not read the photo');
     } finally {
       setBusy(false);
       if (input.current) input.current.value = '';
     }
   };
+  const discardDrafts = () => {
+    drafts.forEach((d) => URL.revokeObjectURL(d.url));
+    setDrafts([]);
+  };
+  const saveDrafts = async () => {
+    const now = Date.now();
+    await db.photos.bulkPut(
+      drafts.map((d, k) => ({ id: uid(), spotId: spot.id, blob: d.blob, width: d.width, height: d.height, caption: d.caption.trim() || undefined, addedAt: now + k })),
+    );
+    discardDrafts();
+  };
 
   return (
     <section>
-      <div className="row between">
+      <div className="section-head">
         <h4>Photos</h4>
         <button className="btn small" onClick={() => input.current?.click()} disabled={busy}>
-          {busy ? 'Adding…' : '+ Add photo'}
+          {busy ? 'Reading…' : '+ Add photo'}
         </button>
-        <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => add(e.target.files)} />
+        <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => pick(e.target.files)} />
       </div>
       {error && <div className="alert">{error}</div>}
       {shown.length ? (
         <div className="photo-strip">
           {shown.map((p) => (
-            <button key={p.key} className="photo" onClick={() => setOpen(p)} aria-label={p.caption ?? 'Open photo'}>
+            <button key={p.key} className="photo" onClick={() => setOpen(p)} aria-label={p.caption ? `Photo: ${p.caption}` : 'Open photo'}>
               {/* CORS for Commons so the service worker can keep a normal (not opaque) copy for offline use. */}
               <img src={p.src} alt={p.caption ?? spot.name} loading="lazy" crossOrigin={p.own ? undefined : 'anonymous'} />
               {p.own && <span className="photo-badge">yours</span>}
+              {p.caption && (
+                <span className="photo-text" title="Has a description">
+                  <Icon name="text" size={14} />
+                </span>
+              )}
             </button>
           ))}
         </div>
       ) : (
         <p className="muted small">No photos yet. Add your own: they stay on this device and are included in backups.</p>
       )}
-      {open && <Lightbox photo={open} onClose={() => setOpen(null)} />}
+      {open && <Lightbox photo={open} onClose={() => setOpen(null)} onCaption={(caption) => setOpen({ ...open, caption })} />}
+      {drafts.length > 0 && <AddPhotos drafts={drafts} onChange={setDrafts} onCancel={discardDrafts} onSave={saveDrafts} />}
     </section>
   );
 }
 
-function Lightbox({ photo, onClose }: { photo: Shown; onClose: () => void }) {
+/** Before adding: preview each picked photo with an optional description. */
+function AddPhotos({ drafts, onChange, onCancel, onSave }: { drafts: Draft[]; onChange: (d: Draft[]) => void; onCancel: () => void; onSave: () => void }) {
   useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && (e.stopPropagation(), onClose());
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && (e.stopPropagation(), onCancel());
     document.addEventListener('keydown', k, true);
     return () => document.removeEventListener('keydown', k, true);
-  }, [onClose]);
+  }, [onCancel]);
+  return createPortal(
+    <div className="lightbox" role="dialog" aria-modal="true" aria-label="Add photos" onClick={onCancel}>
+      <div className="add-photos" onClick={(e) => e.stopPropagation()}>
+        <h3>{drafts.length === 1 ? 'Add photo' : `Add ${drafts.length} photos`}</h3>
+        <div className="add-photos-list">
+          {drafts.map((d, i) => (
+            <div key={d.url} className="add-photo">
+              <img src={d.url} alt="" />
+              <label className="field first">
+                Description <span className="muted small">(optional)</span>
+                <textarea
+                  rows={3}
+                  value={d.caption}
+                  autoFocus={i === 0}
+                  placeholder="e.g. the take-off at mid tide, where to paddle out…"
+                  onChange={(e) => onChange(drafts.map((x, k) => (k === i ? { ...x, caption: e.target.value } : x)))}
+                />
+              </label>
+            </div>
+          ))}
+        </div>
+        <div className="row gap add-photos-actions">
+          <button className="btn" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn primary" onClick={onSave}>
+            {drafts.length === 1 ? 'Add photo' : `Add ${drafts.length} photos`}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function Lightbox({ photo, onClose, onCaption }: { photo: Shown; onClose: () => void; onCaption: (caption: string | undefined) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(photo.caption ?? '');
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && (e.stopPropagation(), editing ? setEditing(false) : onClose());
+    document.addEventListener('keydown', k, true);
+    return () => document.removeEventListener('keydown', k, true);
+  }, [onClose, editing]);
   const remove = async () => {
     if (!photo.own || !confirm('Delete this photo from this device?')) return;
     await db.photos.delete(photo.own.id);
     onClose();
+  };
+  const saveCaption = async () => {
+    if (!photo.own) return;
+    const caption = text.trim() || undefined;
+    await db.photos.update(photo.own.id, { caption });
+    onCaption(caption);
+    setEditing(false);
   };
   return createPortal(
     <div className="lightbox" onClick={onClose} role="dialog" aria-modal="true" aria-label="Photo">
       <figure onClick={(e) => e.stopPropagation()}>
         <img src={photo.src} alt={photo.caption ?? ''} crossOrigin={photo.own ? undefined : 'anonymous'} />
         <figcaption>
-          {photo.caption && <span>{photo.caption}</span>}
+          {editing ? (
+            <label className="lb-edit">
+              <span className="visually-hidden">Description</span>
+              <textarea rows={3} value={text} autoFocus onChange={(e) => setText(e.target.value)} placeholder="Describe the photo…" />
+            </label>
+          ) : (
+            photo.caption && <p className="lb-caption">{photo.caption}</p>
+          )}
           {photo.credit && (
             <a href={photo.credit.href} target="_blank" rel="noreferrer">
               {photo.credit.text}
             </a>
           )}
-          <span className="row gap">
-            {photo.own && (
-              <button className="btn small danger" onClick={remove}>
-                Delete
+          <span className="row gap lb-actions">
+            {photo.own && !editing && (
+              <>
+                <button className="btn small danger" onClick={remove}>
+                  Delete
+                </button>
+                <button className="btn small" onClick={() => setEditing(true)}>
+                  {photo.caption ? 'Edit description' : 'Add description'}
+                </button>
+              </>
+            )}
+            {editing ? (
+              <>
+                <button className="btn small" onClick={() => setEditing(false)}>
+                  Cancel
+                </button>
+                <button className="btn small primary" onClick={saveCaption}>
+                  Save
+                </button>
+              </>
+            ) : (
+              <button className="btn small" onClick={onClose}>
+                Close
               </button>
             )}
-            <button className="btn small" onClick={onClose}>
-              Close
-            </button>
           </span>
         </figcaption>
       </figure>

@@ -104,8 +104,8 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
   const tabs: { id: SpotTab; label: string; icon: IconName }[] = [
     { id: 'forecast', label: 'Forecast', icon: 'forecast' },
     { id: 'guide', label: 'Guide', icon: 'guide' },
-    { id: 'sessions', label: `Sessions${mySessions.length ? ` (${mySessions.length})` : ''}`, icon: 'sessions' },
     { id: 'info', label: 'Info', icon: 'info' },
+    { id: 'sessions', label: `Sessions${mySessions.length ? ` (${mySessions.length})` : ''}`, icon: 'sessions' },
   ];
 
   return (
@@ -131,14 +131,6 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
 
       <div className="sv-scroll">
         {spot.description && <p className="sv-desc">{spot.description}</p>}
-        <div className="row gap wrap sv-actions">
-          <button className="btn primary small" onClick={() => go(`log?spot=${spot.id}${date <= today ? `&date=${date}` : ''}`)}>
-            + Log a session here
-          </button>
-          <button className="btn small" onClick={() => go(`spot-edit/${spot.id}`)}>
-            Edit spot
-          </button>
-        </div>
 
         <div className="sv-tabs" role="tablist" aria-label="Spot details">
           {tabs.map((t) => (
@@ -273,7 +265,7 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                     : `${spot.gain.toFixed(2)} (default; note the size you saw when logging to calibrate)`}
                 </dd>
               </dl>
-              {spot.coordsApprox && <div className="alert soft">Location is approximate. Use “Edit spot” to drag the marker to the exact break.</div>}
+              {spot.coordsApprox && <div className="alert soft">Location is approximate. Correct it under Settings → Spots.</div>}
               <MapView
                 markers={[{ id: spot.id, lat: spot.lat, lon: spot.lon, color: '#0b6e99', label: '●', title: spot.name }]}
                 fit={{ south: spot.lat - 0.02, north: spot.lat + 0.02, west: spot.lon - 0.03, east: spot.lon + 0.03 }}

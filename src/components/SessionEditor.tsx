@@ -48,7 +48,6 @@ export default function SessionEditor({
   const [fields, setFields] = useState<SessionFields>(existing?.fields ?? {});
   const [tags, setTags] = useState<string[]>(existing?.tags ?? []);
   const [notes, setNotes] = useState(existing?.notes ?? '');
-  const [excluded, setExcluded] = useState(existing?.excluded ?? false);
   const [skill, setSkill] = useState<Level>(existing?.skillAtTime ?? settings.level);
   const hasSaved = !!existing?.conditions?.length;
   const [conditions, setConditions] = useState<HourConditions[] | null>(hasSaved ? existing!.conditions : null);
@@ -186,7 +185,8 @@ export default function SessionEditor({
       fields,
       tags,
       notes,
-      excluded,
+      // Relevance is set in the Journal (per session) or Settings (cut-off date), not here.
+      excluded: existing?.excluded ?? false,
       skillAtTime: skill,
       demo: existing?.demo,
       createdAt: existing?.createdAt ?? now,
@@ -387,9 +387,6 @@ export default function SessionEditor({
           <label className="field first">
             <span className="visually-hidden">Notes</span>
             <textarea rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What worked, what didn't, where you sat, what to try next time…" />
-          </label>
-          <label className="check field">
-            <input type="checkbox" checked={excluded} onChange={(e) => setExcluded(e.target.checked)} /> Not relevant anymore (keep in journal, ignore for predictions)
           </label>
         </Card>
       )}

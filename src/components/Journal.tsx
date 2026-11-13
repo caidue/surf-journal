@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Session, Settings, Spot } from '../types';
 import { db } from '../db';
 import { deriveSeries, windKind, WIND_LABEL } from '../lib/conditions';
@@ -23,7 +23,7 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
   const [spotFilter, setSpotFilter] = useState('');
   const [text, setText] = useState('');
   const [hideExcluded, setHideExcluded] = useState(false);
-  const [cutoff, setCutoff] = useState('');
+  const [page, setPage] = useState(0);
   const spotById = useMemo(() => new Map(spots.map((s) => [s.id, s])), [spots]);
 
   const list = useMemo(() => {
@@ -35,28 +35,32 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
       .sort((a, b) => (b.date + String(b.startMin).padStart(4, '0')).localeCompare(a.date + String(a.startMin).padStart(4, '0')));
   }, [sessions, spotFilter, hideExcluded, text, spotById]);
 
+  // 10 sessions per page, newest first; back to the first page whenever the filters change.
+  const PAGE = 10;
+  const pages = Math.max(1, Math.ceil(list.length / PAGE));
+  useEffect(() => setPage(0), [spotFilter, hideExcluded, text]);
+  const current = Math.min(page, pages - 1);
+  const shown = list.slice(current * PAGE, current * PAGE + PAGE);
+  const goPage = (p: number) => {
+    setPage(p);
+    document.querySelector('.session-list')?.closest('section')?.scrollIntoView({ block: 'start' });
+  };
+
   const groups = useMemo(() => {
     const m = new Map<string, Session[]>();
-    for (const s of list) {
+    for (const s of shown) {
       const k = s.date.slice(0, 7);
       if (!m.has(k)) m.set(k, []);
       m.get(k)!.push(s);
     }
     return [...m.entries()];
-  }, [list]);
+  }, [shown]);
 
   const relevant = sessions.filter((s) => !s.excluded);
   const minutes = relevant.reduce((a, s) => a + (s.endMin - s.startMin), 0);
   const funs = relevant.map(sessionOverall).filter((v): v is number => v != null);
 
   const toggle = (s: Session) => db.sessions.update(s.id, { excluded: !s.excluded, updatedAt: Date.now() });
-  const bulk = async () => {
-    if (!cutoff) return;
-    const ids = sessions.filter((s) => s.date < cutoff && !s.excluded).map((s) => s.id);
-    if (!ids.length) return alert('No relevant sessions before that date.');
-    if (!confirm(`Mark ${ids.length} session(s) before ${fmtDate(cutoff)} as not relevant? You can switch each one back later.`)) return;
-    await db.sessions.where('id').anyOf(ids).modify({ excluded: true, updatedAt: Date.now() });
-  };
 
   const usedSpots = spots.filter((sp) => sessions.some((s) => s.spotId === sp.id));
 
@@ -75,8 +79,8 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
           <span>relevant sessions</span>
         </div>
         <div>
-          <strong>{fmtDuration(minutes)}</strong>
-          <span>in the water</span>
+          <strong>{Math.floor(minutes / 60)}h {String(minutes % 60).padStart(2, "0")}m</strong>
+          <span>in water</span>
         </div>
         <div>
           <strong>{new Set(relevant.map((s) => s.spotId)).size}</strong>
@@ -84,7 +88,7 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
         </div>
         <div>
           <strong>{funs.length ? (funs.reduce((a, b) => a + b, 0) / funs.length).toFixed(1) : '–'}</strong>
-          <span>average fun</span>
+          <span>avg. fun</span>
         </div>
       </div>
 
@@ -103,13 +107,6 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
             <input type="checkbox" checked={hideExcluded} onChange={(e) => setHideExcluded(e.target.checked)} /> hide not relevant
           </label>
         </div>
-        <div className="filter-row">
-          <span className="small">Skill jumped? Mark everything before</span>
-          <input type="date" value={cutoff} onChange={(e) => setCutoff(e.target.value)} />
-          <button className="btn small" disabled={!cutoff} onClick={bulk}>
-            as not relevant
-          </button>
-        </div>
       </Card>
 
       {list.length === 0 ? (
@@ -117,7 +114,8 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
           {sessions.length ? 'No sessions match the filters.' : 'No sessions yet. Log your first one, or load demo sessions in Settings to try the recommendations.'}
         </Empty>
       ) : (
-        groups.map(([month, items]) => (
+        <>
+        {groups.map(([month, items]) => (
           <section key={month}>
             <h3 className="month">{fmtDate(month + '-15', { month: 'long', year: 'numeric' })}</h3>
             <div className="session-list">
@@ -156,7 +154,21 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
               })}
             </div>
           </section>
-        ))
+        ))}
+        {pages > 1 && (
+          <nav className="pager" aria-label="Journal pages">
+            <button className="btn" disabled={current === 0} onClick={() => goPage(current - 1)}>
+              ← Newer
+            </button>
+            <span className="small muted">
+              {current * PAGE + 1}–{current * PAGE + shown.length} of {list.length}
+            </span>
+            <button className="btn" disabled={current >= pages - 1} onClick={() => goPage(current + 1)}>
+              Older →
+            </button>
+          </nav>
+        )}
+        </>
       )}
     </div>
   );

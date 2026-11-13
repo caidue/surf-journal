@@ -65,7 +65,6 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
     setSelected(id);
     setSheet(id);
   };
-  const [addMode, setAddMode] = useState(false);
   const phone = useMediaQuery(PHONE_QUERY);
   const [view, setViewState] = useState<'map' | 'list'>(loadView);
   const setView = (v: 'map' | 'list') => {
@@ -283,19 +282,13 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
             area={region?.bbox ?? null}
             selectedId={selected}
             onSelect={openSheet}
-            onMapClick={(lat, lon) => {
-              if (addMode) go(`spot-new?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`);
-            }}
-            height={fullMap ? `calc(100dvh - ${Math.round(mapTop)}px - 3.25rem - var(--switch-h) - env(safe-area-inset-bottom))` : 'min(62vh, 560px)'}
+            height={fullMap ? `calc(100dvh - ${Math.round(mapTop)}px - 2.25rem - var(--switch-h) - env(safe-area-inset-bottom))` : 'min(62vh, 560px)'}
           />
           <div className="map-foot">
             <span className="muted small">
               {region ? region.label : 'All spots'} · {regionSpots.length} spot{regionSpots.length === 1 ? '' : 's'}
               {loading ? ' · loading conditions…' : ''}
             </span>
-            <button className={`btn small${addMode ? ' primary' : ''}`} onClick={() => setAddMode((v) => !v)}>
-              {addMode ? 'Tap the map to place it…' : '+ Add a spot'}
-            </button>
           </div>
         </div>
 
@@ -353,7 +346,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
 
           {regionSpots.length === 0 && (
             <Empty>
-              No spots known in this area yet. Use <strong>+ Add a spot</strong> and click on the map to create one.
+              No spots known in this area yet. You can add your own under <strong>Settings → Spots</strong>.
             </Empty>
           )}
 

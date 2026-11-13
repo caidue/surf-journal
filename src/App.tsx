@@ -31,7 +31,7 @@ export default function App() {
     const s = sessions.find((x) => x.id === route[1]);
     body = s ? <SessionEditor key={s.id} id={s.id} spots={spots} sessions={sessions} settings={settings} go={go} /> : <Empty>Session not found.</Empty>;
   } else if (page === 'journal') body = <Journal spots={spots} sessions={sessions} settings={settings} go={go} />;
-  else if (page === 'settings') body = <SettingsPage settings={settings} spots={spots} sessions={sessions} />;
+  else if (page === 'settings') body = <SettingsPage settings={settings} spots={spots} sessions={sessions} go={go} />;
   else if (page === 'spot') {
     const s = spots.find((x) => x.id === route[1]);
     body = s ? <SpotPage key={s.id} spot={s} spots={spots} sessions={sessions} settings={settings} go={go} /> : <Empty>Spot not found.</Empty>;

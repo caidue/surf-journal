@@ -7,6 +7,7 @@ import { uid } from '../lib/time';
 import { Card, LevelPicker, Segmented } from './ui';
 import { isIOS, promptInstall, requestPersistence, storageStatus, usePwa } from '../lib/pwa';
 import { syncPendingSessions } from '../lib/sync';
+import { useDebounced } from './SpotPicker';
 
 const mb = (b: number) => (b < 1e6 ? `${Math.max(1, Math.round(b / 1e3))} kB` : `${(b / 1e6).toFixed(b < 1e7 ? 1 : 0)} MB`);
 
@@ -86,7 +87,59 @@ function PhoneCard({ sessions }: { sessions: Session[] }) {
   );
 }
 
-export default function SettingsPage({ settings, spots, sessions }: { settings: Settings; spots: Spot[]; sessions: Session[] }) {
+/** Add, edit and restore spots (the spot editor opens from here). */
+function SpotsCard({ spots, sessions, go, run }: { spots: Spot[]; sessions: Session[]; go: (p: string) => void; run: (label: string, fn: () => Promise<string>) => void }) {
+  const [q, setQ] = useState('');
+  const query = useDebounced(q);
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const list = spots
+    .filter((s) => words.every((w) => `${s.name} ${s.region}`.toLowerCase().includes(w)))
+    .sort((a, b) => a.region.localeCompare(b.region) || a.name.localeCompare(b.name));
+  const count = (id: string) => sessions.filter((s) => s.spotId === id).length;
+  return (
+    <Card>
+      <div className="section-head">
+        <h3>Spots</h3>
+        <button className="btn small primary" onClick={() => go('spot-new')}>
+          + Add a spot
+        </button>
+      </div>
+      <p className="muted small">Edit a spot's position, how it works and its guide, or add your own. {spots.length} spots on this device.</p>
+      {spots.length > 6 && <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search spots…" aria-label="Search spots" className="full-width" />}
+      <ul className="spot-rows">
+        {list.map((s) => (
+          <li key={s.id}>
+            <div>
+              <strong>{s.name}</strong>
+              <div className="muted small">
+                {s.region} · {s.breakType} · {s.level}
+                {count(s.id) ? ` · ${count(s.id)} session${count(s.id) === 1 ? '' : 's'}` : ''}
+                {s.coordsApprox && <span className="badge muted">approx. position</span>}
+              </div>
+            </div>
+            <button className="btn small" onClick={() => go(`spot-edit/${s.id}`)} aria-label={`Edit ${s.name}`}>
+              Edit
+            </button>
+          </li>
+        ))}
+        {list.length === 0 && <li className="muted small">No spot matches “{query}”.</li>}
+      </ul>
+      <button
+        className="btn small"
+        onClick={() =>
+          run('seed', async () => {
+            await db.spots.bulkPut(SEED_SPOTS);
+            return `Restored ${SEED_SPOTS.length} built-in Fuerteventura spots (your own spots are kept).`;
+          })
+        }
+      >
+        Restore built-in spots
+      </button>
+    </Card>
+  );
+}
+
+export default function SettingsPage({ settings, spots, sessions, go }: { settings: Settings; spots: Spot[]; sessions: Session[]; go: (p: string) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const demoCount = sessions.filter((s) => s.demo).length;
@@ -137,6 +190,8 @@ export default function SettingsPage({ settings, spots, sessions }: { settings: 
           </label>
         </div>
       </Card>
+
+      <SpotsCard spots={spots} sessions={sessions} go={go} run={run} />
 
       <Card>
         <h3>How old sessions count</h3>
@@ -209,17 +264,6 @@ export default function SettingsPage({ settings, spots, sessions }: { settings: 
               }}
             />
           </label>
-          <button
-            className="btn"
-            onClick={() =>
-              run('seed', async () => {
-                await db.spots.bulkPut(SEED_SPOTS);
-                return `Restored ${SEED_SPOTS.length} built-in Fuerteventura spots (your own spots are kept).`;
-              })
-            }
-          >
-            Restore built-in spots
-          </button>
           <button className="btn" onClick={() => run('cache', async () => (await db.forecasts.clear(), 'Forecast cache cleared.'))}>
             Clear forecast cache
           </button>
@@ -241,7 +285,17 @@ export default function SettingsPage({ settings, spots, sessions }: { settings: 
           </button>
         </div>
       </Card>
-      {msg && <div className="alert soft">{msg}</div>}
+      {/* Result of an action (import, restore, demo…): shown where you are, not at the end of the page. */}
+      {msg && (
+        <div className="toasts" role="status">
+          <div className="toast">
+            {msg}
+            <button className="btn small" onClick={() => setMsg(null)}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
 
       <Card>
         <h3>About the data</h3>

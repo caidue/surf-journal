@@ -69,6 +69,12 @@ const PATHS = {
   expand: <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />,
   close: <path d="M6 6l12 12M18 6 6 18" />,
   plus: <path d="M12 5v14M5 12h14" />,
+  text: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <path d="M7.5 9h9M7.5 12.5h9M7.5 16h5.5" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof PATHS | 'logo';

@@ -80,7 +80,7 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
       boards: boardText.split(',').map((b) => b.trim()).filter(Boolean),
     };
     await db.spots.put({ ...s, name: s.name.trim(), region: s.region.trim() || 'My spots', hazards, peaks, guide: g, updatedAt: Date.now() });
-    go(`spot/${s.id}`);
+    go('settings');
   };
 
   const remove = async () => {
@@ -88,7 +88,7 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
     if (used) return alert(`This spot has ${used} logged session(s). Delete or move those first.`);
     if (!confirm(`Delete ${spot.name}? This cannot be undone.`)) return;
     await db.spots.delete(spot.id);
-    go('explore');
+    go('settings');
   };
 
   const setPeak = (i: number, patch: Partial<Peak>) => set('peaks', s.peaks.map((p, k) => (k === i ? { ...p, ...patch } : p)));
@@ -256,7 +256,7 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
             Delete
           </button>
         )}
-        <button className="btn" onClick={() => go(spot ? `spot/${spot.id}` : 'explore')}>
+        <button className="btn" onClick={() => go('settings')}>
           Cancel
         </button>
         <button className="btn primary" onClick={save} disabled={!s.name.trim()}>
