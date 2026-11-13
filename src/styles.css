@@ -2197,3 +2197,20 @@ h4.subsection {
 .spot-rows li > div {
   min-width: 0;
 }
+
+/* groups of buttons (Settings): side by side when there's room, stacked full-width on phones */
+.btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+@media (max-width: 600px) {
+  .btn-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn-group .btn {
+    width: 100%;
+    white-space: normal;
+  }
+}

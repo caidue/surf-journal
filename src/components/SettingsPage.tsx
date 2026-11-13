@@ -26,7 +26,7 @@ function PhoneCard({ sessions }: { sessions: Session[] }) {
       {pwa.standalone ? (
         <p className="small">✓ Installed. Surf Journal opens from your home screen, full screen, and works without a connection.</p>
       ) : pwa.canInstall ? (
-        <div className="row gap wrap">
+        <div className="btn-group">
           <button className="btn primary" onClick={promptInstall}>
             Install Surf Journal
           </button>
@@ -243,7 +243,7 @@ export default function SettingsPage({ settings, spots, sessions, go }: { settin
         <p className="small">
           Everything is stored only in this browser ({spots.length} spots, {sessions.length} sessions). Export a backup regularly, or to move to another device.
         </p>
-        <div className="row gap wrap">
+        <div className="btn-group">
           <button className="btn" onClick={download}>
             Export backup (JSON)
           </button>
@@ -273,12 +273,12 @@ export default function SettingsPage({ settings, spots, sessions, go }: { settin
       <Card>
         <h3>Try it with demo sessions</h3>
         <p className="small">
-          Adds 14 sessions in northern Fuerteventura over the last two months with <strong>real conditions</strong> from Open-Meteo and <strong>invented ratings</strong>, so you can see
-          similar-session matching and personal recommendations in action. Remove them in one click.
+          Adds 12–16 random sessions at your spots over the last two months with <strong>real conditions</strong> from Open-Meteo and <strong>invented ratings</strong>, so you can see
+          similar-session matching and personal recommendations in action. Each time you add them you get a new random set (it replaces the previous one). Remove them in one click.
         </p>
-        <div className="row gap">
-          <button className="btn primary" disabled={!!busy} onClick={() => run('demo', async () => `Added ${await addDemoSessions(spots, settings)} demo sessions.`)}>
-            {busy === 'demo' ? 'Importing conditions…' : 'Add demo sessions'}
+        <div className="btn-group">
+          <button className="btn primary" disabled={!!busy} onClick={() => run('demo', async () => `Added ${await addDemoSessions(spots, settings)} random demo sessions.`)}>
+            {busy === 'demo' ? 'Importing conditions…' : demoCount ? 'New random demo sessions' : 'Add demo sessions'}
           </button>
           <button className="btn" disabled={!demoCount || !!busy} onClick={() => run('undemo', async () => `Removed ${await removeDemoSessions()} demo sessions.`)}>
             Remove demo sessions ({demoCount})

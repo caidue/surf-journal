@@ -34,7 +34,7 @@ To use it on your phone it needs to be on HTTPS (service workers only run on HTT
 
 `package.json` overrides esbuild and Rollup with their WebAssembly builds (`esbuild-wasm`, `@rollup/wasm-node`), so nothing native has to be downloaded and executed. That is a little slower than the native builds. On a machine where native binaries run fine, you can delete the `overrides` block and reinstall.
 
-New here? Go to **Settings → Add demo sessions**. This adds 14 sessions on real past dates in northern Fuerteventura with real conditions and invented ratings, so you can see the matching and recommendations working. Remove them in one click.
+New here? Go to **Settings → Add demo sessions**. This adds 12–16 random sessions on real past dates at your spots, with real conditions and invented ratings, so you can see the matching and recommendations working. Each time gives a new random set; remove them in one click.
 
 ## How it works
 
