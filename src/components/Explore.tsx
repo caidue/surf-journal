@@ -4,7 +4,7 @@ import { saveSettings } from '../db';
 import { useConditions, useMediaQuery } from '../hooks';
 import { bboxAround, bboxOf, inBBox, type BBox } from '../lib/geo';
 import { geocode, parseRegionQuery, PART_LABEL, subBox } from '../lib/geocode';
-import { buildHistory, confidence, explain, matchSession, recommendSpotDay, sessionOverall, type Neighbour, type SpotRec } from '../lib/recommend';
+import { buildHistory, confidence, explain, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec } from '../lib/recommend';
 import { LEVELS, scoreColor } from '../lib/rating';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
 import { fmtFeature, fmtSurfRange, fmtWind } from '../lib/format';
@@ -165,6 +165,21 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
 
   const recBySpot = useMemo(() => new Map(recs.map((r) => [r.spot.id, r])), [recs]);
   const top = recs.find((r) => r.best && r.best.score > 0.5) ?? null;
+
+  // Best picks: the top three spots, either for the day (best time window) or right now (this hour).
+  const [pickMode, setPickMode] = useState<'day' | 'now'>('day');
+  const mode = dayOffset === 0 ? pickMode : 'day';
+  const picks = useMemo(() => {
+    const ranked: { rec: SpotRec; hour: HourRec }[] =
+      mode === 'now'
+        ? recs.filter((r) => r.now?.daylight).map((r) => ({ rec: r, hour: r.now! }))
+        : recs.filter((r) => r.best).map((r) => ({ rec: r, hour: r.best! }));
+    return ranked
+      .filter((x) => x.hour.score > 0.5)
+      .sort((a, b) => b.hour.score - a.hour.score)
+      .slice(0, 3);
+  }, [recs, mode]);
+  const darkNow = mode === 'now' && recs.length > 0 && !recs.some((r) => r.now?.daylight);
   const dayOver = dayOffset === 0 && recs.length > 0 && recs.every((r) => r.dayOver);
 
   // Opening the app after sunset: jump to tomorrow once.
@@ -281,39 +296,74 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
         </div>
 
         <div className="list-col">
-          {top && top.best && (
-            <Card
-              className="spot-item best-pick"
-              onClick={(e: React.MouseEvent) => {
-                if (!(e.target as Element).closest('a, button')) openSheet(top.spot.id);
-              }}
-            >
-              <div className="eyebrow">Best pick for you {dayOffset === 0 ? 'today' : dayOptions[dayOffset].label.toLowerCase()}</div>
-              <SpotHead spot={top.spot} score={top.best.score} scoreTitle="Predicted fun for you (0–10)" onOpen={() => openSheet(top.spot.id)} />
-              {top.bestWindow && (
-                <div className="cond-line go-line">
-                  <span className="muted small">Go</span>
-                  <strong>
-                    {fmtMin(top.bestWindow[0])}–{fmtMin(top.bestWindow[1])}
-                  </strong>
-                  <span>
-                    <strong>{fmtSurfRange(top.best.derived.hb, settings.heightUnit)}</strong>
-                  </span>
-                  <span>
-                    {WIND_LABEL[windKind(top.best.derived) ?? 'glassy']} {fmtWind(top.best.derived.windSpeed, settings.windUnit)}
-                  </span>
-                  <span>tide {tideLabel(top.best.derived.tideNorm, top.best.derived.tideTrend)}</span>
+          {recs.length > 0 && (top || mode === 'now') && (
+            <Card className="best-pick">
+              <div className="section-head">
+                <div className="eyebrow">
+                  Best picks for you {mode === 'now' ? 'right now' : dayOffset === 0 ? 'today' : dayOptions[dayOffset].label.toLowerCase()}
                 </div>
-              )}
-              <ul className="explain">
-                {explain(top.best, (s) => fmtDate(s.date)).map((l) => (
-                  <li key={l}>{l}</li>
-                ))}
-              </ul>
-              <div className="row gap wrap">
-                <SuitBadge status={top.best.suit.status} />
-                <span className="muted small">confidence: {confidence(top.best.pred)}</span>
+                {dayOffset === 0 && (
+                  <Segmented
+                    options={[
+                      { id: 'day', label: 'Today' },
+                      { id: 'now', label: 'Now' },
+                    ]}
+                    value={pickMode}
+                    onChange={setPickMode}
+                  />
+                )}
               </div>
+              {picks.length === 0 ? (
+                <p className="muted small">
+                  {darkNow ? "It's dark at the spots right now. Switch to Today, or look at tomorrow." : 'Nothing really works for your level right now. Switch to Today to see the best times later.'}
+                </p>
+              ) : (
+                <ol className="pick-list">
+                  {picks.map(({ rec, hour }, i) => (
+                    <li
+                      key={rec.spot.id}
+                      onClick={(e) => {
+                        if (!(e.target as Element).closest('a, button')) openSheet(rec.spot.id);
+                      }}
+                    >
+                      <SpotHead spot={rec.spot} score={hour.score} scoreTitle="Predicted fun for you (0–10)" onOpen={() => openSheet(rec.spot.id)} />
+                      <div className="cond-line go-line">
+                        {mode === 'now' ? (
+                          <span className="muted small">Now</span>
+                        ) : (
+                          rec.bestWindow && (
+                            <>
+                              <span className="muted small">Go</span>
+                              <strong>
+                                {fmtMin(rec.bestWindow[0])}–{fmtMin(rec.bestWindow[1])}
+                              </strong>
+                            </>
+                          )
+                        )}
+                        <span>
+                          <strong>{fmtSurfRange(hour.derived.hb, settings.heightUnit)}</strong>
+                        </span>
+                        <span>
+                          {WIND_LABEL[windKind(hour.derived) ?? 'glassy']} {fmtWind(hour.derived.windSpeed, settings.windUnit)}
+                        </span>
+                        <span>tide {tideLabel(hour.derived.tideNorm, hour.derived.tideTrend)}</span>
+                      </div>
+                      {/* The top pick also says why; the others stay compact. */}
+                      {i === 0 && (
+                        <ul className="explain">
+                          {explain(hour, (s) => fmtDate(s.date)).map((l) => (
+                            <li key={l}>{l}</li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="row gap wrap">
+                        <SuitBadge status={hour.suit.status} />
+                        <span className="muted small">confidence: {confidence(hour.pred)}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </Card>
           )}
           {autoSwitched && dayOffset === 1 && (

@@ -679,6 +679,33 @@ label.field,
   box-shadow: inset 4px 0 0 var(--accent), var(--shadow-1);
 }
 .best-pick .eyebrow {
+  margin-bottom: 0;
+}
+.best-pick .section-head {
+  margin-bottom: var(--sp-3);
+}
+.pick-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pick-list > li {
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+}
+.pick-list > li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.pick-list > li:last-child {
+  padding-bottom: 0;
+}
+.best-pick .section-head .segmented {
+  flex: none;
+  flex-wrap: nowrap;
+}
+.pick-list .explain {
   margin-bottom: var(--sp-2);
 }
 .go-line {
@@ -691,6 +718,7 @@ label.field,
 .explain {
   margin: var(--sp-2) 0 var(--sp-3);
   padding-left: var(--sp-5);
+  list-style: disc;
   font-size: var(--fs-sm);
 }
 .explain li + li {

@@ -5,7 +5,7 @@ A local-first surf journal that imports real conditions for every session and le
 ## What it does
 
 - **Spot popup:** tap a spot on the map for its full description, the best time for your level and an hourly forecast table: rating, surf height, swell, wave energy, wind and a tide curve with high/low times.
-- **Explore:** type a region ("northern part of Fuerteventura", "Norden von Fuerteventura") or use *Near me*. You get a map and a list of spots with a description and current conditions, plus a score for **your level** (beginner to expert). The best pick names a spot and a time window and explains why. Choose today, tomorrow or the day after.
+- **Explore:** type a region ("northern part of Fuerteventura", "Norden von Fuerteventura") or use *Near me*. You get a map and a list of spots with a description and current conditions, plus a score for **your level** (beginner to expert). "Best picks" lists the top three spots for today (best time window) or right now (this hour), and explains the top one. Choose today, tomorrow or the day after.
 - **Similar sessions:** see past sessions logged in conditions like today's, with a similarity percentage and the condition that differed most.
 - **Personal recommendations:** each spot's score starts from a rule-based guide (size × period × wind × tide, gated by your level). As you log sessions, it is blended with your own fun ratings from sessions in similar conditions (a kernel-weighted nearest-neighbour estimate). A confidence label shows how much history is behind each number.
 - **Log a session:** pick a spot and date, and the day's hourly conditions are imported (surf height estimate, swell period and direction, wind, tide). Then:
