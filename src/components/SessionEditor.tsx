@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { DayInfo, HourConditions, Level, Session, SessionFields, Settings, Spot } from '../types';
-import { SLOT_MIN, SLOTS } from '../types';
 import { db, saveSettings } from '../db';
 import { fetchOne, isOfflineError } from '../lib/openMeteo';
 import { requestPersistence } from '../lib/pwa';
@@ -8,20 +7,20 @@ import { syncPendingSessions } from '../lib/sync';
 import { samplePoint } from '../lib/geo';
 import { deriveSeries, tideLabel, windKind, WIND_LABEL } from '../lib/conditions';
 import { recommendability } from '../lib/rating';
-import { calibratedGain, curveMean, OBSERVED_SIZES } from '../lib/recommend';
+import { calibratedGain, OBSERVED_SIZES } from '../lib/recommend';
 import { fmtDate, fmtDuration, fmtMin, isoToMin, todayAt, uid } from '../lib/time';
 import { fmtSurfRange, fmtWind } from '../lib/format';
 import Timeline, { type HourScore, type Range } from './Timeline';
-import { Card, Chips, LevelPicker, Segmented } from './ui';
+import { ActionBar, Card, Chips, LevelPicker, Segmented } from './ui';
+import SpotPicker from './SpotPicker';
 
 const WETSUITS = ['Boardshorts', 'Shorty / top', '3/2', '4/3', '5/4+'].map((x) => ({ id: x, label: x }));
 const CROWD = ['Empty', 'Few', 'Moderate', 'Crowded', 'Packed'].map((x) => ({ id: x, label: x }));
 const VS_FORECAST = ['Worse', 'As forecast', 'Better'].map((x) => ({ id: x, label: x }));
-export const TAGS = ['Glassy', 'Choppy', 'Closeouts', 'Barrels', 'Long rides', 'Strong current', 'Crowded peak', 'Sea life', 'Progress made', 'New board'].map((x) => ({ id: x, label: x }));
-
-const emptySlots = <T,>() => Array<T | null>(SLOTS).fill(null);
-
-const roundHalf = (v: number | null | undefined) => (v == null ? null : Math.round(v * 2) / 2);
+export const TAGS = ['Glassy', 'Choppy', 'Closeouts', 'Barrels', 'Long rides', 'Strong current', 'Crowded peak', 'Sea life', 'Progress made', 'New board', 'Injured'].map((x) => ({
+  id: x,
+  label: x,
+}));
 
 export default function SessionEditor({
   spots,
@@ -43,15 +42,9 @@ export default function SessionEditor({
   const [spotId, setSpotId] = useState(existing?.spotId ?? preset?.spotId ?? '');
   const [date, setDate] = useState(existing?.date ?? preset?.date ?? today);
   const [range, setRange] = useState<Range | null>(existing ? { startMin: existing.startMin, endMin: existing.endMin } : null);
-  // One 1–10 value per category. Older sessions with drawn curves start at the curve's average.
-  const [ratings, setRatings] = useState<Record<string, number | null>>(() =>
-    Object.fromEntries(settings.categories.map((c) => [c.id, existing ? roundHalf(curveMean(existing, c.id) ?? (c.id === 'fun' ? existing.overall : null)) : null])),
-  );
-  const [touched, setTouched] = useState<Set<string>>(new Set());
-  const setRating = (id: string, v: number | null) => {
-    setRatings((r) => ({ ...r, [id]: v }));
-    setTouched((t) => new Set(t).add(id));
-  };
+  /** One 1–10 rating per category; unset until you touch the slider. Fun is required. */
+  const [ratings, setRatings] = useState<Record<string, number | null>>(() => Object.fromEntries(settings.categories.map((c) => [c.id, existing?.ratings?.[c.id] ?? null])));
+  const setRating = (id: string, v: number | null) => setRatings((r) => ({ ...r, [id]: v }));
   const [fields, setFields] = useState<SessionFields>(existing?.fields ?? {});
   const [tags, setTags] = useState<string[]>(existing?.tags ?? []);
   const [notes, setNotes] = useState(existing?.notes ?? '');
@@ -169,33 +162,15 @@ export default function SessionEditor({
     };
   })();
 
-  const lo = range ? Math.floor(range.startMin / SLOT_MIN) : 0;
-  const hi = range ? Math.ceil(range.endMin / SLOT_MIN) - 1 : -1;
-
+  // What's still missing before the session can be saved (shown next to the Save button).
   // Conditions aren't required: without a connection the session is saved and filled in later.
-  const canSave = !!(spot && range && !condState.loading);
+  const missing = [!spot && 'choose a spot', spot && !range && 'mark your time on the chart', ratings.fun == null && 'rate Fun'].filter(Boolean) as string[];
+  const canSave = missing.length === 0 && !condState.loading;
   const pending = !conditions?.length || !!stale;
 
   const save = async () => {
-    if (!spot || !range) return;
+    if (!spot || !range || ratings.fun == null) return;
     setSaving(true);
-    const clip = <T,>(arr: (T | null)[]) => arr.map((v, s) => (s >= lo && s <= hi ? v : null));
-    // Ratings are stored as a flat value over the session's 5-minute slots, so everything that reads
-    // per-hour ratings (matching, insights) keeps working. A drawn curve from an older session is kept
-    // as it was unless you move its slider or change the session's time.
-    const sameRange = existing && existing.startMin === range.startMin && existing.endMin === range.endMin;
-    const buildCurves = () => {
-      const out: Record<string, (number | null)[]> = {};
-      for (const [k, v] of Object.entries(existing?.curves ?? {})) out[k] = clip(v);
-      for (const c of settings.categories) {
-        const old = existing?.curves[c.id];
-        if (sameRange && !touched.has(c.id) && old?.some((v) => v != null)) continue;
-        const r = ratings[c.id];
-        if (r == null) delete out[c.id];
-        else out[c.id] = emptySlots<number>().map((_, s) => (s >= lo && s <= hi ? r : null));
-      }
-      return out;
-    };
     const now = Date.now();
     const sess: Session = {
       id: existing?.id ?? uid(),
@@ -203,9 +178,7 @@ export default function SessionEditor({
       date,
       startMin: range.startMin,
       endMin: range.endMin,
-      // Peaks aren't entered any more; peak times recorded in older sessions are kept.
-      zones: existing && existing.spotId === spot.id ? clip(existing.zones) : emptySlots<string>(),
-      curves: buildCurves(),
+      ratings: Object.fromEntries(Object.entries(ratings).filter((e): e is [string, number] => e[1] != null)),
       conditions: conditions ?? [],
       conditionsSource: conditions ? source : '',
       conditionsPending: pending,
@@ -213,8 +186,6 @@ export default function SessionEditor({
       fields,
       tags,
       notes,
-      // The fun slider is the session's rating; an old separate "overall" only survives if fun wasn't changed.
-      overall: touched.has('fun') ? null : existing?.overall ?? null,
       excluded,
       skillAtTime: skill,
       demo: existing?.demo,
@@ -236,11 +207,9 @@ export default function SessionEditor({
     go('journal');
   };
 
-  const regions = Array.from(new Set(spots.map((s) => s.region))).sort();
-
   return (
-    <div className="page narrow">
-      <div className="row between wrap">
+    <div className="page narrow with-action-bar">
+      <div className="page-head">
         <h1>{existing ? 'Session' : 'Log a session'}</h1>
         {existing && (
           <span className="muted small">
@@ -252,24 +221,10 @@ export default function SessionEditor({
 
       <Card>
         <div className="form-grid">
-          <label>
-            Spot
-            <select value={spotId} onChange={(e) => setSpotId(e.target.value)}>
-              <option value="">Choose a spot…</option>
-              {regions.map((r) => (
-                <optgroup key={r} label={r}>
-                  {spots
-                    .filter((s) => s.region === r)
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                </optgroup>
-              ))}
-            </select>
-          </label>
+          <div className="field-inline">
+            <span className="field-label">Spot</span>
+            <SpotPicker spots={spots} value={spotId} onChange={setSpotId} />
+          </div>
           <label>
             Date
             <input type="date" value={date} max={today} min="2021-11-01" onChange={(e) => setDate(e.target.value)} />
@@ -285,12 +240,12 @@ export default function SessionEditor({
         <Card>
           <div className="row between wrap">
             <h3>
-              Conditions at {spot.name} · {fmtDate(date)}
+              When were you at {spot.name} on {fmtDate(date)}?
             </h3>
             <div className="row gap wrap">
               <Segmented
                 options={[
-                  { id: 'session', label: 'Session' },
+                  { id: 'session', label: 'Session', disabled: !range, title: range ? 'Zoom to your session' : 'Mark your time on the chart first' },
                   { id: 'daylight', label: 'Daylight' },
                   { id: 'full', label: 'Full day' },
                 ]}
@@ -317,10 +272,7 @@ export default function SessionEditor({
           )}
           {conditions || (condState.error && !condState.loading) ? (
             <>
-              <p className="muted small">
-                1. Drag across the chart to mark when you were in the water (drag the edges to adjust).
-                Then rate it below.
-              </p>
+              <p className="muted small">Drag across the chart to mark when you were in the water (drag the edges to adjust).</p>
               <Timeline
                 hours={conditions ?? []}
                 emptyText="Conditions are added when you're online"
@@ -363,6 +315,7 @@ export default function SessionEditor({
                 <div key={c.id} className={`rating-row${v == null ? ' unset' : ''}`} style={{ '--c': c.color } as React.CSSProperties}>
                   <span className="rating-name">
                     <span className="dot" /> {c.name}
+                    {c.id === 'fun' && <span className="req">required</span>}
                   </span>
                   <input
                     type="range"
@@ -383,30 +336,16 @@ export default function SessionEditor({
               );
             })}
           </div>
-          <p className="muted tiny">1 = very low, 10 = very high. Fun drives your recommendations; add or rename categories in Settings.</p>
+          <p className="muted tiny">1 = very low, 10 = very high. Fun drives your recommendations; other categories are optional (add or rename them in Settings).</p>
         </Card>
       )}
 
       {spot && (
         <Card>
           <h3>Details</h3>
-          <div className="form-grid">
-            <label>
-              Board
-              <input list="boards" value={fields.board ?? ''} onChange={(e) => setFields({ ...fields, board: e.target.value })} placeholder="e.g. 6'2 shortboard" />
-              <datalist id="boards">
-                {settings.boards.map((b) => (
-                  <option key={b} value={b} />
-                ))}
-              </datalist>
-            </label>
-            <label>
-              Waves caught
-              <input type="number" min={0} value={fields.waves ?? ''} onChange={(e) => setFields({ ...fields, waves: e.target.value === '' ? null : Number(e.target.value) })} />
-            </label>
-          </div>
-          <div className="field">
-            <span>Size you actually saw</span>
+          <h4 className="subsection">Waves</h4>
+          <div className="field first">
+            <span>Wave size you actually saw</span>
             <Chips small options={OBSERVED_SIZES.map((o) => ({ id: o.id, label: o.label }))} value={fields.observedSize} onChange={(v) => setFields({ ...fields, observedSize: v ?? undefined })} />
             <span className="muted tiny">Used to calibrate this spot's surf-height estimate.</span>
           </div>
@@ -414,45 +353,60 @@ export default function SessionEditor({
             <span>Compared with the forecast</span>
             <Chips small options={VS_FORECAST} value={fields.vsForecast} onChange={(v) => setFields({ ...fields, vsForecast: v ?? undefined })} />
           </div>
-          <div className="field">
-            <span>Crowd</span>
-            <Chips small options={CROWD} value={fields.crowd} onChange={(v) => setFields({ ...fields, crowd: v ?? undefined })} />
-          </div>
+          <label className="field narrow-field">
+            Waves caught
+            <input type="number" inputMode="numeric" min={0} value={fields.waves ?? ''} onChange={(e) => setFields({ ...fields, waves: e.target.value === '' ? null : Number(e.target.value) })} />
+          </label>
+
+          <h4 className="subsection">Gear</h4>
+          <label className="field first">
+            Board
+            <input list="boards" value={fields.board ?? ''} onChange={(e) => setFields({ ...fields, board: e.target.value })} placeholder="e.g. 6'2 shortboard" />
+            <datalist id="boards">
+              {settings.boards.map((b) => (
+                <option key={b} value={b} />
+              ))}
+            </datalist>
+          </label>
           <div className="field">
             <span>Wetsuit</span>
             <Chips small options={WETSUITS} value={fields.wetsuit} onChange={(v) => setFields({ ...fields, wetsuit: v ?? undefined })} />
+          </div>
+
+          <h4 className="subsection">Crowd & vibe</h4>
+          <div className="field first">
+            <span>Crowd</span>
+            <Chips small options={CROWD} value={fields.crowd} onChange={(v) => setFields({ ...fields, crowd: v ?? undefined })} />
           </div>
           <div className="field">
             <span>Tags</span>
             <Chips small multi options={TAGS} value={tags} onChange={setTags} />
           </div>
-          <label className="field">
-            Notes
+
+          <h4 className="subsection">Notes</h4>
+          <label className="field first">
+            <span className="visually-hidden">Notes</span>
             <textarea rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What worked, what didn't, where you sat, what to try next time…" />
           </label>
-          <label className="check">
+          <label className="check field">
             <input type="checkbox" checked={excluded} onChange={(e) => setExcluded(e.target.checked)} /> Not relevant anymore (keep in journal, ignore for predictions)
           </label>
         </Card>
       )}
 
-      <div className="row between sticky-actions">
-        <div>
-          {existing && (
-            <button className="btn danger" onClick={remove}>
-              Delete
-            </button>
-          )}
-        </div>
-        <div className="row gap">
-          <button className="btn" onClick={() => go('journal')}>
-            Cancel
+      <ActionBar note={!canSave && missing.length ? `To save: ${missing.join(', ')}` : pending && spot && range ? 'Conditions are added when you are back online' : undefined}>
+        {existing && (
+          <button className="btn danger" onClick={remove}>
+            Delete
           </button>
-          <button className="btn primary" disabled={!canSave || saving} onClick={save} title={canSave ? (pending ? 'Conditions are added when you are back online' : '') : 'Choose a spot, date and mark your session on the chart'}>
-            {saving ? 'Saving…' : existing ? 'Save changes' : pending ? 'Save (conditions later)' : 'Save session'}
-          </button>
-        </div>
-      </div>
+        )}
+        <button className="btn" onClick={() => go('journal')}>
+          Cancel
+        </button>
+        <button className="btn primary" disabled={!canSave || saving} onClick={save}>
+          {saving ? 'Saving…' : existing ? 'Save changes' : 'Save session'}
+        </button>
+      </ActionBar>
     </div>
   );
 }

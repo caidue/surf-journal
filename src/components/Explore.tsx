@@ -286,7 +286,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
             onMapClick={(lat, lon) => {
               if (addMode) go(`spot-new?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`);
             }}
-            height={fullMap ? `calc(100dvh - ${Math.round(mapTop)}px - 3.25rem - env(safe-area-inset-bottom))` : 'min(62vh, 560px)'}
+            height={fullMap ? `calc(100dvh - ${Math.round(mapTop)}px - 3.25rem - var(--switch-h) - env(safe-area-inset-bottom))` : 'min(62vh, 560px)'}
           />
           <div className="map-foot">
             <span className="muted small">
@@ -462,10 +462,16 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
       </div>
 
       {phone && (
-        <button className="view-fab" onClick={() => setView(view === 'map' ? 'list' : 'map')}>
-          <Icon name={view === 'map' ? 'list' : 'map'} size={18} />
-          {view === 'map' ? `List · ${regionSpots.length} spots` : 'Map'}
-        </button>
+        <div className="view-switch" role="tablist" aria-label="Show spots as">
+          <button role="tab" aria-selected={view === 'map'} className={view === 'map' ? 'on' : ''} onClick={() => setView('map')}>
+            <Icon name="map" size={20} />
+            Map
+          </button>
+          <button role="tab" aria-selected={view === 'list'} className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}>
+            <Icon name="list" size={20} />
+            List · {regionSpots.length}
+          </button>
+        </div>
       )}
 
 

@@ -42,8 +42,8 @@ export const DEFAULT_SETTINGS: Settings = {
   level: 'intermediate',
   categories: [
     { id: 'fun', name: 'Fun', color: '#0ea5e9' },
-    { id: 'waves', name: 'Wave quality', color: '#16a34a' },
     { id: 'exertion', name: 'Exertion', color: '#f97316' },
+    { id: 'confidence', name: 'Confidence', color: '#a855f7' },
   ],
   halfLifeMonths: 24,
   ignoreBefore: null,
@@ -57,11 +57,6 @@ export async function initDb(): Promise<void> {
   let settings = await db.settings.get('settings');
   if (!settings) {
     settings = { ...DEFAULT_SETTINGS, seedVersion: SEED_VERSION };
-    await db.settings.put(settings);
-  }
-  // "Confidence" used to be a built-in category; it was removed (ratings stay in old sessions).
-  if (settings.categories.some((c) => c.id === 'confidence')) {
-    settings = { ...settings, categories: settings.categories.filter((c) => c.id !== 'confidence') };
     await db.settings.put(settings);
   }
   if ((settings.seedVersion ?? 1) < SEED_VERSION) {

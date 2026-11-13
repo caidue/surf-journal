@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
 import type { Session, Settings, Spot } from '../types';
-import { SLOT_MIN } from '../types';
 import { db } from '../db';
 import { deriveSeries, windKind, WIND_LABEL } from '../lib/conditions';
 import { sessionOverall, surfedHourIdx } from '../lib/recommend';
 import { fmtDate, fmtDuration, fmtMin } from '../lib/time';
 import { fmtSurfRange, fmtWind } from '../lib/format';
-import { Card, Empty, ScoreBadge, Sparkline } from './ui';
+import { Card, Empty, ScoreBadge } from './ui';
 
 export function sessionSummary(s: Session, spot: Spot | undefined, settings: Settings): string {
   if (!spot) return '';
@@ -63,7 +62,7 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
 
   return (
     <div className="page">
-      <div className="row between wrap">
+      <div className="page-head">
         <h1>Journal</h1>
         <button className="btn primary" onClick={() => go('log')}>
           + Log a session
@@ -124,15 +123,8 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
             <div className="session-list">
               {items.map((s) => {
                 const spot = spotById.get(s.spotId);
-                const fun = s.curves.fun ?? [];
-                const lo = Math.floor(s.startMin / SLOT_MIN);
-                const hi = Math.ceil(s.endMin / SLOT_MIN);
                 const summary = sessionSummary(s, spot, settings);
-                const zoneMins = spot?.peaks
-                  .map((p) => ({ p, m: s.zones.filter((z) => z === p.id).length * SLOT_MIN }))
-                  .filter((z) => z.m)
-                  .map((z) => `${z.p.name} ${fmtDuration(z.m)}`)
-                  .join(' · ');
+                const others = settings.categories.filter((c) => c.id !== 'fun' && s.ratings?.[c.id] != null);
                 return (
                   <Card key={s.id} className={`session-item${s.excluded ? ' excluded' : ''}`}>
                     <a href={`#/session/${s.id}`} className="session-main">
@@ -151,19 +143,10 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
                           {fmtMin(s.startMin)}–{fmtMin(s.endMin)} ({fmtDuration(s.endMin - s.startMin)})
                           {summary && ` · ${summary}`}
                         </div>
-                        {zoneMins && <div className="small muted">{zoneMins}</div>}
-                        {(s.tags.length > 0 || s.notes) && (
-                          <div className="small muted clip">
-                            {s.tags.join(', ')}
-                            {s.tags.length && s.notes ? ' — ' : ''}
-                            {s.notes}
-                          </div>
-                        )}
+                        {others.length > 0 && <div className="small muted">{others.map((c) => `${c.name} ${s.ratings?.[c.id]}`).join(' · ')}</div>}
+                        {s.tags.length > 0 && <div className="small muted">{s.tags.join(', ')}</div>}
+                        {s.notes && <div className="small session-notes">{s.notes}</div>}
                       </div>
-                      {/* Only older sessions with a drawn curve have a shape worth showing. */}
-                      {new Set(fun.slice(lo, hi).filter((v) => v != null)).size > 1 && (
-                        <Sparkline values={fun.slice(lo, hi)} color={settings.categories.find((c) => c.id === 'fun')?.color} />
-                      )}
                     </a>
                     <label className="check small relevance" title="Not relevant sessions stay in your journal but are ignored for predictions">
                       <input type="checkbox" checked={!s.excluded} onChange={() => toggle(s)} /> relevant

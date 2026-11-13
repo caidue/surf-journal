@@ -244,12 +244,6 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
               <p className="muted small">From the fun ratings of your relevant sessions here.</p>
               <h5>Tide stage (vs. your average here)</h5>
               <Bars data={ins.byTide} />
-              {spot.peaks.length > 0 && Object.keys(ins.byZone).length > 0 && (
-                <>
-                  <h5>Where you were happiest</h5>
-                  <Bars data={ins.byZone} labels={Object.fromEntries(spot.peaks.map((p) => [p.id, p.name]))} />
-                </>
-              )}
               <h5>Wind</h5>
               <Bars data={ins.byWind} labels={Object.fromEntries(Object.entries(WIND_LABEL)) as Record<WindKind, string>} />
             </>

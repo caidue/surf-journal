@@ -40,14 +40,43 @@ export function Chips<T extends string>({
   );
 }
 
-export function Segmented<T extends string>({ options, value, onChange }: { options: { id: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { id: T; label: string; disabled?: boolean; title?: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
   return (
     <div className="segmented" role="radiogroup">
       {options.map((o) => (
-        <button key={o.id} type="button" role="radio" aria-checked={value === o.id} className={value === o.id ? 'on' : ''} onClick={() => onChange(o.id)}>
+        <button
+          key={o.id}
+          type="button"
+          role="radio"
+          aria-checked={value === o.id}
+          className={value === o.id ? 'on' : ''}
+          disabled={o.disabled}
+          title={o.title}
+          onClick={() => onChange(o.id)}
+        >
           {o.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** Fixed bar at the bottom of the screen for a page's main actions (always visible). */
+export function ActionBar({ children, note }: { children: ReactNode; note?: ReactNode }) {
+  return (
+    <div className="action-bar" role="region" aria-label="Actions">
+      <div className="action-bar-inner">
+        {note && <span className="action-note">{note}</span>}
+        <div className="action-buttons">{children}</div>
+      </div>
     </div>
   );
 }
@@ -91,20 +120,6 @@ export function DirArrow({ from, size = 14, color = 'currentColor' }: { from: nu
   );
 }
 
-export function Sparkline({ values, color = '#0ea5e9', width = 90, height = 26 }: { values: (number | null)[]; color?: string; width?: number; height?: number }) {
-  const pts = values.map((v, i) => (v == null ? null : [i, v] as const)).filter(Boolean) as [number, number][];
-  if (pts.length < 2) return <svg width={width} height={height} />;
-  const x0 = pts[0][0];
-  const x1 = pts[pts.length - 1][0];
-  const sx = (x: number) => ((x - x0) / Math.max(1, x1 - x0)) * (width - 2) + 1;
-  const sy = (v: number) => height - 2 - ((v - 1) / 9) * (height - 4);
-  return (
-    <svg width={width} height={height} aria-hidden>
-      <rect x={0} y={0} width={width} height={height} rx={4} fill="#f1f5f9" />
-      <polyline points={pts.map(([x, v]) => `${sx(x)},${sy(v)}`).join(' ')} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 /** Error / offline / "showing saved forecast" line above conditions. */
 export function ConditionsStatus({ error, offline, savedAt, onRetry }: { error: string | null; offline: boolean; savedAt: number | null; onRetry: () => void }) {

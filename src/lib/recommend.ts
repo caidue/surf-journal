@@ -1,5 +1,4 @@
 import type { DayInfo, HourConditions, Level, Session, Settings, Spot } from '../types';
-import { SLOT_MIN } from '../types';
 import { deriveSeries, windKind, type Derived } from './conditions';
 import { recommendability, type Quality, type Suitability } from './rating';
 import { distance, kernel, mostDifferent, mostDifferentKey } from './similarity';
@@ -9,35 +8,15 @@ import { daysBetween, isoToMin } from './time';
 /* Session helpers                                                     */
 /* ------------------------------------------------------------------ */
 
-/** Mean rating of a category between two minutes of the day (only drawn slots count). */
-export function curveMean(s: Session, cat: string, fromMin = s.startMin, toMin = s.endMin): number | null {
-  const curve = s.curves[cat];
-  if (!curve) return null;
-  const a = Math.max(s.startMin, fromMin);
-  const b = Math.min(s.endMin, toMin);
-  let sum = 0;
-  let n = 0;
-  for (let m = a; m < b; m += SLOT_MIN) {
-    const v = curve[Math.floor(m / SLOT_MIN)];
-    if (v != null) {
-      sum += v;
-      n++;
-    }
-  }
-  return n ? sum / n : null;
+/** Your rating of a session in one category (1–10), or null if not rated. */
+export function ratingFor(s: Session, cat: string): number | null {
+  const v = s.ratings?.[cat];
+  return typeof v === 'number' ? v : null;
 }
 
-/** Rating used for learning: category curve in the window → whole-session curve → overall rating. */
-export function ratingFor(s: Session, cat: string, fromMin?: number, toMin?: number): number | null {
-  return (
-    (fromMin != null ? curveMean(s, cat, fromMin, toMin) : null) ??
-    curveMean(s, cat) ??
-    (cat === 'fun' ? s.overall : null)
-  );
-}
-
+/** The session's headline rating: fun. */
 export function sessionOverall(s: Session): number | null {
-  return s.overall ?? curveMean(s, 'fun');
+  return ratingFor(s, 'fun');
 }
 
 /** Indices of the hourly conditions that overlap the surfed time range. */
@@ -165,7 +144,7 @@ export function matchSession(spot: Spot, target: Derived, h: HistoryItem, cat = 
         k,
         w: k * h.base.w,
         d: dist.d,
-        y: ratingFor(h.session, cat, m, m + 60),
+        y: ratingFor(h.session, cat),
         hourIdx: j,
         differs: mostDifferent(dist.parts),
         differsKey: mostDifferentKey(dist.parts),
@@ -332,7 +311,7 @@ export function explain(r: HourRec, fmtSessionDate: (s: Session) => string): str
 }
 
 /* ------------------------------------------------------------------ */
-/* Insights from rating curves × conditions × zones                    */
+/* Insights: your ratings × the conditions you surfed in               */
 /* ------------------------------------------------------------------ */
 
 export interface Bucket {
@@ -340,49 +319,38 @@ export interface Bucket {
   minutes: number;
 }
 
+/**
+ * How your rating at a spot relates to tide stage and wind. Each surfed hour of a session
+ * counts with the minutes you were in the water; tide is shown relative to your average rating
+ * at the spot, wind as the plain average.
+ */
 export function insights(spot: Spot, sessions: Session[], cat = 'fun') {
-  const byTide: Record<string, { sum: number; n: number }> = {};
-  const byWind: Record<string, { sum: number; n: number }> = {};
-  const byZone: Record<string, { sum: number; n: number }> = {};
-  // Tide is shown relative to your average rating at this spot. (Ratings are one value per session
-  // now, so comparing within a session would always give zero.)
-  const relevant = sessions.filter((s) => s.spotId === spot.id && !s.excluded && s.curves[cat]);
-  const means = relevant.map((s) => curveMean(s, cat)).filter((v): v is number => v != null);
-  const spotMean = means.length ? means.reduce((a, b) => a + b, 0) / means.length : null;
+  const byTide: Record<string, { sum: number; w: number }> = {};
+  const byWind: Record<string, { sum: number; w: number }> = {};
+  const relevant = sessions.filter((s) => s.spotId === spot.id && !s.excluded && ratingFor(s, cat) != null);
+  const spotMean = relevant.length ? relevant.reduce((a, s) => a + ratingFor(s, cat)!, 0) / relevant.length : 0;
   for (const s of relevant) {
-    const curve = s.curves[cat];
+    const v = ratingFor(s, cat)!;
     const der = deriveSeries(spot, s.conditions);
-    if (spotMean == null || curveMean(s, cat) == null) continue;
-    const mean = spotMean;
-    for (let m = s.startMin; m < s.endMin; m += SLOT_MIN) {
-      const slot = Math.floor(m / SLOT_MIN);
-      const v = curve[slot];
-      if (v == null) continue;
-      const hIdx = s.conditions.findIndex((h) => {
-        const hm = isoToMin(h.time) ?? -1;
-        return m >= hm && m < hm + 60;
-      });
-      const d = der[hIdx];
-      const rel = v - mean;
-      if (d?.tideNorm != null) {
+    for (const i of surfedHourIdx(s)) {
+      const d = der[i];
+      const hm = isoToMin(d?.time) ?? 0;
+      const minutes = Math.min(hm + 60, s.endMin) - Math.max(hm, s.startMin);
+      if (!d || minutes <= 0) continue;
+      if (d.tideNorm != null) {
         const k = d.tideNorm < 0.33 ? 'low' : d.tideNorm < 0.67 ? 'mid' : 'high';
         const key = d.tideTrend != null && Math.abs(d.tideTrend) > 0.25 ? `${k} ${d.tideTrend > 0 ? 'rising' : 'falling'}` : k;
-        (byTide[key] ??= { sum: 0, n: 0 }).sum += rel;
-        byTide[key].n++;
+        (byTide[key] ??= { sum: 0, w: 0 }).sum += (v - spotMean) * minutes;
+        byTide[key].w += minutes;
       }
-      const wk = d ? windKind(d) : null;
+      const wk = windKind(d);
       if (wk) {
-        (byWind[wk] ??= { sum: 0, n: 0 }).sum += v;
-        byWind[wk].n++;
-      }
-      const z = s.zones[slot];
-      if (z) {
-        (byZone[z] ??= { sum: 0, n: 0 }).sum += v;
-        byZone[z].n++;
+        (byWind[wk] ??= { sum: 0, w: 0 }).sum += v * minutes;
+        byWind[wk].w += minutes;
       }
     }
   }
-  const fin = (o: Record<string, { sum: number; n: number }>) =>
-    Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { mean: v.sum / v.n, minutes: v.n * SLOT_MIN } as Bucket]));
-  return { byTide: fin(byTide), byWind: fin(byWind), byZone: fin(byZone) };
+  const fin = (o: Record<string, { sum: number; w: number }>) =>
+    Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { mean: v.sum / v.w, minutes: v.w } as Bucket]));
+  return { byTide: fin(byTide), byWind: fin(byWind) };
 }

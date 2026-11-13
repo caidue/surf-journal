@@ -23,7 +23,7 @@ export function syncPendingSessions(): Promise<number> {
         if (series.stale) break; // still offline
         const hours = series.hours.filter((h) => h.time.startsWith(s.date));
         if (!hours.length) continue;
-        // Only the conditions change: the surfer's timeline, curves and notes stay as logged.
+        // Only the conditions change: the surfer's time, ratings and notes stay as logged.
         await db.sessions.update(s.id, {
           conditions: hours,
           days: series.days.filter((d) => d.date === s.date),

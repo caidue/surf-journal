@@ -138,10 +138,8 @@ export interface Session {
   date: string; // YYYY-MM-DD (local at the spot)
   startMin: number; // minutes after local midnight
   endMin: number;
-  /** 288 five-minute slots for the day: id of the peak the surfer was at, or null. */
-  zones: (string | null)[];
-  /** Category id -> 288 five-minute slots with a 1-10 rating, or null where not drawn. */
-  curves: Record<string, (number | null)[]>;
+  /** Category id -> your 1–10 rating for the session ("fun" is required and drives recommendations). */
+  ratings: Record<string, number>;
   /** Snapshot of the day's hourly conditions, stored with the session forever. */
   conditions: HourConditions[];
   conditionsSource: string;
@@ -154,7 +152,6 @@ export interface Session {
   fields: SessionFields;
   tags: string[];
   notes: string;
-  overall: number | null;
   /** "Not relevant anymore": kept in the journal, ignored for predictions. */
   excluded: boolean;
   skillAtTime: Level;

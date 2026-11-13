@@ -73,23 +73,19 @@ function openMeteoResponse(url: string): Response {
 }
 
 function pendingSession(id: string, date: string, extra: Partial<Session> = {}): Session {
-  const curves = { fun: Array<number | null>(SLOTS).fill(null) };
-  curves.fun[100] = 7;
   return {
     id,
     spotId: spot.id,
     date,
     startMin: 480,
     endMin: 570,
-    zones: Array(SLOTS).fill(null),
-    curves,
+    ratings: { fun: 7 },
     conditions: [],
     conditionsSource: '',
     conditionsPending: true,
     fields: { board: "6'0" },
     tags: ['Glassy'],
     notes: 'logged at the beach',
-    overall: 7,
     excluded: false,
     skillAtTime: 'intermediate',
     createdAt: 1,
@@ -153,7 +149,7 @@ describe('sessions logged offline', () => {
     expect(s.conditions[8].waveH).toBe(1.5);
     expect(s.days?.[0].sunrise).toBe(`${date}T07:40`);
     expect(s.notes).toBe('logged at the beach');
-    expect(s.curves.fun[100]).toBe(7);
+    expect(s.ratings.fun).toBe(7);
     expect(s.startMin).toBe(480);
   });
 

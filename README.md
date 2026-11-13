@@ -10,8 +10,8 @@ A local-first surf journal that imports real conditions for every session and le
 - **Personal recommendations:** each spot's score starts from a rule-based guide (size × period × wind × tide, gated by your level). As you log sessions, it is blended with your own fun ratings from sessions in similar conditions (a kernel-weighted nearest-neighbour estimate). A confidence label shows how much history is behind each number.
 - **Log a session:** pick a spot and date, and the day's hourly conditions are imported (surf height estimate, swell period and direction, wind, tide). Then:
   - drag on the timeline to mark when you were in the water;
-  - rate it 1–10 with one slider per category (fun, wave quality, exertion, plus your own);
-  - add structured fields (board, wetsuit, crowd, waves caught, the size you actually saw, compared with the forecast), tags and notes.
+  - rate it 1–10 with one slider per category: fun (required), exertion, confidence, plus your own;
+  - add details in groups (waves: size you saw, vs forecast, waves caught; gear: board, wetsuit; crowd & vibe: crowd, tags), and notes.
 - **Not relevant anymore:** mark single sessions, or every session before a date (e.g. after a big jump in skill). They stay in the journal but stop counting for predictions. Older sessions also fade out with a configurable half-life, and sessions logged at another skill level count less.
 - **Spot guides:** for each spot, its peaks (break type, bottom, direction, level, when it's good), best months, boards, where and when to paddle in and out, warnings, parking and nearby facilities, plus photos: freely licensed Wikimedia Commons photos with credits, and your own (kept on the device and included in backups). The built-in guides for northern Fuerteventura are compiled from public surf guides; sources are listed in each guide.
 - **Spot editor:** add your own spots anywhere by clicking the map. Set the direction the spot faces, its swell window, size range, tide, bottom, level, hazards, peaks and the guide.

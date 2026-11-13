@@ -5,7 +5,7 @@ import { angdiff, destination, haversineKm } from './geo';
 import { breakingHeight, deriveHour, deriveSeries, exposure, tideExtremes, waveEnergyKJ, windKind } from './conditions';
 import { quality, suitability } from './rating';
 import { distance, kernel, SIMILAR_MIN_K } from './similarity';
-import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, curveMean, insights } from './recommend';
+import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, insights, ratingFor, sessionOverall } from './recommend';
 import { parseRegionQuery, subBox } from './geocode';
 import { monthRanges } from './format';
 
@@ -74,22 +74,18 @@ const settings: Settings = {
 };
 
 function session(date: string, fun: number, o: Partial<Session> = {}, cond = day(date)): Session {
-  const curves = { fun: Array<number | null>(SLOTS).fill(null) };
-  for (let s = 96; s < 120; s++) curves.fun[s] = fun; // 08:00–10:00
   return {
     id: `${date}-${fun}`,
     spotId: 's',
     date,
     startMin: 480,
     endMin: 600,
-    zones: Array(SLOTS).fill(null),
-    curves,
+    ratings: { fun },
     conditions: cond,
     conditionsSource: 'test',
     fields: {},
     tags: [],
     notes: '',
-    overall: null,
     excluded: false,
     skillAtTime: 'intermediate',
     createdAt: 0,
@@ -276,11 +272,12 @@ describe('similarity & prediction', () => {
     }
   });
 
-  it('curve means only count drawn slots in the session', () => {
-    const s = session('2026-02-01', 8);
-    expect(curveMean(s, 'fun')).toBe(8);
-    expect(curveMean(s, 'fun', 540, 600)).toBe(8);
-    expect(curveMean(s, 'nope')).toBeNull();
+  it('reads one rating per category; fun is the session rating', () => {
+    const s = session('2026-01-01', 8, { ratings: { fun: 8, exertion: 6 } });
+    expect(ratingFor(s, 'fun')).toBe(8);
+    expect(ratingFor(s, 'exertion')).toBe(6);
+    expect(ratingFor(s, 'confidence')).toBeNull();
+    expect(sessionOverall(s)).toBe(8);
   });
 });
 

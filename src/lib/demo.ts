@@ -54,37 +54,20 @@ export async function addDemoSessions(spots: Spot[], settings: Settings): Promis
     const hours = s?.hours.filter((h) => h.time.startsWith(date)) ?? [];
     if (hours.length < 20) continue;
     const der = deriveSeries(spot, hours);
-    const curves: Record<string, (number | null)[]> = {};
-    for (const c of settings.categories) curves[c.id] = Array(SLOTS).fill(null);
-    const zones: (string | null)[] = Array(SLOTS).fill(null);
-    const lo = Math.floor(p.start / SLOT_MIN);
-    const hi = Math.floor((p.start + p.len) / SLOT_MIN) - 1;
+    // Invented ratings that follow the real conditions: mean of the per-hour guide quality over
+    // the session, plus tide preference, mood and a little noise; one value per category.
     const mood = (rand() - 0.5) * 1.5;
-    for (let slot = lo; slot <= hi; slot++) {
-      const m = slot * SLOT_MIN;
-      const hIdx = hours.findIndex((h) => {
-        const hm = isoToMin(h.time) ?? 0;
-        return m >= hm && m < hm + 60;
-      });
-      const d = der[hIdx];
-      const r = recommendability(spot, d, settings.level);
-      const tideBonus = d.tideNorm != null ? (d.tideNorm - 0.4) * 2 : 0;
-      const t = (slot - lo) / Math.max(1, hi - lo);
-      const fatigue = t > 0.75 ? (t - 0.75) * 4 : 0;
-      const fun = Math.max(1, Math.min(10, 1.5 + r.quality.q * 0.85 + tideBonus + mood - fatigue + (rand() - 0.5) * 0.6));
-      const set = (id: string, v: number) => {
-        if (curves[id]) curves[id][slot] = Math.round(Math.max(1, Math.min(10, v)) * 10) / 10;
-      };
-      set('fun', fun);
-      set('waves', 1 + r.quality.q * 0.9 + (rand() - 0.5) * 0.5);
-      set('exertion', 3 + t * 5 + (d.hb ?? 1) * 0.8);
-    }
-    // One rating per category (like the sliders in the editor): the session average, to the half point.
-    for (const id of Object.keys(curves)) {
-      const vals = curves[id].filter((v): v is number => v != null);
-      const r = vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 2) / 2 : null;
-      curves[id] = curves[id].map((v) => (v == null ? null : r));
-    }
+    const idx = hours.map((h, k) => ({ k, m: isoToMin(h.time) ?? 0 })).filter(({ m }) => m + 60 > p.start && m < p.start + p.len);
+    const avg = (f: (k: number) => number) => idx.reduce((a, { k }) => a + f(k), 0) / Math.max(1, idx.length);
+    const q = avg((k) => recommendability(spot, der[k], settings.level).quality.q);
+    const tideBonus = avg((k) => (der[k].tideNorm != null ? (der[k].tideNorm! - 0.4) * 2 : 0));
+    const hb = avg((k) => der[k].hb ?? 1);
+    const clamp = (v: number) => Math.round(Math.max(1, Math.min(10, v)) * 2) / 2;
+    const ratings: Record<string, number> = {
+      fun: clamp(1.5 + q * 0.85 + tideBonus + mood + (rand() - 0.5) * 0.6),
+      exertion: clamp(3 + (p.len / 60) * 1.5 + hb * 0.8),
+      confidence: clamp(8 - Math.max(0, hb - 1.2) * 3 + (rand() - 0.5)),
+    };
     const now = Date.now();
     out.push({
       id: uid(),
@@ -92,15 +75,13 @@ export async function addDemoSessions(spots: Spot[], settings: Settings): Promis
       date,
       startMin: p.start,
       endMin: p.start + p.len,
-      zones,
-      curves,
+      ratings,
       conditions: hours,
       conditionsSource: s!.source,
       days: s!.days.filter((x) => x.date === date),
       fields: { board: rand() > 0.5 ? "7'0 mid-length" : "6'4 shortboard", crowd: ['Few', 'Moderate', 'Crowded'][Math.floor(rand() * 3)], wetsuit: '3/2', waves: Math.round(4 + rand() * 12) },
       tags: [],
       notes: 'Demo session: real conditions, invented ratings.',
-      overall: null,
       excluded: false,
       skillAtTime: settings.level,
       demo: true,

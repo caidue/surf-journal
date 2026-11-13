@@ -4,7 +4,7 @@ import { db } from '../db';
 import { compass } from '../lib/geo';
 import { uid } from '../lib/time';
 import MapView from './MapView';
-import { Card, Chips, DirArrow } from './ui';
+import { ActionBar, Card, Chips, DirArrow } from './ui';
 
 const DIRS = [0, 45, 90, 135, 180, 225, 270, 315];
 
@@ -94,7 +94,7 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
   const setPeak = (i: number, patch: Partial<Peak>) => set('peaks', s.peaks.map((p, k) => (k === i ? { ...p, ...patch } : p)));
 
   return (
-    <div className="page narrow">
+    <div className="page narrow with-action-bar">
       <h1>{spot ? `Edit ${spot.name}` : 'New spot'}</h1>
       <Card>
         <div className="form-grid">
@@ -250,17 +250,19 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
         <p className="muted tiny">Add photos on the spot page.</p>
       </Card>
 
-      <div className="row between sticky-actions">
-        <div>{spot && <button className="btn danger" onClick={remove}>Delete spot</button>}</div>
-        <div className="row gap">
-          <button className="btn" onClick={() => go(spot ? `spot/${spot.id}` : 'explore')}>
-            Cancel
+      <ActionBar note={s.name.trim() ? undefined : 'To save: give the spot a name'}>
+        {spot && (
+          <button className="btn danger" onClick={remove}>
+            Delete
           </button>
-          <button className="btn primary" onClick={save}>
-            Save spot
-          </button>
-        </div>
-      </div>
+        )}
+        <button className="btn" onClick={() => go(spot ? `spot/${spot.id}` : 'explore')}>
+          Cancel
+        </button>
+        <button className="btn primary" onClick={save} disabled={!s.name.trim()}>
+          Save spot
+        </button>
+      </ActionBar>
     </div>
   );
 }

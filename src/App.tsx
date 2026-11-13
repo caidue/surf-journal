@@ -10,7 +10,7 @@ import { Icon, type IconName } from './components/icons';
 import { applyUpdate, clearSynced, promptInstall, usePwa } from './lib/pwa';
 
 const NAV: { id: string; label: string; short: string; icon: IconName }[] = [
-  { id: 'explore', label: 'Explore', short: 'Explore', icon: 'explore' },
+  { id: 'explore', label: 'Explore', short: 'Explore', icon: 'logo' },
   { id: 'log', label: 'Log session', short: 'Log', icon: 'log' },
   { id: 'journal', label: 'Journal', short: 'Journal', icon: 'journal' },
   { id: 'settings', label: 'Settings', short: 'Settings', icon: 'settings' },
@@ -56,17 +56,10 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <a href="#/explore" className="brand">
-          <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden>
-            <circle cx="16" cy="16" r="16" fill="#fff" opacity=".15" />
-            <path d="M5 20c4-8 10-10 14-6-3 0-5 2-4 5 2 3 7 2 12-1-3 6-9 9-15 8-4 0-6-2-7-6z" fill="#fff" />
-          </svg>
-          <span className="brand-name">Surf Journal</span>
-        </a>
         <nav>
           {NAV.map((n) => (
             <a key={n.id} href={`#/${n.id}`} className={active === n.id ? 'on' : ''} aria-current={active === n.id ? 'page' : undefined} aria-label={n.label} title={n.label}>
-              <Icon name={n.icon} />
+              <Icon name={n.icon} size={n.icon === 'logo' ? 22 : 20} />
               <span className="nav-label">{n.label}</span>
               <span className="nav-short" aria-hidden>
                 {n.short}

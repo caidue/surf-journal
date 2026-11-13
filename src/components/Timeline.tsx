@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Category, HourConditions, Peak, Settings } from '../types';
-import { SLOT_MIN, SLOTS } from '../types';
+import { useMemo, useRef } from 'react';
+import type { HourConditions, Settings } from '../types';
+import { SLOT_MIN } from '../types';
 import { waveEnergyKJ, windKind, type Derived, type WindKind } from '../lib/conditions';
 import { energyColors, fmtEnergy } from '../lib/format';
 import { scoreColor } from '../lib/rating';
@@ -32,21 +32,12 @@ interface Props {
   highlight?: Range | null;
   session?: Range | null;
   onSessionChange?: (r: Range) => void;
-  peaks?: Peak[];
-  zones?: (string | null)[];
-  /** Receives an updater so that fast pointer moves never paint over a stale array. */
-  onZonesChange?: (u: (prev: (string | null)[]) => (string | null)[]) => void;
-  categories?: Category[];
-  curves?: Record<string, (number | null)[]>;
-  activeCategory?: string;
-  onCurvesChange?: (u: (prev: Record<string, (number | null)[]>) => Record<string, (number | null)[]>) => void;
   /** Shown across the conditions rows when there are no hourly conditions (e.g. logged offline). */
   emptyText?: string;
 }
 
 const LABEL_W = 64;
 const PAD_R = 8;
-export const PEAK_COLORS = ['#0ea5e9', '#f97316', '#8b5cf6', '#10b981', '#e11d48', '#eab308'];
 export const WIND_BG: Record<WindKind, string> = {
   glassy: '#e0f2fe',
   offshore: '#bbf7d0',
@@ -56,10 +47,7 @@ export const WIND_BG: Record<WindKind, string> = {
   onshore: '#fecaca',
 };
 
-type Drag =
-  | { kind: 'brush'; mode: 'new' | 'start' | 'end' | 'move'; anchor: number; offset: number; moved: boolean }
-  | { kind: 'zone'; peakId: string; erase: boolean; last: number }
-  | { kind: 'curve'; cat: string; lastSlot: number; lastVal: number };
+type Drag = { kind: 'brush'; mode: 'new' | 'start' | 'end' | 'move'; anchor: number; offset: number; moved: boolean };
 
 const snap = (m: number, step = SLOT_MIN) => Math.round(m / step) * step;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -67,16 +55,6 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 export default function Timeline(p: Props) {
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const drag = useRef<Drag | null>(null);
-  /** Peak whose full name is shown (tap a lane label: names are cut off in the narrow label column). */
-  const [peakTip, setPeakTip] = useState<string | null>(null);
-  useEffect(() => {
-    if (!peakTip) return;
-    const close = (e: PointerEvent) => {
-      if (!(e.target as Element).closest?.('.peak-tip, .lane-label')) setPeakTip(null);
-    };
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
-  }, [peakTip]);
   const [v0, v1] = p.view ?? [0, 24 * 60];
   const plotW = Math.max(100, width - LABEL_W - PAD_R);
   const pxPerMin = plotW / (v1 - v0);
@@ -93,8 +71,6 @@ export default function Timeline(p: Props) {
   );
 
   const interactive = !!p.onSessionChange;
-  const showZones = !!(p.peaks?.length && p.zones);
-  const showCurves = !!(p.curves && p.categories);
 
   // Row layout.
   let y = 0;
@@ -110,9 +86,6 @@ export default function Timeline(p: Props) {
   const wind = row(28, 2);
   const tide = row(42, 6);
   const condBottom = y - 6;
-  const lanes = showZones ? p.peaks!.map(() => row(24, 3)) : [];
-  if (showZones) y += 4;
-  const curvesRow = showCurves ? row(150, 6) : null;
   const axis = row(18, 0);
   const H = y;
 
@@ -122,7 +95,6 @@ export default function Timeline(p: Props) {
   const tLo = tideVals.length ? Math.min(...tideVals) : 0;
   const tHi = tideVals.length ? Math.max(...tideVals) : 1;
   const tideY = (v: number) => tide.y + tide.h - 4 - ((v - tLo) / Math.max(0.05, tHi - tLo)) * (tide.h - 12);
-  const curveY = (v: number) => (curvesRow ? curvesRow.y + curvesRow.h - 8 - ((v - 1) / 9) * (curvesRow.h - 16) : 0);
   const fmtH = (m: number) => (p.heightUnit === 'ft' ? `${Math.round(m * 3.281)}` : m.toFixed(1));
   const fmtW = (k: number) => (p.windUnit === 'kn' ? Math.round(k / 1.852) : Math.round(k));
 
@@ -134,34 +106,6 @@ export default function Timeline(p: Props) {
   };
   const toMin = (px: number) => clamp(v0 + (px - LABEL_W) / pxPerMin, v0, v1);
   const sess = p.session;
-
-  const paintZones = (a: number, b: number, peakId: string, erase: boolean) => {
-    if (!p.zones || !p.onZonesChange || !sess) return;
-    const lo = Math.max(Math.min(a, b), Math.floor(sess.startMin / SLOT_MIN));
-    const hi = Math.min(Math.max(a, b), Math.ceil(sess.endMin / SLOT_MIN) - 1);
-    p.onZonesChange((prev) => {
-      const z = prev.slice();
-      for (let s = lo; s <= hi; s++) z[s] = erase ? (z[s] === peakId ? null : z[s]) : peakId;
-      return z;
-    });
-  };
-  const paintCurve = (cat: string, s0: number, v0_: number, s1: number, v1_: number) => {
-    if (!p.curves || !p.onCurvesChange || !sess) return;
-    const lo = Math.floor(sess.startMin / SLOT_MIN);
-    const hi = Math.ceil(sess.endMin / SLOT_MIN) - 1;
-    const n = Math.abs(s1 - s0);
-    p.onCurvesChange((prev) => {
-      const arr = (prev[cat] ?? Array<number | null>(SLOTS).fill(null)).slice();
-      for (let k = 0; k <= n; k++) {
-        const s = s0 + Math.sign(s1 - s0) * k;
-        if (s < lo || s > hi) continue;
-        const t = n ? k / n : 1;
-        arr[s] = Math.round((v0_ + (v1_ - v0_) * t) * 10) / 10;
-      }
-      return { ...prev, [cat]: arr };
-    });
-  };
-  const valAt = (py: number) => (curvesRow ? clamp(1 + ((curvesRow.y + curvesRow.h - 8 - py) / (curvesRow.h - 16)) * 9, 1, 10) : 5);
 
   const onBrushDown = (e: React.PointerEvent) => {
     if (!p.onSessionChange) return;
@@ -205,54 +149,11 @@ export default function Timeline(p: Props) {
     }
   };
 
-  const onLaneDown = (peakId: string) => (e: React.PointerEvent) => {
-    if (!sess || !p.zones) return;
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    const slot = Math.floor(toMin(local(e).px) / SLOT_MIN);
-    const erase = p.zones[slot] === peakId;
-    drag.current = { kind: 'zone', peakId, erase, last: slot };
-    paintZones(slot, slot, peakId, erase);
-  };
-  const onLaneMove = (e: React.PointerEvent) => {
-    const d = drag.current;
-    if (!d || d.kind !== 'zone') return;
-    const slot = Math.floor(toMin(local(e).px) / SLOT_MIN);
-    if (slot === d.last) return;
-    paintZones(d.last, slot, d.peakId, d.erase);
-    d.last = slot;
-  };
-
-  const onCurveDown = (e: React.PointerEvent) => {
-    if (!sess || !p.activeCategory) return;
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    const { px, py } = local(e);
-    const slot = Math.floor(toMin(px) / SLOT_MIN);
-    const val = valAt(py);
-    drag.current = { kind: 'curve', cat: p.activeCategory, lastSlot: slot, lastVal: val };
-    paintCurve(p.activeCategory, slot, val, slot, val);
-  };
-  const onCurveMove = (e: React.PointerEvent) => {
-    const d = drag.current;
-    if (!d || d.kind !== 'curve') return;
-    const { px, py } = local(e);
-    const slot = Math.floor(toMin(px) / SLOT_MIN);
-    const val = valAt(py);
-    paintCurve(d.cat, d.lastSlot, d.lastVal, slot, val);
-    d.lastSlot = slot;
-    d.lastVal = val;
-  };
-  /** Pointer-up also paints up to the release point: fast strokes can skip the last move event. */
+  /** Pointer-up also applies the release point: fast drags can skip the last move event. */
   const end = (e: React.PointerEvent) => {
-    const d = drag.current;
-    if (!d) return;
-    if (d.kind === 'curve') onCurveMove(e);
-    else if (d.kind === 'zone') onLaneMove(e);
-    else if (d.kind === 'brush') {
-      onBrushMove(e);
-      onBrushUp();
-      return;
-    }
-    drag.current = null;
+    if (!drag.current) return;
+    onBrushMove(e);
+    onBrushUp();
   };
 
   /* ---------------- render helpers ---------------- */
@@ -277,42 +178,6 @@ export default function Timeline(p: Props) {
     })
     .filter(Boolean) as { m: number; v: number; hi: boolean }[];
 
-  const curvePaths = (cat: string) => {
-    const arr = p.curves?.[cat];
-    if (!arr || !sess) return [];
-    const lo = Math.floor(sess.startMin / SLOT_MIN);
-    const hi = Math.ceil(sess.endMin / SLOT_MIN) - 1;
-    const segs: string[] = [];
-    let cur: string[] = [];
-    for (let s = lo; s <= hi; s++) {
-      const v = arr[s];
-      if (v == null) {
-        if (cur.length > 1) segs.push(cur.join(' '));
-        cur = [];
-        continue;
-      }
-      cur.push(`${x(s * SLOT_MIN + SLOT_MIN / 2).toFixed(1)},${curveY(v).toFixed(1)}`);
-    }
-    if (cur.length > 1) segs.push(cur.join(' '));
-    else if (cur.length === 1) segs.push(`${cur[0]} ${cur[0]}`);
-    return segs;
-  };
-
-  const zoneRuns = (peakId: string) => {
-    const runs: [number, number][] = [];
-    if (!p.zones) return runs;
-    let start = -1;
-    for (let s = 0; s <= SLOTS; s++) {
-      const on = s < SLOTS && p.zones[s] === peakId && (!sess || (s * SLOT_MIN >= sess.startMin && s * SLOT_MIN < sess.endMin));
-      if (on && start < 0) start = s;
-      if (!on && start >= 0) {
-        runs.push([start * SLOT_MIN, s * SLOT_MIN]);
-        start = -1;
-      }
-    }
-    return runs;
-  };
-
   const label = (r: { y: number; h: number }, text: string, sub?: string) => (
     <g>
       <text x={LABEL_W - 8} y={r.y + r.h / 2 + (sub ? -2 : 4)} textAnchor="end" className="tl-label">
@@ -326,28 +191,8 @@ export default function Timeline(p: Props) {
     </g>
   );
 
-  const tipIdx = peakTip && showZones ? p.peaks!.findIndex((pk) => pk.id === peakTip) : -1;
-  const tipPeak = tipIdx >= 0 ? p.peaks![tipIdx] : null;
-  const tipMinutes =
-    tipPeak && sess && p.zones
-      ? p.zones.filter((z, s) => z === tipPeak.id && s * SLOT_MIN >= sess.startMin && s * SLOT_MIN < sess.endMin).length * SLOT_MIN
-      : 0;
-
   return (
     <div ref={ref} className="timeline">
-      {tipPeak && (
-        <div className="peak-tip" role="tooltip" style={{ top: lanes[tipIdx].y + lanes[tipIdx].h + 4, left: 4 }}>
-          <div className="row gap">
-            <span className="dot" style={{ background: PEAK_COLORS[tipIdx % PEAK_COLORS.length] }} />
-            <strong>{tipPeak.name}</strong>
-          </div>
-          {tipPeak.description && <div className="small">{tipPeak.description}</div>}
-          <div className="small muted">
-            {tipMinutes ? `${fmtDuration(tipMinutes)} here this session · ` : ''}
-            {p.onZonesChange ? 'Drag along the lane to mark your time here.' : ''}
-          </div>
-        </div>
-      )}
       {width > 0 && (
         <svg width={width} height={H} className={interactive ? 'interactive' : ''} onPointerUp={end} onPointerCancel={() => (drag.current = null)}>
           {/* night */}
@@ -487,7 +332,7 @@ export default function Timeline(p: Props) {
           {/* session overlay */}
           {sess && (
             <g pointerEvents="none">
-              <rect x={x(sess.startMin)} y={0} width={Math.max(2, x(sess.endMin) - x(sess.startMin))} height={(curvesRow ? curvesRow.y + curvesRow.h : condBottom)} className="session" />
+              <rect x={x(sess.startMin)} y={0} width={Math.max(2, x(sess.endMin) - x(sess.startMin))} height={condBottom} className="session" />
               {interactive && (
                 <>
                   <rect x={x(sess.startMin) - 4} y={surf.y + 30} width={8} height={44} rx={4} className="handle" />
@@ -519,96 +364,6 @@ export default function Timeline(p: Props) {
             <text x={LABEL_W + plotW / 2} y={surf.y + surf.h / 2} textAnchor="middle" className="hint" pointerEvents="none">
               {plotW < 380 ? "Drag to mark your time in the water" : "Drag across the chart to mark when you were in the water"}
             </text>
-          )}
-
-          {/* zone lanes */}
-          {showZones &&
-            p.peaks!.map((pk, k) => {
-              const r = lanes[k];
-              const color = PEAK_COLORS[k % PEAK_COLORS.length];
-              return (
-                <g key={pk.id}>
-                  <g
-                    className="lane-label"
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`${pk.name}${pk.description ? ` – ${pk.description}` : ''}`}
-                    onClick={() => setPeakTip((cur) => (cur === pk.id ? null : pk.id))}
-                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setPeakTip((cur) => (cur === pk.id ? null : pk.id))}
-                  >
-                    <rect x={0} y={r.y} width={LABEL_W - 2} height={r.h} fill="transparent" />
-                    <text x={LABEL_W - 8} y={r.y + 16} textAnchor="end" className="tl-label" fill={color}>
-                      {pk.name.length > 10 ? pk.name.slice(0, 8) + '…' : pk.name}
-                    </text>
-                    <title>{pk.name}</title>
-                  </g>
-                  <rect x={LABEL_W} y={r.y} width={plotW} height={r.h} rx={4} className="lane" />
-                  {zoneRuns(pk.id).map(([a, b]) => (
-                    <rect key={a} x={x(a)} y={r.y + 2} width={x(b) - x(a)} height={r.h - 4} rx={3} fill={color} opacity={0.85} />
-                  ))}
-                  {p.onZonesChange && (
-                    <rect
-                      x={LABEL_W}
-                      y={r.y}
-                      width={plotW}
-                      height={r.h}
-                      fill="transparent"
-                      style={{ cursor: sess ? 'crosshair' : 'not-allowed', touchAction: 'pan-y' }}
-                      onPointerDown={onLaneDown(pk.id)}
-                      onPointerMove={onLaneMove}
-                    />
-                  )}
-                </g>
-              );
-            })}
-
-          {/* curves */}
-          {curvesRow && (
-            <g>
-              <rect x={LABEL_W} y={curvesRow.y} width={plotW} height={curvesRow.h} rx={6} className="curve-bg" />
-              {[1, 5, 10].map((v) => (
-                <g key={v}>
-                  <line x1={LABEL_W} x2={LABEL_W + plotW} y1={curveY(v)} y2={curveY(v)} className="grid" />
-                  <text x={LABEL_W - 8} y={curveY(v) + 4} textAnchor="end" className="tl-sub">
-                    {v}
-                  </text>
-                </g>
-              ))}
-              <text x={LABEL_W - 8} y={curvesRow.y + curvesRow.h / 2 - 10} textAnchor="end" className="tl-label">
-                Feeling
-              </text>
-              {p.categories!.map((c) =>
-                c.id === p.activeCategory
-                  ? null
-                  : curvePaths(c.id).map((pts, i) => <polyline key={c.id + i} points={pts} fill="none" stroke={c.color} strokeWidth={1.6} opacity={0.45} strokeLinejoin="round" />),
-              )}
-              {p.activeCategory &&
-                curvePaths(p.activeCategory).map((pts, i) => (
-                  <polyline key={'a' + i} points={pts} fill="none" stroke={p.categories!.find((c) => c.id === p.activeCategory)?.color ?? '#0ea5e9'} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
-                ))}
-              {sess && p.onCurvesChange && (p.curves?.[p.activeCategory ?? ''] ?? []).every((v) => v == null) && (
-                <text x={(x(sess.startMin) + x(sess.endMin)) / 2} y={curvesRow.y + curvesRow.h / 2} textAnchor="middle" className="hint" pointerEvents="none">
-                  Draw here
-                </text>
-              )}
-              {!sess && p.onCurvesChange && (
-                <text x={LABEL_W + plotW / 2} y={curvesRow.y + curvesRow.h / 2} textAnchor="middle" className="hint" pointerEvents="none">
-                  Mark your session above first
-                </text>
-              )}
-              {p.onCurvesChange && (
-                <rect
-                  x={LABEL_W}
-                  y={curvesRow.y}
-                  width={plotW}
-                  height={curvesRow.h}
-                  fill="transparent"
-                  style={{ cursor: sess ? 'crosshair' : 'not-allowed', touchAction: 'none' }}
-                  onPointerDown={onCurveDown}
-                  onPointerMove={onCurveMove}
-                />
-              )}
-            </g>
           )}
 
           {/* axis */}

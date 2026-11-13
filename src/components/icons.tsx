@@ -71,9 +71,19 @@ const PATHS = {
   plus: <path d="M12 5v14M5 12h14" />,
 } as const;
 
-export type IconName = keyof typeof PATHS;
+export type IconName = keyof typeof PATHS | 'logo';
 
 export function Icon({ name, size = 20, title }: { name: IconName; size?: number; title?: string }) {
+  if (name === 'logo') {
+    // The Surf Journal mark (same wave as the app icon), drawn in currentColor.
+    return (
+      <svg className="icon" width={size} height={size} viewBox="0 0 32 32" aria-hidden={title ? undefined : true} role={title ? 'img' : undefined}>
+        {title && <title>{title}</title>}
+        <circle cx="16" cy="16" r="14.5" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M5 20c4-8 10-10 14-6-3 0-5 2-4 5 2 3 7 2 12-1-3 6-9 9-15 8-4 0-6-2-7-6z" fill="currentColor" />
+      </svg>
+    );
+  }
   return (
     <svg
       className="icon"
