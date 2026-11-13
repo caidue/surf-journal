@@ -90,7 +90,7 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
       </div>
 
       <Card className="filters">
-        <div className="row gap wrap">
+        <div className="filter-row">
           <select value={spotFilter} onChange={(e) => setSpotFilter(e.target.value)} aria-label="Filter by spot">
             <option value="">All spots</option>
             {usedSpots.map((s) => (
@@ -99,12 +99,12 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
               </option>
             ))}
           </select>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search notes, tags, boards…" />
+          <input type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search notes, tags, boards…" aria-label="Search sessions" />
           <label className="check small">
             <input type="checkbox" checked={hideExcluded} onChange={(e) => setHideExcluded(e.target.checked)} /> hide not relevant
           </label>
         </div>
-        <div className="row gap wrap">
+        <div className="filter-row">
           <span className="small">Skill jumped? Mark everything before</span>
           <input type="date" value={cutoff} onChange={(e) => setCutoff(e.target.value)} />
           <button className="btn small" disabled={!cutoff} onClick={bulk}>

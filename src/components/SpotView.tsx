@@ -9,6 +9,7 @@ import { similarityPct } from '../lib/similarity';
 import { fmtSurfRange, fmtWind } from '../lib/format';
 import { gridKey } from '../lib/openMeteo';
 import ForecastTable from './ForecastTable';
+import { Icon, type IconName } from './icons';
 import MapView from './MapView';
 import SpotGuide from './SpotGuide';
 import { sessionSummary } from './Journal';
@@ -100,11 +101,11 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
   const best = rec?.best ?? null;
   const photoCount = spot.guide?.photos?.length ?? 0;
 
-  const tabs: { id: SpotTab; label: string }[] = [
-    { id: 'forecast', label: 'Forecast' },
-    { id: 'guide', label: 'Guide' },
-    { id: 'sessions', label: `Sessions${mySessions.length ? ` (${mySessions.length})` : ''}` },
-    { id: 'info', label: 'Info' },
+  const tabs: { id: SpotTab; label: string; icon: IconName }[] = [
+    { id: 'forecast', label: 'Forecast', icon: 'forecast' },
+    { id: 'guide', label: 'Guide', icon: 'guide' },
+    { id: 'sessions', label: `Sessions${mySessions.length ? ` (${mySessions.length})` : ''}`, icon: 'sessions' },
+    { id: 'info', label: 'Info', icon: 'info' },
   ];
 
   return (
@@ -142,7 +143,8 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
         <div className="sv-tabs" role="tablist" aria-label="Spot details">
           {tabs.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
-              {t.label}
+              <Icon name={t.icon} size={18} />
+              <span>{t.label}</span>
               {t.id === 'guide' && photoCount > 0 && <span className="tab-dot" aria-hidden />}
             </button>
           ))}
@@ -282,6 +284,7 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                 markers={[{ id: spot.id, lat: spot.lat, lon: spot.lon, color: '#0b6e99', label: '●', title: spot.name }]}
                 fit={{ south: spot.lat - 0.02, north: spot.lat + 0.02, west: spot.lon - 0.03, east: spot.lon + 0.03 }}
                 height={240}
+                cooperative
               />
               {spot.source && <p className="muted tiny">Source: {spot.source}</p>}
             </>

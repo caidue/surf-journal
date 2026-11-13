@@ -259,7 +259,9 @@ export function recommendSpotDay(
   hours.forEach((h, i) => {
     if (!h.time.startsWith(date)) return;
     const m = isoToMin(h.time)!;
-    const daylight = m + 60 > rise && m < set;
+    // Counts as a daylight hour when at least half of it is between sunrise and sunset
+    // (otherwise the best window can come out as e.g. 18:00–18:02).
+    const daylight = Math.min(m + 60, set) - Math.max(m, rise) >= 30;
     const d = derivedAll[i];
     const r = recommendability(spot, d, level);
     const pred = predict(spot, d, r.score, history);

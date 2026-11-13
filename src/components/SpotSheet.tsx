@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Session, Settings, Spot } from '../types';
 import SpotView from './SpotView';
+import { Icon } from './icons';
 
 interface Props {
   spot: Spot;
@@ -45,10 +46,10 @@ export default function SpotSheet({ spot, spots, sessions, settings, initialDay,
           headerActions={
             <>
               <button className="sheet-close" onClick={() => go(`spot/${spot.id}`)} aria-label="Open as a full page" title="Open as a full page">
-                ⤢
+                <Icon name="expand" size={18} />
               </button>
               <button ref={closeRef} className="sheet-close" onClick={onClose} aria-label="Close">
-                ×
+                <Icon name="close" size={18} />
               </button>
             </>
           }

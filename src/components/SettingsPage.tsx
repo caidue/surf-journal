@@ -4,8 +4,7 @@ import { db, exportAll, importAll, saveSettings, type Backup } from '../db';
 import { SEED_SPOTS } from '../data/seedSpots';
 import { addDemoSessions, removeDemoSessions } from '../lib/demo';
 import { uid } from '../lib/time';
-import { Card, Segmented } from './ui';
-import { LEVEL_OPTIONS } from './Explore';
+import { Card, LevelPicker, Segmented } from './ui';
 import { isIOS, promptInstall, requestPersistence, storageStatus, usePwa } from '../lib/pwa';
 import { syncPendingSessions } from '../lib/sync';
 
@@ -125,7 +124,7 @@ export default function SettingsPage({ settings, spots, sessions }: { settings: 
         <h3>You</h3>
         <div className="field">
           <span>Surf level</span>
-          <Segmented options={LEVEL_OPTIONS} value={settings.level} onChange={(l) => saveSettings({ level: l })} />
+          <LevelPicker value={settings.level} onChange={(l) => saveSettings({ level: l })} />
         </div>
         <div className="form-grid">
           <label>

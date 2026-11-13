@@ -6,13 +6,14 @@ import SpotPage from './components/SpotPage';
 import SpotEditor from './components/SpotEditor';
 import SettingsPage from './components/SettingsPage';
 import { Empty } from './components/ui';
+import { Icon, type IconName } from './components/icons';
 import { applyUpdate, clearSynced, promptInstall, usePwa } from './lib/pwa';
 
-const NAV = [
-  { id: 'explore', label: 'Explore' },
-  { id: 'log', label: 'Log session' },
-  { id: 'journal', label: 'Journal' },
-  { id: 'settings', label: 'Settings' },
+const NAV: { id: string; label: string; short: string; icon: IconName }[] = [
+  { id: 'explore', label: 'Explore', short: 'Explore', icon: 'explore' },
+  { id: 'log', label: 'Log session', short: 'Log', icon: 'log' },
+  { id: 'journal', label: 'Journal', short: 'Journal', icon: 'journal' },
+  { id: 'settings', label: 'Settings', short: 'Settings', icon: 'settings' },
 ];
 
 export default function App() {
@@ -60,12 +61,16 @@ export default function App() {
             <circle cx="16" cy="16" r="16" fill="#fff" opacity=".15" />
             <path d="M5 20c4-8 10-10 14-6-3 0-5 2-4 5 2 3 7 2 12-1-3 6-9 9-15 8-4 0-6-2-7-6z" fill="#fff" />
           </svg>
-          Surf Journal
+          <span className="brand-name">Surf Journal</span>
         </a>
         <nav>
           {NAV.map((n) => (
-            <a key={n.id} href={`#/${n.id}`} className={active === n.id ? 'on' : ''}>
-              {n.label}
+            <a key={n.id} href={`#/${n.id}`} className={active === n.id ? 'on' : ''} aria-current={active === n.id ? 'page' : undefined} aria-label={n.label} title={n.label}>
+              <Icon name={n.icon} />
+              <span className="nav-label">{n.label}</span>
+              <span className="nav-short" aria-hidden>
+                {n.short}
+              </span>
             </a>
           ))}
         </nav>

@@ -12,8 +12,7 @@ import { calibratedGain, curveMean, OBSERVED_SIZES } from '../lib/recommend';
 import { fmtDate, fmtDuration, fmtMin, isoToMin, todayAt, uid } from '../lib/time';
 import { fmtSurfRange, fmtWind } from '../lib/format';
 import Timeline, { type HourScore, type Range } from './Timeline';
-import { Card, Chips, Segmented } from './ui';
-import { LEVEL_OPTIONS } from './Explore';
+import { Card, Chips, LevelPicker, Segmented } from './ui';
 
 const WETSUITS = ['Boardshorts', 'Shorty / top', '3/2', '4/3', '5/4+'].map((x) => ({ id: x, label: x }));
 const CROWD = ['Empty', 'Few', 'Moderate', 'Crowded', 'Packed'].map((x) => ({ id: x, label: x }));
@@ -277,7 +276,7 @@ export default function SessionEditor({
           </label>
           <label>
             Your level that day
-            <Segmented options={LEVEL_OPTIONS} value={skill} onChange={setSkill} />
+            <LevelPicker value={skill} onChange={setSkill} label="Your level that day" />
           </label>
         </div>
       </Card>

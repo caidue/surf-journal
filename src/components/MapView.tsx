@@ -23,12 +23,17 @@ interface Props {
   onMarkerDrag?: (id: string, lat: number, lon: number) => void;
   height?: number | string;
   area?: BBox | null;
+  /**
+   * For maps inside a scrolling page: one finger scrolls the page, two fingers move the map
+   * (ctrl/⌘ + wheel to zoom on desktop). Leave off for a full-screen map.
+   */
+  cooperative?: boolean;
 }
 
 // OpenFreeMap: free vector tiles, no API key (© OpenStreetMap contributors).
 const STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
-export default function MapView({ markers, fit, selectedId, onSelect, onMapClick, onMarkerDrag, height = 420, area }: Props) {
+export default function MapView({ markers, fit, selectedId, onSelect, onMapClick, onMarkerDrag, height = 420, area, cooperative }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const mk = useRef(new Map<string, maplibregl.Marker>());
@@ -52,7 +57,11 @@ export default function MapView({ markers, fit, selectedId, onSelect, onMapClick
           }
         : {}),
       attributionControl: { compact: true },
+      cooperativeGestures: !!cooperative,
     });
+    // Redraw when the container changes size (e.g. switching Explore between map and list on a phone).
+    const ro = new ResizeObserver(() => m.resize());
+    ro.observe(el.current);
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     m.on('click', (e) => cb.current.onMapClick?.(e.lngLat.lat, e.lngLat.lng));
     m.on('load', () => {
@@ -62,6 +71,7 @@ export default function MapView({ markers, fit, selectedId, onSelect, onMapClick
     map.current = m;
     const markersMap = mk.current;
     return () => {
+      ro.disconnect();
       markersMap.forEach((x) => x.remove());
       markersMap.clear();
       m.remove();

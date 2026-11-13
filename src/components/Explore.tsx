@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Level, Session, Settings, Spot } from '../types';
 import { saveSettings } from '../db';
-import { useConditions } from '../hooks';
+import { useConditions, useMediaQuery } from '../hooks';
 import { bboxAround, bboxOf, inBBox, type BBox } from '../lib/geo';
 import { geocode, parseRegionQuery, PART_LABEL, subBox } from '../lib/geocode';
 import { buildHistory, confidence, explain, matchSession, recommendSpotDay, sessionOverall, type Neighbour, type SpotRec } from '../lib/recommend';
@@ -12,6 +12,7 @@ import { tideLabel, windKind, WIND_LABEL, type Derived } from '../lib/conditions
 import { SIMILAR_MIN_K, similarityPct } from '../lib/similarity';
 import MapView, { type MapMarker } from './MapView';
 import SpotSheet from './SpotSheet';
+import { Icon } from './icons';
 import { Card, ConditionsStatus, DirArrow, Empty, ScoreBadge, Segmented, SuitBadge } from './ui';
 
 interface Region {
@@ -20,6 +21,17 @@ interface Region {
 }
 
 const REGION_KEY = 'surf-journal.region';
+const VIEW_KEY = 'surf-journal.exploreView';
+/** Below this width Explore shows either the map or the list, never the map with content below it. */
+export const PHONE_QUERY = '(max-width: 899px)';
+
+function loadView(): 'map' | 'list' {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'map';
+  } catch {
+    return 'map';
+  }
+}
 const DEFAULT_QUERY = 'northern part of Fuerteventura';
 
 function loadRegion(): Region | null {
@@ -54,6 +66,37 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
     setSheet(id);
   };
   const [addMode, setAddMode] = useState(false);
+  const phone = useMediaQuery(PHONE_QUERY);
+  const [view, setViewState] = useState<'map' | 'list'>(loadView);
+  const setView = (v: 'map' | 'list') => {
+    setViewState(v);
+    window.scrollTo({ top: 0 });
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* per-viewer convenience only */
+    }
+  };
+  const fullMap = phone && view === 'map';
+
+  // Phone map view: the map fills the screen below the controls, so a swipe never has to fight
+  // the map to scroll the page. Measure where the map starts.
+  const mapColRef = useRef<HTMLDivElement>(null);
+  const [mapTop, setMapTop] = useState(0);
+  useLayoutEffect(() => {
+    if (!fullMap) return;
+    const measure = () => {
+      const top = (mapColRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY;
+      setMapTop((t) => (Math.abs(t - top) > 1 ? top : t));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  });
+  useEffect(() => {
+    document.body.classList.toggle('full-map', fullMap);
+    return () => document.body.classList.remove('full-map');
+  }, [fullMap]);
 
   const today = todayAt();
   const date = addDays(today, dayOffset);
@@ -186,40 +229,54 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
     };
   });
 
-  const dayOptions = [0, 1, 2].map((o) => ({ id: String(o), label: o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : fmtDate(addDays(today, o), { weekday: 'long' }) }));
+  const dayOptions = [0, 1, 2].map((o) => ({ id: String(o), label: o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : fmtDate(addDays(today, o), { weekday: phone ? 'short' : 'long' }) }));
 
   return (
-    <div className="page">
-      <form
-        className="searchbar"
-        onSubmit={(e) => {
-          e.preventDefault();
-          search(query);
-        }}
-      >
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Where are you? e.g. northern part of Fuerteventura" aria-label="Region" />
-        <button className="btn primary" disabled={searching}>
-          {searching ? 'Searching…' : 'Show spots'}
-        </button>
-        <button type="button" className="btn" onClick={nearMe}>
-          Near me
-        </button>
-      </form>
-      <div className="toolbar">
-        <div>
-          <span className="muted small">Your level</span>
-          <Segmented options={LEVEL_OPTIONS} value={settings.level} onChange={(l: Level) => saveSettings({ level: l })} />
+    <div className={`page explore view-${view}`}>
+      <div className="explore-controls">
+        <form
+          className="searchbar"
+          onSubmit={(e) => {
+            e.preventDefault();
+            search(query);
+          }}
+        >
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Where are you? e.g. northern Fuerteventura" aria-label="Region" enterKeyHint="search" />
+          <button className="btn primary" disabled={searching} aria-label="Show spots">
+            <Icon name="search" size={18} />
+            <span className="btn-text">{searching ? 'Searching…' : 'Show spots'}</span>
+          </button>
+          <button type="button" className="btn" onClick={nearMe} aria-label="Spots near me">
+            <Icon name="locate" size={18} />
+            <span className="btn-text">Near me</span>
+          </button>
+        </form>
+        <div className="toolbar">
+          <div className="tb-item">
+            <span className="tb-label">Level</span>
+            {phone ? (
+              <select value={settings.level} onChange={(e) => saveSettings({ level: e.target.value as Level })} aria-label="Your level">
+                {LEVEL_OPTIONS.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Segmented options={LEVEL_OPTIONS} value={settings.level} onChange={(l: Level) => saveSettings({ level: l })} />
+            )}
+          </div>
+          <div className="tb-item">
+            <span className="tb-label">Day</span>
+            <Segmented options={dayOptions} value={String(dayOffset)} onChange={(v) => setDayOffset(Number(v))} />
+          </div>
         </div>
-        <div>
-          <span className="muted small">Day</span>
-          <Segmented options={dayOptions} value={String(dayOffset)} onChange={(v) => setDayOffset(Number(v))} />
-        </div>
+        {searchError && <div className="alert">{searchError}</div>}
+        <ConditionsStatus error={error} offline={offline} savedAt={savedAt} onRetry={reload} />
       </div>
-      {searchError && <div className="alert">{searchError}</div>}
-      <ConditionsStatus error={error} offline={offline} savedAt={savedAt} onRetry={reload} />
 
       <div className="explore-grid">
-        <div className="map-col">
+        <div className="map-col" ref={mapColRef}>
           <MapView
             markers={markers}
             fit={bboxOf(regionSpots) ?? region?.bbox ?? bboxOf(spots)}
@@ -229,7 +286,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
             onMapClick={(lat, lon) => {
               if (addMode) go(`spot-new?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`);
             }}
-            height="min(62vh, 560px)"
+            height={fullMap ? `calc(100dvh - ${Math.round(mapTop)}px - 3.25rem - env(safe-area-inset-bottom))` : 'min(62vh, 560px)'}
           />
           <div className="map-foot">
             <span className="muted small">
@@ -237,7 +294,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
               {loading ? ' · loading conditions…' : ''}
             </span>
             <button className={`btn small${addMode ? ' primary' : ''}`} onClick={() => setAddMode((v) => !v)}>
-              {addMode ? 'Click the map to place the spot…' : '+ Add a spot'}
+              {addMode ? 'Tap the map to place it…' : '+ Add a spot'}
             </button>
           </div>
         </div>
@@ -361,49 +418,56 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
               );
             })}
           </div>
+          <section>
+            <h3>Your past sessions in conditions like {dayOffset === 0 ? 'today' : 'this day'}</h3>
+            {similar.close.length > 0 ? (
+              <div className="similar-grid">
+                {similar.close.map((m) => (
+                  <SimilarCard key={m.nb.session.id} m={m} dayWord={dayWord} settings={settings} />
+                ))}
+              </div>
+            ) : similar.nearest.length > 0 ? (
+              <>
+                <p className="small muted">
+                  None of your sessions at these spots is close enough ({Math.round(SIMILAR_MIN_K * 100)}% similar or more) to count. The nearest ones, and what differs:
+                </p>
+                <div className="similar-grid">
+                  {similar.nearest.map((m) => (
+                    <SimilarCard key={m.nb.session.id} m={m} dayWord={dayWord} settings={settings} faded />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <Empty>
+                {sessions.length === 0
+                  ? 'Once you log sessions, the ones recorded in similar conditions to today show up here.'
+                  : 'You have no logged sessions at the spots in this area yet.'}
+              </Empty>
+            )}
+            <details className="how small muted">
+              <summary>How is this matched?</summary>
+              <p>
+                Each past session is compared with every daylight hour of this day <strong>at the same spot</strong>, using the hour of your session that fits best. Compared are: the
+                estimated wave size at the spot (one step ≈ 25 % bigger or smaller), swell period (± 2 s), swell direction (± 20°), offshore/onshore and cross-shore wind (± 9 km/h),
+                tide height (± a fifth of the day's range) and whether the tide is rising or falling. Size, wind and tide count most.
+              </p>
+              <p>
+                A session is listed from {Math.round(SIMILAR_MIN_K * 100)} % similar: roughly one step off in size, wind and tide at the same time. A size difference alone of 1.6 m
+                vs 2.6 m) is already too different. Wave size here is the estimate at that spot, so a swell turning out of a spot's window can change it a lot even when the offshore
+                forecast looks similar.
+              </p>
+            </details>
+          </section>
         </div>
       </div>
 
-      <section>
-        <h3>Your past sessions in conditions like {dayOffset === 0 ? 'today' : 'this day'}</h3>
-        {similar.close.length > 0 ? (
-          <div className="similar-grid">
-            {similar.close.map((m) => (
-              <SimilarCard key={m.nb.session.id} m={m} dayWord={dayWord} settings={settings} />
-            ))}
-          </div>
-        ) : similar.nearest.length > 0 ? (
-          <>
-            <p className="small muted">
-              None of your sessions at these spots is close enough ({Math.round(SIMILAR_MIN_K * 100)}% similar or more) to count. The nearest ones, and what differs:
-            </p>
-            <div className="similar-grid">
-              {similar.nearest.map((m) => (
-                <SimilarCard key={m.nb.session.id} m={m} dayWord={dayWord} settings={settings} faded />
-              ))}
-            </div>
-          </>
-        ) : (
-          <Empty>
-            {sessions.length === 0
-              ? 'Once you log sessions, the ones recorded in similar conditions to today show up here.'
-              : 'You have no logged sessions at the spots in this area yet.'}
-          </Empty>
-        )}
-        <details className="how small muted">
-          <summary>How is this matched?</summary>
-          <p>
-            Each past session is compared with every daylight hour of this day <strong>at the same spot</strong>, using the hour of your session that fits best. Compared are: the
-            estimated wave size at the spot (one step ≈ 25 % bigger or smaller), swell period (± 2 s), swell direction (± 20°), offshore/onshore and cross-shore wind (± 9 km/h),
-            tide height (± a fifth of the day's range) and whether the tide is rising or falling. Size, wind and tide count most.
-          </p>
-          <p>
-            A session is listed from {Math.round(SIMILAR_MIN_K * 100)} % similar: roughly one step off in size, wind and tide at the same time. A size difference alone of 1.6 m
-            vs 2.6 m) is already too different. Wave size here is the estimate at that spot, so a swell turning out of a spot's window can change it a lot even when the offshore
-            forecast looks similar.
-          </p>
-        </details>
-      </section>
+      {phone && (
+        <button className="view-fab" onClick={() => setView(view === 'map' ? 'list' : 'map')}>
+          <Icon name={view === 'map' ? 'list' : 'map'} size={18} />
+          {view === 'map' ? `List · ${regionSpots.length} spots` : 'Map'}
+        </button>
+      )}
+
 
       {sheet &&
         (() => {

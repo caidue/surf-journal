@@ -112,13 +112,14 @@ export default function SpotEditor({ spot, sessions, regions, go, at }: { spot?:
             </datalist>
           </label>
         </div>
-        <p className="muted small">Click the map or drag the marker to the break (where the waves break, not the car park).</p>
+        <p className="muted small">Tap or click the map, or drag the marker, to where the waves break (not the car park).</p>
         <MapView
           markers={[{ id: s.id, lat: s.lat, lon: s.lon, color: '#0b6e99', label: '●', title: s.name || 'New spot', draggable: true }]}
           fit={{ south: s.lat - 0.012, north: s.lat + 0.012, west: s.lon - 0.018, east: s.lon + 0.018 }}
           onMapClick={(lat, lon) => setS((c) => ({ ...c, lat, lon, coordsApprox: false }))}
           onMarkerDrag={(_, lat, lon) => setS((c) => ({ ...c, lat, lon, coordsApprox: false }))}
           height={300}
+          cooperative
         />
         <div className="row gap wrap small">
           <span>

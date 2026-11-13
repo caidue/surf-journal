@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import type { Level } from '../types';
+import { LEVELS } from '../lib/rating';
+import { useMediaQuery } from '../hooks';
 import { scoreColor, SUIT_COLOR, type Suit } from '../lib/rating';
 
 export function Chips<T extends string>({
@@ -133,4 +136,22 @@ export function ConditionsStatus({ error, offline, savedAt, onRetry }: { error: 
       </div>
     );
   return null;
+}
+
+const LEVEL_LABELS = LEVELS.map((l) => ({ id: l, label: l[0].toUpperCase() + l.slice(1) }));
+
+/** Surf level: segmented buttons on wide screens, a native picker on phones (it never wraps). */
+export function LevelPicker({ value, onChange, label = 'Your level' }: { value: Level; onChange: (l: Level) => void; label?: string }) {
+  const phone = useMediaQuery('(max-width: 600px)');
+  return phone ? (
+    <select className="level-select" value={value} onChange={(e) => onChange(e.target.value as Level)} aria-label={label}>
+      {LEVEL_LABELS.map((o) => (
+        <option key={o.id} value={o.id}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  ) : (
+    <Segmented options={LEVEL_LABELS} value={value} onChange={onChange} />
+  );
 }
