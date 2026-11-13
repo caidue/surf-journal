@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 — 2026-11-13
+
+- Fixes the package lockfile in the 1.0.0 tag, where the version bump also changed a map dependency (`@mapbox/point-geometry`) and broke clean installs. No changes to the app itself.
+
 ## 1.0.0 — 2026-11-13
 
 First release. Live at https://caidue.github.io/surf-journal/
