@@ -12,6 +12,7 @@ import { tideLabel, windKind, WIND_LABEL, type Derived } from '../lib/conditions
 import { SIMILAR_MIN_K, similarityPct } from '../lib/similarity';
 import MapView, { type MapMarker } from './MapView';
 import SpotSheet from './SpotSheet';
+import { gridKey } from '../lib/openMeteo';
 import { Card, ConditionsStatus, DirArrow, Empty, ScoreBadge, Segmented, SuitBadge } from './ui';
 
 interface Region {
@@ -412,6 +413,10 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
               spot={spot}
               rec={recBySpot.get(spot.id)}
               series={bySpot.get(spot.id)}
+              gridMates={(() => {
+                const k = gridKey(bySpot.get(spot.id));
+                return k ? spots.filter((x) => x.id !== spot.id && gridKey(bySpot.get(x.id)) === k).map((x) => x.name) : [];
+              })()}
               date={date}
               today={today}
               dayOptions={dayOptions}

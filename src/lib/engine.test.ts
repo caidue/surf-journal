@@ -153,13 +153,15 @@ describe('tide extremes & energy', () => {
     expect(ex[1].level).toBeCloseTo(-1.2, 1);
   });
 
-  it('energy grows with the square of period and is cut by the swell window', () => {
-    const e10 = waveEnergyKJ(spot, hour('t', { swellH: 1.5, swellPer: 10, swellDir: spot.idealSwellDir, swell2H: null, windWaveH: null }))!;
-    const e14 = waveEnergyKJ(spot, hour('t', { swellH: 1.5, swellPer: 14, swellDir: spot.idealSwellDir, swell2H: null, windWaveH: null }))!;
+  it('energy is a property of the grid cell: grows with period², ignores direction, adds up trains', () => {
+    const e10 = waveEnergyKJ(hour('t', { swellH: 1.5, swellPer: 10, swellDir: 320, swell2H: null, windWaveH: null }))!;
+    const e14 = waveEnergyKJ(hour('t', { swellH: 1.5, swellPer: 14, swellDir: 320, swell2H: null, windWaveH: null }))!;
     expect(e10).toBeCloseTo(1.96 * 1.5 * 1.5 * 100, -1);
     expect(e14 / e10).toBeCloseTo(1.96, 1);
-    const blocked = waveEnergyKJ(spot, hour('t', { swellH: 1.5, swellPer: 14, swellDir: (spot.idealSwellDir + 180) % 360, swell2H: null, windWaveH: null }))!;
-    expect(blocked).toBe(0);
+    // Same sea state from the opposite direction: same energy (no spot swell window applied).
+    expect(waveEnergyKJ(hour('t', { swellH: 1.5, swellPer: 10, swellDir: 140, swell2H: null, windWaveH: null }))).toBeCloseTo(e10, 6);
+    const withWindSea = waveEnergyKJ(hour('t', { swellH: 1.5, swellPer: 10, swellDir: 320, swell2H: null, windWaveH: 0.8, windWavePer: 5, windWaveDir: 30 }))!;
+    expect(withWindSea - e10).toBeCloseTo(1.96 * 0.64 * 25, -1);
   });
 });
 

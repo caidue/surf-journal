@@ -181,16 +181,16 @@ export function tideLabel(norm: number | null, trend: number | null): string {
 const ENERGY_K = (1025 * 9.81 * 9.81) / (16 * Math.PI) / 1000;
 
 /**
- * Swell energy reaching the spot (kJ per metre of wave crest, summed over swell trains,
- * each weighted by how much of it the spot's swell window lets in). Long-period swell
- * carries far more energy than the same height of short wind sea, which is why surfers
- * look at it next to the height.
+ * Wave energy of the Open-Meteo grid cell (kJ per metre of wave crest): the sum over the cell's
+ * swell trains and wind sea of 1.96 · H² · T². It depends only on the model cell, not on the spot,
+ * so every spot whose forecast comes from the same cell shows the same value. Long-period swell
+ * carries far more energy than the same height of short wind sea.
  */
-export function waveEnergyKJ(spot: Pick<Spot, 'idealSwellDir' | 'swellWindow'>, c: HourConditions): number | null {
+export function waveEnergyKJ(c: HourConditions): number | null {
   const parts = partitions(c);
   if (!parts.length) return null;
   let e = 0;
-  for (const p of parts) e += exposure(spot, p.dir) * ENERGY_K * p.h * p.h * p.t * p.t;
+  for (const p of parts) e += ENERGY_K * p.h * p.h * p.t * p.t;
   return e;
 }
 

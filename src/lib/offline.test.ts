@@ -4,7 +4,7 @@ import { db, mergeSeedSpots } from '../db';
 import { SEED_SPOTS } from '../data/seedSpots';
 import type { ConditionsSeries, HourConditions, Session } from '../types';
 import { SLOTS } from '../types';
-import { cellKey, fetchSeries } from './openMeteo';
+import { cellKey, fetchSeries, gridKey } from './openMeteo';
 import { samplePoint } from './geo';
 import { syncPendingSessions } from './sync';
 import { addDays, todayAt } from './time';
@@ -213,5 +213,17 @@ describe('built-in spot data reaching existing devices', () => {
     expect(ub.peaks.map((p) => p.description)).toEqual(b.peaks.map((p) => p.description));
     expect(ub.guide).toEqual(b.guide);
     expect([ub.lat, ub.lon]).toEqual([5, 6]); // edited: your marker stays
+  });
+});
+
+describe('grid cells', () => {
+  it('identifies the same model cell from new and older cached series', () => {
+    const base = { key: 'k', lat: 0, lon: 0, timezone: 'UTC', utcOffsetSeconds: 0, hours: [], days: [], fetchedAt: 0 };
+    const fresh = { ...base, gridLat: 28.791664, gridLon: -13.958336, source: 'Open-Meteo marine (grid 28.79, -13.96) + weather model wind' };
+    const old = { ...base, source: 'Open-Meteo marine (grid 28.79, -13.96) + weather model wind' };
+    const other = { ...base, gridLat: 28.708336, gridLon: -14.041664, source: '' };
+    expect(gridKey(fresh)).toBe(gridKey(old));
+    expect(gridKey(fresh)).not.toBe(gridKey(other));
+    expect(gridKey({ ...base, source: 'Open-Meteo marine (unavailable)' })).toBeNull();
   });
 });

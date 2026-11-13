@@ -6,6 +6,7 @@ import { scoreColor } from '../lib/rating';
 import { compass } from '../lib/geo';
 import { fmtDate, fmtMin, isoToMin, nowMinutesAt } from '../lib/time';
 import { fmtSurfRange, fmtWind } from '../lib/format';
+import { gridOf } from '../lib/openMeteo';
 import { WIND_BG } from './Timeline';
 import { DirArrow, ScoreBadge, Segmented, SuitBadge } from './ui';
 import SpotGuide from './SpotGuide';
@@ -39,12 +40,14 @@ interface Props {
   onDay: (offset: number) => void;
   settings: Settings;
   loading: boolean;
+  /** Other spots whose forecast comes from the same Open-Meteo grid cell. */
+  gridMates: string[];
   onClose: () => void;
   go: (path: string) => void;
 }
 
 /** Spot details + hourly forecast, opened from the map. Bottom sheet on phones, dialog on wider screens. */
-export default function SpotSheet({ spot, rec, series, date, today, dayOptions, dayOffset, onDay, settings, loading, onClose, go }: Props) {
+export default function SpotSheet({ spot, rec, series, date, today, dayOptions, dayOffset, onDay, settings, loading, gridMates, onClose, go }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -124,7 +127,7 @@ export default function SpotSheet({ spot, rec, series, date, today, dayOptions, 
           )}
 
           {rec && series ? (
-            <ForecastTable spot={spot} rec={rec} series={series} date={date} isToday={date === today} settings={settings} tides={tides} />
+            <ForecastTable spot={spot} rec={rec} series={series} date={date} isToday={date === today} settings={settings} tides={tides} gridMates={gridMates} />
           ) : (
             <p className="muted">{loading ? 'Loading forecast…' : 'No forecast available for this spot.'}</p>
           )}
@@ -169,6 +172,7 @@ function ForecastTable({
   isToday,
   settings,
   tides,
+  gridMates,
 }: {
   spot: Spot;
   rec: SpotRec;
@@ -177,7 +181,9 @@ function ForecastTable({
   isToday: boolean;
   settings: Settings;
   tides: ReturnType<typeof tideExtremes>;
+  gridMates: string[];
 }) {
+  const grid = gridOf(series);
   const scroller = useRef<HTMLDivElement>(null);
   const [rise, set] = daylight(series.days, date);
   const h0 = Math.max(0, Math.floor(rise / 60) - 1);
@@ -288,12 +294,12 @@ function ForecastTable({
               })}
             </tr>
             <tr>
-              <th scope="row" title="Swell energy reaching the spot, kJ per metre of wave crest. Long-period swell packs much more punch than the same height of wind sea.">
+              <th scope="row" title="Wave energy of the Open-Meteo grid cell (kJ per metre of wave crest), the same for every spot in that cell. Long-period swell packs much more punch than the same height of wind sea.">
                 Energy
                 <small>kJ</small>
               </th>
               {cols.map((c, i) => {
-                const e = waveEnergyKJ(spot, raw[i]);
+                const e = waveEnergyKJ(raw[i]);
                 return (
                   <td key={c.time} className={`fc-energy${c.daylight ? '' : ' night'}`}>
                     <span style={energyStyle(e)}>{e == null ? '–' : e >= 1000 ? `${(e / 1000).toFixed(1)}k` : Math.round(e)}</span>
@@ -363,7 +369,13 @@ function ForecastTable({
         <span>
           Rating = predicted fun for {/^[aeiou]/.test(settings.level) ? 'an' : 'a'} {settings.level} surfer{rec.best && rec.best.pred.sumW > 0.05 ? ', from the spot guide and your sessions' : ' from the spot guide'}
         </span>
-        <span>Surf = estimated breaking height at the spot · Swell = offshore model</span>
+        <span>Surf = estimated breaking height at the spot · Swell and Energy = Open-Meteo grid cell offshore</span>
+        {grid && (
+          <span>
+            Grid cell {grid.lat.toFixed(2)}, {grid.lon.toFixed(2)}
+            {gridMates.length ? ` · same energy at ${gridMates.join(', ')}` : ' · no other spot in this cell'}
+          </span>
+        )}
         <span>
           Wind colour:{' '}
           {(['glassy', 'offshore', 'cross-off', 'cross', 'cross-on', 'onshore'] as const).map((k) => (

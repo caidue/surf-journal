@@ -115,6 +115,9 @@ export interface ConditionsSeries {
   hours: HourConditions[];
   days: DayInfo[];
   source: string;
+  /** Centre of the Open-Meteo marine model grid cell the wave data comes from. */
+  gridLat?: number;
+  gridLon?: number;
   fetchedAt: number;
   /** Set (never stored) when the network failed and this is the newest saved copy. */
   stale?: boolean;

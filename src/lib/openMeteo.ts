@@ -193,6 +193,8 @@ export async function fetchSeries(points: Point[], start: string, end: string, o
           utcOffsetSeconds: w?.utc_offset_seconds ?? m?.utc_offset_seconds ?? 0,
           hours,
           days,
+          gridLat: num(m?.latitude) ?? undefined,
+          gridLon: num(m?.longitude) ?? undefined,
           source: `Open-Meteo marine (${m ? `grid ${num(m.latitude)?.toFixed(2)}, ${num(m.longitude)?.toFixed(2)}` : 'unavailable'}) + ${weatherEndpoint(start, today).includes('archive') ? 'ERA5 archive' : 'weather model'} wind`,
           fetchedAt: Date.now(),
         };
@@ -236,3 +238,17 @@ export async function pruneCache(): Promise<void> {
   const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
   await db.forecasts.where('fetchedAt').below(cutoff).delete();
 }
+
+/** Centre of the marine model grid cell a series comes from (older cached series: parsed from the source text). */
+export function gridOf(s: ConditionsSeries | undefined): { lat: number; lon: number } | null {
+  if (!s) return null;
+  if (s.gridLat != null && s.gridLon != null) return { lat: s.gridLat, lon: s.gridLon };
+  const m = /grid (-?\d+\.\d+), (-?\d+\.\d+)/.exec(s.source);
+  return m ? { lat: Number(m[1]), lon: Number(m[2]) } : null;
+}
+
+/** Grid cells are ~0.08° apart, so 2 decimals identify one (and match older cached series). */
+export const gridKey = (s: ConditionsSeries | undefined) => {
+  const g = gridOf(s);
+  return g ? `${g.lat.toFixed(2)},${g.lon.toFixed(2)}` : null;
+};
