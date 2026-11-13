@@ -252,9 +252,6 @@ export default function SessionEditor({
                 value={zoom === 'session' && !range ? 'daylight' : zoom}
                 onChange={chooseZoom}
               />
-              <button className="btn small" onClick={() => load(true)} disabled={condState.loading}>
-                {condState.loading ? 'Loading…' : 'Re-import conditions'}
-              </button>
             </div>
           </div>
           {condState.error && !condState.offline && <div className="alert">Couldn't import conditions: {condState.error}</div>}
@@ -295,9 +292,6 @@ export default function SessionEditor({
                   ({fmtDuration(range.endMin - range.startMin)}) · surf {summary.size} · {summary.period} · {summary.wind} · tide {summary.tide}
                 </div>
               )}
-              {conditions && <p className="muted tiny">
-                Data: {source || 'Open-Meteo'} · Surf height is an estimate from the offshore model (Komar–Gaughan breaker formula × spot factor {gain.toFixed(2)}).
-              </p>}
             </>
           ) : (
             <div className="muted">{condState.loading ? 'Importing conditions…' : 'Choose a spot and date.'}</div>
@@ -336,7 +330,7 @@ export default function SessionEditor({
               );
             })}
           </div>
-          <p className="muted tiny">1 = very low, 10 = very high. Fun drives your recommendations; other categories are optional.</p>
+          <p className="muted tiny">1 = very low, 10 = very high</p>
         </Card>
       )}
 

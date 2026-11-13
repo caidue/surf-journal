@@ -792,9 +792,6 @@ body.full-map .foot {
   .explore.view-map {
     padding-bottom: 0;
   }
-  .explore.view-list {
-    padding-bottom: calc(var(--switch-h) + var(--sp-5) + env(safe-area-inset-bottom)); /* room for the Map | List bar */
-  }
   .explore-controls {
     margin-bottom: var(--sp-3);
   }
@@ -1872,12 +1869,13 @@ details.sources ul {
 .action-buttons .btn.danger {
   margin-right: auto;
 }
-.page.with-action-bar {
-  padding-bottom: calc(var(--actionbar-h) + var(--sp-8) + env(safe-area-inset-bottom));
-}
-.app:has(.with-action-bar) .foot,
-.app:has(.explore.view-list) .foot {
+/* The space for a fixed bottom bar is added once, below the footer, so the gap between the last
+   card and the footer is the same as on every other page. */
+.app:has(.with-action-bar) .foot {
   padding-bottom: calc(var(--actionbar-h) + var(--sp-4) + env(safe-area-inset-bottom));
+}
+.app:has(.explore.view-list) .foot {
+  padding-bottom: calc(var(--switch-h) + var(--sp-4) + env(safe-area-inset-bottom));
 }
 @media (max-width: 600px) {
   .action-bar-inner {
@@ -1896,9 +1894,6 @@ details.sources ul {
   .action-buttons .btn.danger {
     flex: 0 0 auto;
     margin-right: 0;
-  }
-  .page.with-action-bar {
-    padding-bottom: calc(var(--actionbar-h) + 2.5rem + env(safe-area-inset-bottom));
   }
 }
 
