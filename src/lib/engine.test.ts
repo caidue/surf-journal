@@ -5,7 +5,7 @@ import { angdiff, destination, haversineKm } from './geo';
 import { breakingHeight, deriveHour, deriveSeries, exposure, tideExtremes, totalEnergyKJ, waveEnergyKJ, windKind } from './conditions';
 import { fPeriod, quality, rateSpot, ratedPeaks, scoreLabel, suitability } from './rating';
 import { bodyRange, learnFromSession, profileForStage, profileSummary, snapshot, undoLastChange } from './skill';
-import { SEED_SPOTS } from '../data/seedSpots';
+import { RETIRED_SPOTS, SEED_SPOTS } from '../data/seedSpots';
 import { distance, kernel, SIMILAR_MIN_K } from './similarity';
 import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, insights, ratingFor, sessionOverall } from './recommend';
 import { parseRegionQuery, subBox } from './geocode';
@@ -262,27 +262,37 @@ describe('skill profile', () => {
 });
 
 describe('spots and peaks', () => {
-  const hierro = SEED_SPOTS.find((s) => s.id === 'fv-el-hierro')!;
-  it('uses Surfline names, keeps other names as aliases, and merged The Bubble into El Hierro', () => {
-    const gen = SEED_SPOTS.find((s) => s.id === 'fv-generoso')!;
+  const byId = (id: string) => SEED_SPOTS.find((s) => s.id === id)!;
+  it('uses Surfline names and keeps other names as aliases', () => {
+    const gen = byId('fv-generoso');
     expect(gen.name).toBe('Generosa');
     expect(gen.aliases).toContain('Generoso');
-    expect(SEED_SPOTS.some((s) => s.id === 'fv-the-bubble')).toBe(false);
-    expect(hierro.peaks.map((p) => p.id).sort()).toEqual(['bubble', 'derecha', 'izquierda']);
-    expect(hierro.externalIds?.surfline).toContain('5842041f4e65fad6a7708cbf');
   });
-  it('rates El Hierro per peak and names the best one for you', () => {
-    expect(ratedPeaks(hierro)).toHaveLength(3);
-    // ~1.9 m face: within a stage-6 surfer's comfort size; The Bubble is an expert (stage 7) peak.
-    const d = deriveHour({ ...hierro, gain: 1 }, hour('2026-01-01T10:00', { swell: [1.2, 12, 320], seaLevel: 0 }), { norm: 0.9, trend: 0 });
-    const r = rateSpot(hierro, d, profileForStage(6));
-    expect(r.peak).not.toBeNull();
-    expect(r.peak?.id).not.toBe('bubble');
-    const expert = rateSpot(hierro, d, profileForStage(7));
-    expect(expert.score).toBeGreaterThan(0);
+  it('splits El Hierro into its three waves, west to east, each linking to Surfline’s one spot', () => {
+    const left = byId('fv-el-hierro');
+    const right = byId('fv-derecha-alemanes');
+    const bubble = byId('fv-the-bubble');
+    expect([left.name, right.name, bubble.name]).toEqual(['Izquierda del Hierro', 'Derecha de los Alemanes', 'The Bubble']);
+    expect(left.aliases).toContain('El Hierro');
+    expect(bubble.aliases).toContain('The Bubble (Hierro Right)');
+    expect(left.lon).toBeLessThan(right.lon);
+    expect(right.lon).toBeLessThan(bubble.lon);
+    for (const s of [left, right, bubble]) {
+      expect(s.externalIds?.surfline).toContain('5842041f4e65fad6a7708cbf');
+      expect(s.peaks).toHaveLength(1);
+      expect(ratedPeaks(s)).toEqual([]);
+    }
+    expect(RETIRED_SPOTS['fv-the-bubble']).toBeUndefined();
+  });
+  it('rates the three El Hierro waves on their own: The Bubble is the expert one', () => {
+    // ~1.9 m face, mid tide: within a stage-6 surfer's comfort size; The Bubble needs stage 7.
+    const h = hour('2026-01-01T10:00', { swell: [1.2, 12, 320], seaLevel: 0 });
+    const rate = (id: string) => rateSpot(byId(id), deriveHour({ ...byId(id), gain: 1 }, h, { norm: 0.6, trend: 0 }), profileForStage(6));
+    expect(rate('fv-el-hierro').suit.status).toBe('ok'); // top of the comfort zone
+    expect(rate('fv-the-bubble').suit.status).toBe('challenging');
+    expect(rate('fv-el-hierro').score).toBeGreaterThan(rate('fv-the-bubble').score);
   });
   it('includes the spots other services list, each with a guide', () => {
-    const byId = (id: string) => SEED_SPOTS.find((s) => s.id === id)!;
     expect(new Set(SEED_SPOTS.map((s) => s.id)).size).toBe(SEED_SPOTS.length);
     expect(SEED_SPOTS.every((s) => s.guide && s.peaks.length > 0)).toBe(true);
     expect(byId('fv-corralejo-beach').externalIds?.surfline).toContain('584204204e65fad6a77096a4');

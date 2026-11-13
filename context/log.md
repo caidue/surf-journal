@@ -1,5 +1,13 @@
 # Knowledge base log
 
+## 2026-11-14
+
+* **Update** of [Releases](/operations/releases.md): 1.2.0 committed, tagged `v1.2.0` and pushed.
+* **Update** of [Explore](/features/explore.md): all three best picks show the same details (explanation and suitability reasons).
+* **Update** of [Explore](/features/explore.md) (best picks at a picked time), [Settings](/features/settings.md) and [Onboarding](/features/onboarding.md) (stage card; footer above the action bar; helper text removed; spacing in step 8), [Skill profile](/engine/skill-profile.md) (short stage names, skill bands) and [Code map](/architecture/code-map.md) (`StageCard.tsx`).
+* **Creation** of [decision 0015](/decisions/0015-split-el-hierro.md): El Hierro split into three spots (Izquierda del Hierro, Derecha de los Alemanes, The Bubble) after checking Surfline, Wannasurf, surf-forecast, fuerteventuraplayas, vvanat.fr, Windguru and OSM. **Deprecation** of [decision 0009](/decisions/0009-el-hierro-single-spot.md) (superseded).
+* **Update** of [El Hierro area](/spots/el-hierro.md) (rewritten), [Spot catalogue](/spots/catalogue.md) (seed 6, 21 spots), [Spot naming](/spots/naming.md), [Per-peak rating](/engine/per-peak-rating.md), [Surfline](/data-sources/surfline.md), [surf-forecast](/data-sources/surf-forecast.md), [Storage](/architecture/storage.md), [Testing](/operations/testing.md), [Glossary](/product/glossary.md), [Releases](/operations/releases.md) (1.2.0) and the pending notes on [spot pins](/decisions/pending/verify-spot-pins.md) and [compounding challenges](/decisions/pending/compounding-challenges.md).
+
 ## 2026-11-13
 
 * **Update** of [Releases](/operations/releases.md): 1.1.0 committed, tagged `v1.1.0` and pushed.

@@ -14,7 +14,7 @@ sources:
     id: "thewave"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-14T01:10:00+00:00"
 ---
 # Skill profile
 
@@ -35,6 +35,7 @@ Defaults snap to the [body scale](/domain/body-scale.md) (the research proposed 
 
 Other fields: board (soft-top, longboard, mid-length, fish, shortboard, step-up/gun, bodyboard; each with a minimum fun size), reef experience 0–3, paddle-out 0–3, steep waves 0–2 (optional), frequency and years (optional), water confidence (optional), "I want to push my limits" (`wantsChallenge`).
 
+* Each stage has a `short` name (First waves, Whitewater, First green waves, Riding the face, Turns and speed, Overhead waves, Heavy waves, Big waves); `stageBand()` groups stages as Beginner 1–3, Intermediate 4–5, Advanced 6, Expert 7–8, the same cut-offs as `REQUIRED_STAGE`. Both are shown on the stage card.
 * `profileSummary()`: "Stage 4 · comfortable to chest high (1.2 m) · caught up to 1.5 m · some reef · mid-length".
 * `profileCheck()`: gentle warning for stage ≥ 6 with under a year of surfing.
 * Sessions store a snapshot `{stage, comfort, max}`; sessions from another stage count less ([Personal prediction](/engine/personal-prediction.md)).

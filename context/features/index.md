@@ -3,7 +3,7 @@
 User-facing screens and flows.
 
 * [Demo sessions](demo-sessions.md) - Random sessions on real past conditions to try the app.
-* [Explore](explore.md) - Region search, map and list of spots, best picks for today or now, similar past sessions.
+* [Explore](explore.md) - Region search, map and list of spots, best picks for the day, now or a picked time, similar past sessions.
 * [Hourly forecast table](forecast-table.md) - Surf-forecast-style hourly table: spot rating, For you, surf, swell trains, energy, wind, tide.
 * [Journal](journal.md) - List of logged sessions with filters, stats and relevance switches.
 * [Onboarding: Your surfing](onboarding.md) - First-launch questions that build the skill profile; also the profile editor.

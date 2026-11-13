@@ -5,7 +5,7 @@ description: "Surf and app terms used in code, UI and this knowledge base."
 tags: ["glossary", "domain"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-14T00:30:00+00:00"
 ---
 # Glossary
 
@@ -20,7 +20,7 @@ generated:
 * **For you:** your predicted fun, 0–10: spot rating × suitability, blended with your history. See [Personal prediction](/engine/personal-prediction.md).
 * **Suitability:** good / ok / stretch / challenging / unsuitable, from [the rules](/engine/suitability-rules.md).
 * **Stage (1–8):** surfing ability step in the [skill profile](/engine/skill-profile.md). **C** = comfortable face height, **M** = biggest caught.
-* **Peak:** a wave within a spot (e.g. La Izquierda at El Hierro). Peaks with overrides are [rated on their own](/engine/per-peak-rating.md).
+* **Peak:** a wave within a spot (e.g. the inside left at Suicides). Peaks with overrides are [rated on their own](/engine/per-peak-rating.md).
 * **Grid cell:** the Open-Meteo model cell a spot's forecast comes from; spots in one cell share swell and energy.
 * **Seed spots:** the built-in spots in `src/data/seedSpots.ts`, versioned by `SEED_VERSION`.
 * **Conditions snapshot:** the hourly conditions stored with a session, versioned by `CONDITIONS_VERSION`.

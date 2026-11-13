@@ -71,7 +71,7 @@ Algorithms: spot rating, suitability rules, skill profile and learning, predicti
 User-facing screens and flows. ([folder index](features/index.md))
 
 * [Demo sessions](features/demo-sessions.md) - Random sessions on real past conditions to try the app.
-* [Explore](features/explore.md) - Region search, map and list of spots, best picks for today or now, similar past sessions.
+* [Explore](features/explore.md) - Region search, map and list of spots, best picks for the day, now or a picked time, similar past sessions.
 * [Hourly forecast table](features/forecast-table.md) - Surf-forecast-style hourly table: spot rating, For you, surf, swell trains, energy, wind, tide.
 * [Journal](features/journal.md) - List of logged sessions with filters, stats and relevance switches.
 * [Onboarding: Your surfing](features/onboarding.md) - First-launch questions that build the skill profile; also the profile editor.
@@ -86,8 +86,8 @@ User-facing screens and flows. ([folder index](features/index.md))
 
 Spot content: the built-in catalogue, naming, special cases. ([folder index](spots/index.md))
 
-* [Built-in spot catalogue](spots/catalogue.md) - The 19 built-in northern Fuerteventura spots: ids, names, aliases, external ids, level, peaks and pin status.
-* [El Hierro (one spot, three peaks)](spots/el-hierro.md) - How El Hierro, Derecha de los Alemanes, La Izquierda and The Bubble are modelled.
+* [Built-in spot catalogue](spots/catalogue.md) - The 21 built-in northern Fuerteventura spots: ids, names, aliases, external ids, level, peaks and pin status.
+* [El Hierro area (three spots)](spots/el-hierro.md) - Izquierda del Hierro, Derecha de los Alemanes and The Bubble: how sources split and place them, and how the app models them.
 * [Spot naming](spots/naming.md) - Why spots carry Surfline's names, how aliases work, and the Generosa/Generoso question.
 
 # Influences
@@ -119,6 +119,7 @@ Accepted decisions (numbered) and pending ones. ([folder index](decisions/index.
 * [0012: No peak split in session logs](decisions/0012-no-peak-split-in-sessions.md) - Sessions are per spot, not per peak.
 * [0013: Add the spots other services list](decisions/0013-add-spots-other-services-list.md) - Corralejo Beach and Playa los Matos (Surfline) and Suicides (surf-forecast, Wannasurf) became built-in spots in seed 5.
 * [0014: Link to Surfline and surf-forecast, never fetch from them](decisions/0014-link-out-never-fetch.md) - External spot ids are only used to build links; no data is requested from or copied out of those services.
+* [0015: Split El Hierro into three spots](decisions/0015-split-el-hierro.md) - Izquierda del Hierro, Derecha de los Alemanes and The Bubble are separate spots again (seed 6), as most guides list them.
 * [Accounts, sync and a commercial data plan](decisions/pending/accounts-and-sync.md) - What a public release would need.
 * [Should several challenging causes compound?](decisions/pending/compounding-challenges.md) - Worst status wins, so two problems count like one.
 * [Ask Open-Meteo for per-train peak periods in MFWAM](decisions/pending/open-meteo-upstream.md) - Upstream improvement, not ours to build.

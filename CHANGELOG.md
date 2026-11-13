@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0 — 2026-11-14
+
+- **Best picks at a time you choose:** next to the day's best and "Now", "At…" picks a time on the selected day and ranks the spots for that hour.
+- **Stage card** under Settings → Your surfing (and at the end of the questions): your stage as a badge, its band (Beginner … Expert), a 1–8 ladder and badges for your answers.
+- **All three best picks show the same details**: the explanation and the reasons are no longer only on the first one.
+- Journal: less empty space under "hide not relevant" on phones.
+- The questions' page no longer hides the footer behind the buttons, drops the "You can change this anytime" line, and spaces the two parts of "How often, and how long?".
+- **El Hierro is three spots again**, as Wannasurf, surf-forecast and most guides list them: Izquierda del Hierro (the left, west side of the bay), Derecha de los Alemanes (the right, east side) and The Bubble (expert reef further east). Each has its own forecast, rating, guide and sessions, and links to Surfline's one spot for the area. "El Hierro" still finds the bay waves in search. Sessions that 1.1.0 moved from The Bubble to El Hierro stay with Izquierda del Hierro; change their spot in the session if needed.
+
 ## 1.1.0 — 2026-11-13
 
 - **Your surfing:** a short set of questions at first launch replaces the four levels: stage (1–8), comfortable size, biggest wave caught, board, reef experience, getting out, and optional steep waves, frequency and water confidence. Edit it under Settings → Your surfing.

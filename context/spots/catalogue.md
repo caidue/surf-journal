@@ -1,7 +1,7 @@
 ---
 type: "Reference"
 title: "Built-in spot catalogue"
-description: "The 19 built-in northern Fuerteventura spots: ids, names, aliases, external ids, level, peaks and pin status."
+description: "The 21 built-in northern Fuerteventura spots: ids, names, aliases, external ids, level, peaks and pin status."
 resource: "src/data/seedSpots.ts"
 tags: ["spots", "content", "fuerteventura"]
 sources:
@@ -10,12 +10,12 @@ sources:
     title: "Research: surf metrics, spots and skill model (2026-11)"
   - resource: "https://www.surfline.com/surf-reports-forecasts-cams-map/@28.715,-13.93,11z"
     id: "surfline-map"
-seed_version: "5"
+seed_version: "6"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T23:35:00+00:00"
+  at: "2026-11-14T00:30:00+00:00"
 ---
-# Built-in spot catalogue (seed 5)
+# Built-in spot catalogue (seed 6)
 
 Ids never change; names follow Surfline where it has the spot ([Naming](/spots/naming.md)). Pin = where the coordinates come from.
 
@@ -29,7 +29,9 @@ Ids never change; names follow Surfline where it has the spot ([Naming](/spots/n
 | fv-suicides | Suicides | Suicidios | – | Suicides_2 | expert | Main reef (expert), Inside left (advanced) | Wannasurf (approximate, on the reef); surf-forecast's point is 1.7 km out to sea |
 | fv-la-caleta | La Caleta | Caletta | – | – | intermediate | – | fuerteventuraplayas; approximate; no counterpart elsewhere |
 | fv-majanicho | Majanicho | – | ✓ | Majanicho | intermediate | Inside A-frame, Inside right, Outside (overrides) | Surfline (moved from 28.742, −13.944) |
-| fv-el-hierro | El Hierro | The Bubble, Hierro Left/Right, La Izquierda, Izquierda del Hierro, Derecha de los Alemanes, German Right, Yarro | ✓ (The Bubble (Hierro Right)) | Izquierda | advanced | La Izquierda, Derecha de los Alemanes, The Bubble (expert) | Surfline single point ([El Hierro](/spots/el-hierro.md)) |
+| fv-the-bubble | The Bubble | The Bubble (Hierro Right), Hierro Right, La Derecha, Derecha, Bubble | ✓ (shared) | The-Bubble | expert | – | Surfline's point, off OSM's "La Derecha" beach ([El Hierro area](/spots/el-hierro.md)) |
+| fv-derecha-alemanes | Derecha de los Alemanes | German Right, Derecha Alemanes, Los Alemanes, Hierro Right, El Hierro, Yarro | ✓ (shared) | Los-Alemanes | advanced | – | east side of the El Hierro bay (Wannasurf's access note; Windguru user pin); approximate |
+| fv-el-hierro | **Izquierda del Hierro** | El Hierro, Hierro Left, Hierro (left), La Izquierda, Izquierda, Izquierda de El Hierro | ✓ (shared) | Izquierda | advanced | – | Wannasurf, west side of the bay; approximate |
 | fv-punta-blanca | Punta Blanca | Playa Punta Blanca | ✓ | – | intermediate | Outside reef, Inside reform | Surfline/Windguru (moved 1.5 km east); approximate |
 | fv-esquinzo | Esquinzo | Playa de Esquinzo | – | Playade-Esquinzo_1 | intermediate | – | OSM |
 | fv-cotillo-piedra-playa | **Cotillo** | El Cotillo, Piedra Playa, El Cotillo – Piedra Playa, Playa del Castillo | ✓ | Cotillo | all | Playa del Castillo (north), Piedra Playa peaks | approximate |
@@ -41,4 +43,4 @@ Ids never change; names follow Surfline where it has the spot ([Naming](/spots/n
 | fv-glass-beach | **El Burro (Glass Beach)** | El Burro, Glass Beach, Glasbeach, Playa del Burro | ✓ | El-Burro | all | – | OSM/Wannasurf; approximate |
 | fv-playa-del-moro | Playa del Moro | – | ✓ | – | beginner | – | OSM (Surfline's pin 1.2 km north; to verify) |
 
-Retired: `fv-the-bubble` → merged into `fv-el-hierro` (`RETIRED_SPOTS`). Attributes per spot (power, peel, crowd, localism, lifeguard) and rating overrides per peak are in `src/data/seedSpots.ts`; guides in `src/data/spotGuides.ts`. Seed 5 added the three spots other services list: Corralejo Beach and Playa los Matos (Surfline) and Suicides (surf-forecast, Wannasurf) ([decision 0013](/decisions/0013-add-spots-other-services-list.md)). Corralejo Beach and Playa los Matos sit 200 m apart and share their settings, because no source tells them apart; Surfline lists both.
+No retired spots: seed 4 merged `fv-the-bubble` into `fv-el-hierro`, seed 6 split El Hierro into three spots again ([decision 0015](/decisions/0015-split-el-hierro.md)); `fv-el-hierro` is now the left. "✓ (shared)" = all three link to Surfline's one spot for the area. Attributes per spot (power, peel, crowd, localism, lifeguard) and rating overrides per peak are in `src/data/seedSpots.ts`; guides in `src/data/spotGuides.ts`. Seed 5 added the three spots other services list: Corralejo Beach and Playa los Matos (Surfline) and Suicides (surf-forecast, Wannasurf) ([decision 0013](/decisions/0013-add-spots-other-services-list.md)). Corralejo Beach and Playa los Matos sit 200 m apart and share their settings, because no source tells them apart; Surfline lists both.

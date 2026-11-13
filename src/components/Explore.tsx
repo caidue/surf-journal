@@ -165,19 +165,41 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
   const recBySpot = useMemo(() => new Map(recs.map((r) => [r.spot.id, r])), [recs]);
   const top = recs.find((r) => r.best && r.best.score > 0.5) ?? null;
 
-  // Best picks: the top three spots, either for the day (best time window) or right now (this hour).
-  const [pickMode, setPickMode] = useState<'day' | 'now'>('day');
-  const mode = dayOffset === 0 ? pickMode : 'day';
+  // Best picks: the top three spots for the day (best time window), right now (this hour, today
+  // only) or at a time you pick on the selected day.
+  const [pickMode, setPickMode] = useState<'day' | 'now' | 'time'>('day');
+  const mode = dayOffset !== 0 && pickMode === 'now' ? 'day' : pickMode;
+  // Daylight hours of the selected day (today: from the current hour on), as minutes after midnight.
+  const pickHours = useMemo(() => {
+    const nowH = recs[0]?.now ? isoToMin(recs[0].now.time) ?? 0 : 0;
+    const set = new Set<number>();
+    for (const r of recs) for (const h of r.hours) if (h.daylight) set.add(isoToMin(h.time) ?? -1);
+    return [...set].filter((m) => m >= 0 && (dayOffset !== 0 || m >= nowH)).sort((a, b) => a - b);
+  }, [recs, dayOffset]);
+  const [pickTime, setPickTime] = useState<number | null>(null);
+  // Keep the picked time on the selected day: default to the top pick's best hour, else the first hour.
+  const time =
+    pickTime != null && pickHours.includes(pickTime)
+      ? pickTime
+      : (() => {
+          const b = top?.best ? isoToMin(top.best.time) : null;
+          return b != null && pickHours.includes(b) ? b : pickHours[0] ?? null;
+        })();
   const picks = useMemo(() => {
     const ranked: { rec: SpotRec; hour: HourRec }[] =
       mode === 'now'
         ? recs.filter((r) => r.now?.daylight).map((r) => ({ rec: r, hour: r.now! }))
-        : recs.filter((r) => r.best).map((r) => ({ rec: r, hour: r.best! }));
+        : mode === 'time'
+          ? recs.flatMap((r) => {
+              const hour = r.hours.find((h) => h.daylight && isoToMin(h.time) === time);
+              return hour ? [{ rec: r, hour }] : [];
+            })
+          : recs.filter((r) => r.best).map((r) => ({ rec: r, hour: r.best! }));
     return ranked
       .filter((x) => x.hour.score > 0.5)
       .sort((a, b) => b.hour.score - a.hour.score)
       .slice(0, 3);
-  }, [recs, mode]);
+  }, [recs, mode, time]);
   const darkNow = mode === 'now' && recs.length > 0 && !recs.some((r) => r.now?.daylight);
   const dayOver = dayOffset === 0 && recs.length > 0 && recs.every((r) => r.dayOver);
 
@@ -290,30 +312,47 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
         </div>
 
         <div className="list-col">
-          {recs.length > 0 && (top || mode === 'now') && (
+          {recs.length > 0 && (top || mode !== 'day') && (
             <Card className="best-pick">
               <div className="section-head">
                 <div className="eyebrow">
                   Best picks for you {mode === 'now' ? 'right now' : dayOffset === 0 ? 'today' : dayOptions[dayOffset].label.toLowerCase()}
+                  {mode === 'time' && time != null ? ` at ${fmtMin(time)}` : ''}
                 </div>
-                {dayOffset === 0 && (
+                <div className="pick-controls">
                   <Segmented
                     options={[
-                      { id: 'day', label: 'Today' },
-                      { id: 'now', label: 'Now' },
+                      { id: 'day' as const, label: dayOffset === 0 ? 'Today' : dayOffset === 1 ? 'Tomorrow' : dayOptions[dayOffset].label, title: 'The best time window at each spot' },
+                      ...(dayOffset === 0 ? [{ id: 'now' as const, label: 'Now', title: 'This hour' }] : []),
+                      { id: 'time' as const, label: 'At…', title: 'Pick a time on this day' },
                     ]}
-                    value={pickMode}
+                    value={mode}
                     onChange={setPickMode}
                   />
-                )}
+                  {mode === 'time' && pickHours.length > 0 && (
+                    <select className="pick-time" aria-label="Time" value={time ?? ''} onChange={(e) => setPickTime(Number(e.target.value))}>
+                      {pickHours.map((m) => (
+                        <option key={m} value={m}>
+                          {fmtMin(m)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               </div>
               {picks.length === 0 ? (
                 <p className="muted small">
-                  {darkNow ? "It's dark at the spots right now. Switch to Today, or look at tomorrow." : 'Nothing really works for you right now. Switch to Today to see the best times later.'}
+                  {darkNow
+                    ? "It's dark at the spots right now. Switch to Today, or look at tomorrow."
+                    : mode === 'time'
+                      ? pickHours.length
+                        ? `Nothing really works for you at ${fmtMin(time ?? 0)}. Try another time, or the whole day.`
+                        : 'No daylight hours left on this day.'
+                      : 'Nothing really works for you right now. Switch to Today to see the best times later.'}
                 </p>
               ) : (
                 <ol className="pick-list">
-                  {picks.map(({ rec, hour }, i) => (
+                  {picks.map(({ rec, hour }) => (
                     <li
                       key={rec.spot.id}
                       onClick={(e) => {
@@ -324,6 +363,11 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                       <div className="cond-line go-line">
                         {mode === 'now' ? (
                           <span className="muted small">Now</span>
+                        ) : mode === 'time' ? (
+                          <>
+                            <span className="muted small">At</span>
+                            <strong>{fmtMin(time ?? 0)}</strong>
+                          </>
                         ) : (
                           rec.bestWindow && (
                             <>
@@ -348,19 +392,16 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                           Best for you: <strong>{hour.peak.name}</strong>
                         </div>
                       )}
-                      {/* The top pick also says why; the others stay compact. */}
-                      {i === 0 && (
-                        <ul className="explain">
+                      <ul className="explain">
                           {explain(hour, (s) => fmtDate(s.date)).map((l) => (
                             <li key={l}>{l}</li>
                           ))}
-                        </ul>
-                      )}
+                      </ul>
                       <div className="row gap wrap">
                         <SuitBadge status={hour.suit.status} />
                         <span className="muted small">confidence: {confidence(hour.pred)}</span>
                       </div>
-                      {i === 0 && <SuitReasons suit={hour.suit} />}
+                      <SuitReasons suit={hour.suit} />
                     </li>
                   ))}
                 </ol>

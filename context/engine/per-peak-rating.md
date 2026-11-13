@@ -6,7 +6,7 @@ resource: "src/lib/rating.ts"
 tags: ["engine", "rating", "peaks"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-14T00:30:00+00:00"
 ---
 # Per-peak rating
 
@@ -15,4 +15,4 @@ generated:
 * `rateSpot(spot, derived, profile)`: rates every rated peak; **For you** = the peak with the highest score for you; **Spot rating** = the best peak's quality. The peak is named ("Best for you: La Izquierda") only when the peaks really differ for you that hour.
 * Used by `recommendSpotDay`, the session editor timeline and demo data.
 
-Built-in overrides: Rocky Point (inside/outside), Majanicho (three peaks), El Hierro (La Izquierda, Derecha de los Alemanes, The Bubble), Punta Blanca, Los Lobos, Cotillo (Castillo / Piedra Playa). See [El Hierro](/spots/el-hierro.md). Exposure (swell window) is still per spot.
+Built-in overrides: Rocky Point (inside/outside), Majanicho (three peaks), Suicides (main reef / inside left), Punta Blanca, Los Lobos, Cotillo (Castillo / Piedra Playa). El Hierro was rated this way in seeds 4–5; since seed 6 its three waves are separate spots ([El Hierro area](/spots/el-hierro.md)). Exposure (swell window) is still per spot.

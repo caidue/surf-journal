@@ -14,12 +14,10 @@ import { SPOT_GUIDES } from './spotGuides';
  * Bump SEED_VERSION whenever this list changes: devices then refresh the built-in spots
  * (db.ts → refreshSeedSpots) and move sessions of RETIRED_SPOTS to their new spot.
  */
-export const SEED_VERSION = 5; // 5: Suicides, Playa los Matos, Corralejo Beach added; Mejillones pin moved (3 was used by an earlier build)
+export const SEED_VERSION = 6; // 6: El Hierro split into three spots; 5: Suicides, Playa los Matos, Corralejo Beach (3 was used by an earlier build)
 
-/** Spots that were merged into another one: old id → new id. */
-export const RETIRED_SPOTS: Record<string, string> = {
-  'fv-the-bubble': 'fv-el-hierro', // one Surfline spot with three peaks (seed 4)
-};
+/** Spots that were merged into another one: old id → new id. (Seed 4 merged The Bubble into El Hierro; seed 6 split them again.) */
+export const RETIRED_SPOTS: Record<string, string> = {};
 
 const SRC = 'Public spot guides (vvanat.fr, Planet Surf Camps, The Surf Atlas, surf-forecast.com, fuerteventuraplayas.com, Wannasurf), Surfline and surf-forecast spot lists (names, pins), OSM';
 
@@ -27,8 +25,6 @@ type SeedSpot = Omit<Spot, 'region' | 'source' | 'gain' | 'coordsApprox' | 'peak
   Partial<Pick<Spot, 'gain' | 'coordsApprox'>> & {
     /** Rating overrides merged onto the researched guide peaks (by peak id). */
     peakOverrides?: Record<string, Partial<Peak>>;
-    /** Extra peaks (e.g. from a merged spot's guide). */
-    extraPeaks?: Peak[];
   };
 
 const seed: SeedSpot[] = [
@@ -225,14 +221,65 @@ const seed: SeedSpot[] = [
       outside: { tide: 'all', minSize: 0.8, maxSize: 2.4 },
     },
   },
+  // The El Hierro area: three waves, as Wannasurf, surf-forecast, vvanat.fr and Windguru users list them
+  // (Surfline has one spot for all three, so each links to it). East to west: The Bubble, then the
+  // El Hierro bay with the right on its east side and the left on its west side.
   {
-    id: 'fv-el-hierro',
-    name: 'El Hierro',
-    aliases: ['The Bubble', 'Hierro Left', 'Hierro Right', 'La Izquierda', 'Izquierda del Hierro', 'Derecha de los Alemanes', 'German Right', 'Yarro'],
-    externalIds: { surfline: 'the-bubble-hierro-right-/5842041f4e65fad6a7708cbf', surfForecast: 'Izquierda' },
-    lat: 28.7442, // Surfline's single point, between the El Hierro bay and The Bubble just east
+    id: 'fv-the-bubble',
+    name: 'The Bubble',
+    aliases: ['The Bubble (Hierro Right)', 'Hierro Right', 'La Derecha', 'Derecha', 'Bubble'],
+    externalIds: { surfline: 'the-bubble-hierro-right-/5842041f4e65fad6a7708cbf', surfForecast: 'The-Bubble' },
+    lat: 28.7442, // Surfline's point, on the reef off OSM's "La Derecha" beach; Windguru users' "Bubble" is 100 m away
     lon: -13.9481,
     coordsApprox: false,
+    facing: 345,
+    idealSwellDir: 330,
+    swellWindow: 55,
+    minSize: 1.4,
+    maxSize: 3.5,
+    tide: 'mid-high',
+    breakType: 'reef',
+    bottom: 'reef',
+    level: 'expert',
+    power: 'hollow',
+    peel: 'fast',
+    crowd: 'high',
+    localism: 'some',
+    hazards: ['very shallow volcanic reef', 'heavy wipeouts', 'strong currents', 'crowds'],
+    description:
+      'Hollow, fast A-frame over very shallow volcanic reef off La Derecha beach, just east of the El Hierro bay. Needs a bigger swell than the bay. Experts only. Surfline’s one spot for the whole area is named after it: "The Bubble (Hierro Right)".',
+  },
+  {
+    id: 'fv-derecha-alemanes',
+    name: 'Derecha de los Alemanes',
+    aliases: ['German Right', 'Derecha Alemanes', 'Los Alemanes', 'Hierro Right', 'El Hierro', 'Yarro'],
+    externalIds: { surfline: 'the-bubble-hierro-right-/5842041f4e65fad6a7708cbf', surfForecast: 'Los-Alemanes' },
+    lat: 28.7403, // east side of the El Hierro bay, as Wannasurf's access note puts it (Windguru user pin)
+    lon: -13.9519,
+    facing: 340,
+    idealSwellDir: 330,
+    swellWindow: 60,
+    minSize: 1.2,
+    maxSize: 3,
+    tide: 'all',
+    breakType: 'reef',
+    bottom: 'reef',
+    level: 'advanced',
+    power: 'punchy',
+    peel: 'sectiony',
+    crowd: 'high',
+    localism: 'some',
+    hazards: ['shallow volcanic reef', 'rips', 'urchins', 'can close out'],
+    description:
+      'The right on the east side of the El Hierro bay ("German Right"), peeling into the bay with fast and softer sections that can barrel. Needs more swell than the left across the bay. Wannasurf also calls it "Hierro right", the name Surfline gives The Bubble.',
+  },
+  {
+    id: 'fv-el-hierro',
+    name: 'Izquierda del Hierro',
+    aliases: ['El Hierro', 'Hierro Left', 'Hierro (left)', 'La Izquierda', 'Izquierda', 'Izquierda de El Hierro'],
+    externalIds: { surfline: 'the-bubble-hierro-right-/5842041f4e65fad6a7708cbf', surfForecast: 'Izquierda' },
+    lat: 28.7404, // Wannasurf (approximate), on the reef off the west side of the El Hierro bay
+    lon: -13.9547,
     facing: 340,
     idealSwellDir: 315,
     swellWindow: 70,
@@ -248,13 +295,7 @@ const seed: SeedSpot[] = [
     localism: 'some',
     hazards: ['shallow volcanic reef', 'currents', 'urchins', 'crowds'],
     description:
-      'Three reef waves around the El Hierro bay: the long, fast left "La Izquierda" (all tides), the right "Derecha de los Alemanes" (best at low tide) and, just east, The Bubble, a hollow A-frame over very shallow reef that needs more swell (experts). Surfline lists them as one spot, "The Bubble (Hierro Right)"; "Hierro Right" means different waves to different people, so the app avoids it.',
-    peakOverrides: {
-      izquierda: { tide: 'all', minSize: 1, maxSize: 3.5, power: 'punchy', peel: 'fast' },
-      derecha: { tide: 'low-mid', minSize: 1.2, maxSize: 3, power: 'punchy', peel: 'sectiony' },
-      bubble: { tide: 'mid-high', minSize: 1.4, maxSize: 3.5, power: 'hollow', peel: 'fast' },
-    },
-    extraPeaks: SPOT_GUIDES['fv-the-bubble'].peaks.map((p) => ({ ...p, id: 'bubble' })),
+      'The long, fast and powerful left on the west side of the El Hierro bay, the main wave here (Surfline: "Hierro Left, also known as El Hierro"). Works on all tides from about 1 m of N–NW swell. Crowded and localised on good days.',
   },
   {
     id: 'fv-punta-blanca',
@@ -493,15 +534,6 @@ const seed: SeedSpot[] = [
   },
 ];
 
-/** The El Hierro guide also covers The Bubble (merged in seed 4). */
-function guideFor(id: string) {
-  const g = SPOT_GUIDES[id];
-  if (id !== 'fv-el-hierro' || !g) return g?.guide;
-  const b = SPOT_GUIDES['fv-the-bubble'].guide;
-  const uniq = (xs: string[] = []) => [...new Set(xs)];
-  return { ...g.guide, warnings: uniq([...(g.guide.warnings ?? []), ...(b.warnings ?? []).filter((w) => /heavy|very shallow/.test(w))]), sources: uniq([...(g.guide.sources ?? []), ...(b.sources ?? [])]) };
-}
-
 /**
  * Breaking-height gain. Calibrated (seed 4) so heights from PEAK periods match what the earlier
  * mean-period heights showed (+11 %): beach 0.8 → 0.72, reef/point 0.85 → 0.77. Sessions with an
@@ -509,8 +541,8 @@ function guideFor(id: string) {
  */
 export const DEFAULT_GAIN = { beach: 0.72, reef: 0.77, point: 0.77 } as const;
 
-export const SEED_SPOTS: Spot[] = seed.map(({ peakOverrides, extraPeaks, ...s }) => {
-  const peaks = [...(SPOT_GUIDES[s.id]?.peaks ?? []), ...(extraPeaks ?? [])].map((p) => ({ ...p, ...peakOverrides?.[p.id] }));
+export const SEED_SPOTS: Spot[] = seed.map(({ peakOverrides, ...s }) => {
+  const peaks = (SPOT_GUIDES[s.id]?.peaks ?? []).map((p) => ({ ...p, ...peakOverrides?.[p.id] }));
   return {
     region: 'Fuerteventura',
     source: SRC,
@@ -518,6 +550,6 @@ export const SEED_SPOTS: Spot[] = seed.map(({ peakOverrides, extraPeaks, ...s })
     coordsApprox: true,
     ...s,
     peaks,
-    guide: guideFor(s.id),
+    guide: SPOT_GUIDES[s.id]?.guide,
   };
 });

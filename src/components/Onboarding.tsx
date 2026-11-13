@@ -9,7 +9,6 @@ import {
   PADDLE_OPTIONS,
   profileCheck,
   profileForStage,
-  profileSummary,
   REEF_OPTIONS,
   STAGES,
   STEEP_OPTIONS,
@@ -17,6 +16,7 @@ import {
   YEARS_OPTIONS,
 } from '../lib/skill';
 import { ActionBar } from './ui';
+import StageCard from './StageCard';
 
 type StepId = 'stage' | 'comfort' | 'max' | 'board' | 'reef' | 'paddle' | 'steep' | 'often' | 'water' | 'summary';
 const STEPS: { id: StepId; optional?: boolean }[] = [
@@ -133,9 +133,9 @@ export default function Onboarding({ settings, go, first, startAt }: { settings:
       lead = 'Optional.';
       body = (
         <>
-          <h3 className="small">How often do you surf?</h3>
+          <h3 className="small ob-group">How often do you surf?</h3>
           <ul className="ob-options">{FREQUENCY_OPTIONS.map((o) => option(o.v, draft.frequency === o.v, o.label, () => set({ frequency: o.v })))}</ul>
-          <h3 className="small">For how long have you been surfing?</h3>
+          <h3 className="small ob-group">For how long have you been surfing?</h3>
           <ul className="ob-options">{YEARS_OPTIONS.map((o) => option(o.v, draft.years === o.v, o.label, () => set({ years: o.v })))}</ul>
         </>
       );
@@ -150,7 +150,7 @@ export default function Onboarding({ settings, go, first, startAt }: { settings:
       title = first ? "That's you" : 'Your surfing';
       body = (
         <>
-          <p className="ob-summary">{profileSummary(draft, unit)}</p>
+          <StageCard profile={draft} unit={unit} />
           {check && <div className="alert soft">{check}</div>}
           <label className="row gap" style={{ alignItems: 'flex-start', marginTop: 'var(--sp-3)' }}>
             <input type="checkbox" checked={!!draft.wantsChallenge} onChange={(e) => set({ wantsChallenge: e.target.checked })} />
@@ -173,7 +173,7 @@ export default function Onboarding({ settings, go, first, startAt }: { settings:
   }
 
   return (
-    <div className="onboarding">
+    <div className="onboarding with-action-bar">
       {step.id !== 'summary' && (
         <div className="ob-progress" aria-label={`Question ${i + 1} of ${QUESTIONS}`}>
           {STEPS.slice(0, -1).map((s, k) => (
@@ -185,7 +185,6 @@ export default function Onboarding({ settings, go, first, startAt }: { settings:
       <h1>{title}</h1>
       {lead && <p className="lead">{lead}</p>}
       {body}
-      {step.id !== 'summary' && <p className="ob-note">You can change this anytime under Settings → Your surfing.</p>}
       <ActionBar note={step.id !== 'summary' ? `${i + 1} of ${QUESTIONS}${step.optional ? ' · optional' : ''}` : undefined}>
         {(i > 0 || !first) && (
           <button className="btn" onClick={back}>

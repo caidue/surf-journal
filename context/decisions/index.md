@@ -16,6 +16,7 @@ Accepted decisions (numbered) and pending ones.
 * [0012: No peak split in session logs](0012-no-peak-split-in-sessions.md) - Sessions are per spot, not per peak.
 * [0013: Add the spots other services list](0013-add-spots-other-services-list.md) - Corralejo Beach and Playa los Matos (Surfline) and Suicides (surf-forecast, Wannasurf) became built-in spots in seed 5.
 * [0014: Link to Surfline and surf-forecast, never fetch from them](0014-link-out-never-fetch.md) - External spot ids are only used to build links; no data is requested from or copied out of those services.
+* [0015: Split El Hierro into three spots](0015-split-el-hierro.md) - Izquierda del Hierro, Derecha de los Alemanes and The Bubble are separate spots again (seed 6), as most guides list them.
 
 # Pending decisions
 

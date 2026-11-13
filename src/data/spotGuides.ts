@@ -578,19 +578,9 @@ export const SPOT_GUIDES: Record<string, { peaks: Peak[]; guide: SpotGuide }> = 
   "fv-el-hierro": {
     "peaks": [
       {
-        "id": "derecha",
-        "name": "Derecha de los Alemanes",
-        "description": "Right-hander with fast and softer sections that can barrel. Needs more swell than the left to work well.",
-        "breakType": "reef",
-        "bottom": "reef",
-        "direction": "right",
-        "level": "advanced",
-        "goodWhen": "Best at low tide (surfable on all tides) in a medium N–NW swell of about 1–3 m with S–SE wind."
-      },
-      {
-        "id": "izquierda",
-        "name": "La Izquierda",
-        "description": "Long, fast and powerful left over volcanic reef with tube sections on the bigger winter swells. The main wave here and very popular.",
+        "id": "main",
+        "name": "Izquierda del Hierro",
+        "description": "Long, fast and powerful left over volcanic reef on the west side of the bay, with tube sections on the bigger winter swells. The main wave here and very popular.",
         "breakType": "reef",
         "bottom": "reef",
         "direction": "left",
@@ -621,8 +611,7 @@ export const SPOT_GUIDES: Record<string, { peaks: Peak[]; guide: SpotGuide }> = 
         "sea urchins – wear booties",
         "shallow volcanic reef",
         "currents and rips",
-        "crowds and localism on good days",
-        "right can close out"
+        "crowds and localism on good days"
       ],
       "parking": "Drive to Majanicho, then 3–4 min west on the unpaved coast track; cars can be left close to the break. A hire car is essentially needed.",
       "facilities": [
@@ -631,16 +620,71 @@ export const SPOT_GUIDES: Record<string, { peaks: Peak[]; guide: SpotGuide }> = 
         "Shops and surf schools in Corralejo, Lajares or El Cotillo"
       ],
       "sources": [
-        "https://www.fuerteventuraplayas.com/en/spot/derecha-de-los-alemanes/",
         "https://www.fuerteventuraplayas.com/en/spot/izquiera-del-hierro/",
-        "http://en.wannasurf.com/spot/Europe/Canary/Fuerte_Ventura/derecha_de_los_alemanes/",
-        "http://en.wannasurf.com/spot/Europe/Canary/Fuerte_Ventura/hierro_left/",
+        "https://en.wannasurf.com/spot/Europe/Canary/Fuerte_Ventura/hierro_left/index.html",
+        "https://www.surf-forecast.com/breaks/Izquierda",
+        "https://www.surfline.com/surf-report/the-bubble-hierro-right-/5842041f4e65fad6a7708cbf",
         "https://www.hellocanaryislands.com/surfing/fuerteventura/surfing-at-el-hierro/",
         "https://thesurfatlas.com/?p=4307",
         "https://vvanat.fr/blog/carte-spot-surf-corralejo/",
         "https://planetsurfcamps.co.uk/surf-camps-canary-islands/surf-camp-fuerteventura/surfspots-fuerteventura",
+        "https://www.openstreetmap.org/way/684879297"
+      ]
+    }
+  },
+  "fv-derecha-alemanes": {
+    "peaks": [
+      {
+        "id": "main",
+        "name": "Derecha de los Alemanes",
+        "description": "Right-hander off the reef on the east side of the bay, with fast and softer sections that can barrel. Needs more swell than the left.",
+        "breakType": "reef",
+        "bottom": "reef",
+        "direction": "right",
+        "level": "advanced",
+        "goodWhen": "A medium N–NW swell of about 1–3 m with S–SE wind. Works on all tides (one guide prefers low tide); N or NW wind makes it mushy."
+      }
+    ],
+    "guide": {
+      "season": [
+        1,
+        2,
+        3,
+        11,
+        12
+      ],
+      "seasonNote": "Winter groundswell season (about Nov–Mar); summer is mostly flat.",
+      "boards": [
+        "Shortboard"
+      ],
+      "access": {
+        "paddleOut": "Enter at the small tidal pool in the bay (locals use the rocky ridge just right of it). Aim for the middle of the bay – the current drags you left into a small cove.",
+        "paddleIn": "Let the whitewater carry you in on the east side of the bay; avoid the cove on the left, which fills with rotting seaweed.",
+        "easier": "Medium swell with light S–SE wind.",
+        "harder": "Bigger swells strengthen the current; N or NW wind makes the right mushy."
+      },
+      "warnings": [
+        "sea urchins – wear booties",
+        "shallow volcanic reef",
+        "rips",
+        "crowds and localism on good days",
+        "can close out"
+      ],
+      "parking": "Park where the other cars are on the coast track above the El Hierro bay (3–4 min west of Majanicho), with the right on your right and the left on your left as you face the sea. A hire car is essentially needed.",
+      "facilities": [
+        "Nothing at the break, no lifeguard",
+        "Café Bar El Perdido a short walk inland (OSM; check hours)",
+        "Shops and surf schools in Corralejo, Lajares or El Cotillo"
+      ],
+      "sources": [
+        "https://www.fuerteventuraplayas.com/en/spot/derecha-de-los-alemanes/",
+        "https://en.wannasurf.com/spot/Europe/Canary/Fuerte_Ventura/derecha_de_los_alemanes/index.html",
+        "https://www.surf-forecast.com/breaks/Los-Alemanes",
         "https://www.surf-forecast.com/breaks/Heirro_Derechadelos-Alemanes",
-        "https://www.openstreetmap.org/"
+        "https://www.surfline.com/surf-report/the-bubble-hierro-right-/5842041f4e65fad6a7708cbf",
+        "https://vvanat.fr/blog/carte-spot-surf-corralejo/",
+        "https://www.windguru.cz/1209824",
+        "https://www.openstreetmap.org/way/684879297"
       ]
     }
   },
@@ -680,7 +724,7 @@ export const SPOT_GUIDES: Record<string, { peaks: Peak[]; guide: SpotGuide }> = 
         "strong currents",
         "crowded with tight-knit locals, especially weekends"
       ],
-      "parking": "On the unpaved north-shore track just west of El Hierro / Majanicho; no formal car park.",
+      "parking": "On the unpaved North Shore track between Majanicho and the El Hierro bay, above La Derecha beach; no formal car park.",
       "facilities": [
         "No facilities or lifeguard",
         "Café Bar El Perdido near El Hierro (OSM)",
@@ -693,7 +737,9 @@ export const SPOT_GUIDES: Record<string, { peaks: Peak[]; guide: SpotGuide }> = 
         "https://planetsurfcamps.co.uk/surf-camps-canary-islands/surf-camp-fuerteventura/surfspots-fuerteventura",
         "https://www.puresurfcamps.com/en/blog/fuerteventura-surf-guide/",
         "https://thesurfatlas.com/surfing-in-canary-islands/fuerteventura-surf/",
-        "https://surfnerd.com/surf-forecast/the-bubble-hierro-right"
+        "https://surfnerd.com/surf-forecast/the-bubble-hierro-right",
+        "https://www.surfline.com/surf-report/the-bubble-hierro-right-/5842041f4e65fad6a7708cbf",
+        "https://www.openstreetmap.org/way/684879298"
       ]
     }
   },
