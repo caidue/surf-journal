@@ -217,13 +217,6 @@ export interface SpotRec {
 /** Wind models disagreeing by this much (deg) at the best hour is worth saying. */
 export const WIND_UNSURE_DEG = 45;
 
-/** Is a session worth it for you today, judged on the best pick's score (0–10)? */
-export function dayVerdict(bestScore: number | null | undefined): { label: string; tone: 'go' | 'maybe' | 'no' } {
-  if (bestScore == null || bestScore < 3) return { label: 'Not much for you', tone: 'no' };
-  if (bestScore < 5) return { label: 'Marginal', tone: 'maybe' };
-  return { label: 'Worth going', tone: 'go' };
-}
-
 export function daylight(days: DayInfo[] | undefined, date: string): [number, number] {
   const d = days?.find((x) => x.date === date);
   const rise = isoToMin(d?.sunrise) ?? 7 * 60;

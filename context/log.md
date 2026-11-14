@@ -2,6 +2,13 @@
 
 ## 2026-11-14
 
+* **Update** of [Releases](/operations/releases.md): 1.4.1 committed, tagged `v1.4.1` and pushed.
+* **Update**: removed the photo dot on the spot view's Guide tab (no knowledge file described it).
+* **Update** of [Spot view](/features/spot-view.md) (fixed popup height) and [Onboarding](/features/onboarding.md) (edit mode: "Done" saves and returns, no summary).
+* **Update** of [Explore](/features/explore.md): Best picks is a collapsible section, remembered per device.
+* **Update** of [Spot view](/features/spot-view.md) (new Best time tab with the recommendation and the forecast for those hours), [Forecast table](/features/forecast-table.md) (`only`, `legend`; no Best tag or window line) and [Day recommendation](/engine/day-recommendation.md).
+* **Update** of [Forecast table](/features/forecast-table.md): the tide curve spans the full width.
+* **Update** of [Forecast table](/features/forecast-table.md) (now marker), [Explore](/features/explore.md) and [Day recommendation](/engine/day-recommendation.md) (day badge removed), [UI shell](/architecture/ui-shell.md) (reason marks in the text colour), [Releases](/operations/releases.md) (1.4.1) and [pending: threshold tuning](/decisions/pending/threshold-tuning.md).
 * **Update** of [Releases](/operations/releases.md): 1.4.0 committed, tagged `v1.4.0` and pushed.
 * **Update** of [UI shell](/architecture/ui-shell.md): reasons use ✓ / − / ✕ instead of coloured dots; explanation, reasons and timing notes share one icon column.
 * **Creation** of [How sure a rating is](/engine/confidence.md) and [decision 0019](/decisions/0019-rating-confidence.md) (confidence per rating, withheld ratings for undocumented expert reefs at low tide).

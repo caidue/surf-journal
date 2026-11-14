@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { Session, Settings, Spot } from '../types';
 import { useConditions } from '../hooks';
 import { tideExtremes, windKind, WIND_LABEL, type WindKind } from '../lib/conditions';
@@ -17,13 +17,13 @@ import SpotGuide from './SpotGuide';
 import { sessionSummary } from './Journal';
 import { ConditionsStatus, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons, TimingNotes, SureBadge } from './ui';
 
-export type SpotTab = 'forecast' | 'guide' | 'sessions' | 'info';
+export type SpotTab = 'forecast' | 'guide' | 'sessions' | 'info' | 'best';
 const TAB_KEY = 'surf-journal.spotTab';
 
 function loadTab(): SpotTab {
   try {
     const t = localStorage.getItem(TAB_KEY);
-    return t === 'guide' || t === 'sessions' || t === 'info' ? t : 'forecast';
+    return t === 'guide' || t === 'sessions' || t === 'info' || t === 'best' ? t : 'forecast';
   } catch {
     return 'forecast';
   }
@@ -44,9 +44,10 @@ interface Props {
 }
 
 /**
- * Everything about one spot, in tabs: Forecast (best time, tides, hourly table), Guide (peaks,
- * season, access, warnings, parking, photos), Your sessions (with how similar each was to the
- * chosen day, and what your ratings say) and Spot info (how it works, map, size factor).
+ * Everything about one spot, in tabs: Forecast (hourly table, tides), Guide (peaks, season,
+ * access, warnings, parking, photos), Info (how it works, what the app knows, map, size factor),
+ * Best time (the recommendation for you, with the forecast for just those hours) and Sessions
+ * (with how similar each was to the chosen day, and what your ratings say).
  */
 export default function SpotView({ spot, spots, sessions, settings, go, mode, initialDay = 0, headerActions, titleId }: Props) {
   const today = todayAt();
@@ -101,21 +102,18 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
   const dayOptions = [0, 1, 2].map((o) => ({ id: String(o), label: o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : fmtDate(addDays(today, o), { weekday: 'long' }) }));
   const dayWord = dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : 'that day';
   const best = rec?.best ?? null;
-  // The recommendation card is hidden at first: the table comes first, and the best window's
-  // "Best" tag in the table (or the "Why?" link on days without one) opens it.
-  const [bestOpen, setBestOpen] = useState(false);
-  const bestRef = useRef<HTMLDivElement>(null);
-  const toggleBest = () => setBestOpen((o) => !o);
-  useEffect(() => {
-    if (bestOpen) bestRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [bestOpen]);
-  const photoCount = spot.guide?.photos?.length ?? 0;
+  // The hours the recommendation is about: the best window, or the best hour on a day with
+  // nothing much for you (shown as a short forecast in the Best time tab).
+  const goodWindow = !!(rec?.bestWindow && best && best.score > 0.5);
+  const bestMin = best ? isoToMin(best.time) ?? 0 : 0;
+  const bestHours: [number, number] | null = goodWindow ? rec!.bestWindow : best ? [bestMin, bestMin + 60] : null;
 
-  const tabs: { id: SpotTab; label: string; icon: IconName }[] = [
+  const tabs: { id: SpotTab; label: string; icon: IconName; short?: string }[] = [
     { id: 'forecast', label: 'Forecast', icon: 'forecast' },
     { id: 'guide', label: 'Guide', icon: 'guide' },
     { id: 'info', label: 'Info', icon: 'info' },
-    { id: 'sessions', label: `Sessions${mySessions.length ? ` (${mySessions.length})` : ''}`, icon: 'sessions' },
+    { id: 'best', label: 'Best time', icon: 'clock', short: 'Best' },
+    { id: 'sessions', label: `Sessions${mySessions.length ? ` (${mySessions.length})` : ''}`, icon: 'sessions', short: 'Sessions' },
   ];
 
   return (
@@ -145,8 +143,8 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
           {tabs.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
               <Icon name={t.icon} size={18} />
-              <span>{t.label}</span>
-              {t.id === 'guide' && photoCount > 0 && <span className="tab-dot" aria-hidden />}
+              <span className={t.short ? 'tab-long' : undefined}>{t.label}</span>
+              {t.short && <span className="tab-short">{t.short}</span>}
             </button>
           ))}
         </div>
@@ -166,42 +164,6 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                   </button>
                 </div>
               )}
-              {best && !(rec?.bestWindow && best.score > 0.5) && (
-                <button type="button" className="link small best-toggle" aria-expanded={bestOpen} aria-controls="sv-best" onClick={toggleBest}>
-                  Not much for you {dayWord} · {bestOpen ? 'Hide why' : 'Why?'}
-                </button>
-              )}
-              {best && bestOpen && (
-                <div className="sheet-best" id="sv-best" ref={bestRef}>
-                  <div className="row gap wrap">
-                    <SuitBadge status={best.suit.status} />
-                    {rec?.bestWindow && best.score > 0.5 ? (
-                      <strong>
-                        Best {fmtMin(rec.bestWindow[0])}–{fmtMin(rec.bestWindow[1])}
-                      </strong>
-                    ) : (
-                      <strong>Not much for you {dayWord}</strong>
-                    )}
-                    <span className="small">
-                      {fmtSurf(best.derived.hb, settings.heightUnit)} · {best.derived.tDom ? `${Math.round(best.derived.tDom)} s · ` : ''}
-                      {WIND_LABEL[windKind(best.derived) ?? 'glassy']} {fmtWind(best.derived.windSpeed, settings.windUnit)}
-                    </span>
-                    <SureBadge sure={best.sure} />
-                  </div>
-                  {best.peak && (
-                    <div className="peak-pick">
-                      Best for you: <strong>{best.peak.name}</strong>
-                    </div>
-                  )}
-                  {rec && <TimingNotes rec={rec} />}
-                  <SuitReasons suit={best.suit} />
-                  <ul className="explain">
-                    {explain(best, (s) => fmtDate(s.date)).map((l) => (
-                      <li key={l}>{l}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
               {rec && series ? (
                 <ForecastTable
                   spot={spot}
@@ -212,8 +174,6 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                   settings={settings}
                   tides={tides}
                   gridMates={gridMates}
-                  bestOpen={bestOpen}
-                  onToggleBest={toggleBest}
                 />
               ) : (
                 <p className="muted">{loading ? 'Loading forecast…' : 'No forecast available for this spot.'}</p>
@@ -233,6 +193,67 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                 </div>
               )}
               {series && <p className="muted tiny">Data: {series.source}. Weather and marine data by Open-Meteo.com (CC BY 4.0).</p>}
+            </>
+          )}
+
+          {tab === 'best' && (
+            <>
+              <div className="sheet-day">
+                <Segmented options={dayOptions} value={String(dayOffset)} onChange={(v) => setDayOffset(Number(v))} />
+              </div>
+              <ConditionsStatus error={error} offline={offline} savedAt={savedAt} onRetry={reload} />
+              {rec?.dayOver && (
+                <div className="alert soft">
+                  No daylight left today.{' '}
+                  <button className="link" onClick={() => setDayOffset(1)}>
+                    Show tomorrow
+                  </button>
+                </div>
+              )}
+              {best ? (
+                <>
+                  <div className="sheet-best">
+                    <div className="row gap wrap">
+                      <SuitBadge status={best.suit.status} />
+                      {goodWindow ? (
+                        <strong>
+                          Best {fmtMin(rec!.bestWindow![0])}–{fmtMin(rec!.bestWindow![1])}
+                        </strong>
+                      ) : (
+                        <strong>Not much for you {dayWord}</strong>
+                      )}
+                      <span className="small">
+                        {fmtSurf(best.derived.hb, settings.heightUnit)} · {best.derived.tDom ? `${Math.round(best.derived.tDom)} s · ` : ''}
+                        {WIND_LABEL[windKind(best.derived) ?? 'glassy']} {fmtWind(best.derived.windSpeed, settings.windUnit)}
+                      </span>
+                      <SureBadge sure={best.sure} />
+                    </div>
+                    {best.peak && (
+                      <div className="peak-pick">
+                        Best for you: <strong>{best.peak.name}</strong>
+                      </div>
+                    )}
+                    {rec && <TimingNotes rec={rec} />}
+                    <SuitReasons suit={best.suit} />
+                    <ul className="explain">
+                      {explain(best, (s) => fmtDate(s.date)).map((l) => (
+                        <li key={l}>{l}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  {rec && series && bestHours && (
+                    <>
+                      <h4 className="best-hours-title">{goodWindow ? 'The forecast for these hours' : 'The forecast for the least bad hour'}</h4>
+                      <ForecastTable spot={spot} rec={rec} series={series} date={date} isToday={date === today} settings={settings} tides={tides} gridMates={gridMates} only={bestHours} legend={false} />
+                    </>
+                  )}
+                  <button className="link small" onClick={() => setTab('forecast')}>
+                    See the whole day in Forecast
+                  </button>
+                </>
+              ) : rec?.dayOver ? null : (
+                <p className="muted">{loading ? 'Loading forecast…' : 'No forecast available for this spot.'}</p>
+              )}
             </>
           )}
 

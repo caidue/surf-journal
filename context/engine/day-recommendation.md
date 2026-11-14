@@ -6,7 +6,7 @@ resource: "src/lib/recommend.ts"
 tags: ["engine", "recommendation"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T20:30:00+00:00"
+  at: "2026-11-14T22:20:00+00:00"
 ---
 # Day recommendation and best picks
 
@@ -20,6 +20,6 @@ generated:
 * `sure` on every hour ([How sure a rating is](/engine/confidence.md)): Reliable / Less certain / Rough guide, or `withheld` (score 0, never a best window);
 * `windUnsure`: the wind models disagree by ≥ 45° at the best hour → "check the wind before you go".
 
-`TimingNotes` (ui.tsx) shows these under each pick (day mode) and on the spot's recommendation card. `dayVerdict(bestScore)`: Worth going ≥ 5, Marginal ≥ 3, else Not much for you; shown next to "Best picks for you …".
+`TimingNotes` (ui.tsx) shows these under each pick (day mode) and on the spot's recommendation card (Best time tab).
 
 **Best picks** (Explore): the top three spots by best-window score ("Today") or by this hour's score ("Now"), with score > 0.5. Every pick shows the explanation (incl. "Local knowledge (sources agree): …" lines for rules that changed the hour) and suitability reasons.

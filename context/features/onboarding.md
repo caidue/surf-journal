@@ -9,7 +9,7 @@ sources:
     id: "report"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T01:10:00+00:00"
+  at: "2026-11-14T23:10:00+00:00"
 ---
 # Onboarding: Your surfing
 
@@ -26,4 +26,4 @@ Screens (single-choice answers advance automatically; the page carries `with-act
 8. How often and how long (optional; two question groups with space between them)
 9. Out of your depth without the board (optional)
 
-Then a summary ("That's you"): the [stage card](/features/settings.md), a gentle check, "I want to push my limits" (Stretch session), a short explanation of how the profile is used and nudged, and links to change any answer. Save → Explore (first launch) or Settings. Edit mode adds "Done" to jump to the summary.
+At first launch the questions end on a summary ("That's you"): the [stage card](/features/settings.md), a gentle check, "I want to push my limits" (Stretch session), a short explanation of how the profile is used and nudged, and links to change any answer; "Start surfing" saves and opens Explore. **Edit mode** (from Settings, `#/surfing`, `?step=…`) has no summary: "Done" on every question saves and goes back to Settings, and on the last question it replaces "Next".

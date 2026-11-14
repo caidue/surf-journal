@@ -42,8 +42,8 @@ export default function ForecastTable({
   settings,
   tides,
   gridMates,
-  bestOpen = false,
-  onToggleBest,
+  only,
+  legend = true,
 }: {
   spot: Spot;
   rec: SpotRec;
@@ -53,9 +53,10 @@ export default function ForecastTable({
   settings: Settings;
   tides: TideExtreme[];
   gridMates: string[];
-  /** The recommendation card (shown above the table) is open: the best window's tag toggles it. */
-  bestOpen?: boolean;
-  onToggleBest?: () => void;
+  /** Show only the hours of this window (minutes after midnight), e.g. the recommended time. */
+  only?: [number, number] | null;
+  /** Show the legend below the table (off for the short table in the Best time tab). */
+  legend?: boolean;
 }) {
   const grid = gridOf(series);
   const scroller = useRef<HTMLDivElement>(null);
@@ -75,17 +76,23 @@ export default function ForecastTable({
     }
   };
   const [rise, set] = daylight(series.days, date);
-  const h0 = Math.max(0, Math.floor(rise / 60) - 1);
-  const h1 = Math.min(23, Math.ceil(set / 60));
+  // The whole day (one hour before sunrise to sunset), or just the hours of `only`.
+  const h0 = only ? Math.floor(only[0] / 60) : Math.max(0, Math.floor(rise / 60) - 1);
+  const h1 = only ? Math.max(h0, Math.ceil(only[1] / 60) - 1) : Math.min(23, Math.ceil(set / 60));
   const cols = rec.hours.filter((r) => {
     const h = Math.floor((isoToMin(r.time) ?? 0) / 60);
     return h >= h0 && h <= h1;
   });
-  const nowH = isToday ? Math.floor(nowMinutesAt(series.utcOffsetSeconds) / 60) : null;
+  // Re-render every minute so the "now" marker moves along.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!isToday) return;
+    const t = setInterval(() => setTick((x) => x + 1), 60_000);
+    return () => clearInterval(t);
+  }, [isToday]);
+  const nowMin = isToday ? nowMinutesAt(series.utcOffsetSeconds) : null;
+  const nowH = nowMin == null ? null : Math.floor(nowMin / 60);
   const win = rec.bestWindow;
-  // An hour column belongs to the best window if any part of that hour does (e.g. 07:00 for 07:17–09:00).
-  const inWin = (m: number) => !!win && !!rec.best && rec.best.score > 0.5 && m + 60 > win[0] && m < win[1];
-  const firstWin = cols.find((c) => inWin(isoToMin(c.time) ?? 0))?.time;
 
   // Start the table at the current hour (today) or the best window, so the useful part is in view.
   useEffect(() => {
@@ -98,6 +105,11 @@ export default function ForecastTable({
   }, [date, spot.id]);
 
   if (!cols.length) return <p className="muted">No forecast hours for this day.</p>;
+
+  // The current time as a marker at the top of the table (and a faint line down), to the minute.
+  const firstH = Math.floor((isoToMin(cols[0].time) ?? 0) / 60);
+  const nowOff = nowMin == null ? null : (nowMin / 60 - firstH) * COL_W;
+  const nowX = nowOff != null && nowOff >= 0 && nowOff <= cols.length * COL_W ? 84 + nowOff : null;
 
   const raw = cols.map((r) => series.hours[r.idx]);
   const trains = raw.map(slots);
@@ -112,13 +124,21 @@ export default function ForecastTable({
   const lv = raw.map((h) => h.seaLevel);
   const vals = lv.filter((v): v is number => v != null);
   const ext = tides.filter((t) => t.min / 60 >= h0 - 0.5 && t.min / 60 <= h1 + 0.5);
-  const all = [...vals, ...ext.map((t) => t.level)];
+  // Each value sits in the middle of its hour column; the curve is extended to both edges of the
+  // table with the level half an hour before the first and after the last hour (neighbouring hours).
+  const edge = (inside: number | null, outside: number | null | undefined) => (inside == null ? null : outside == null ? inside : (inside + outside) / 2);
+  const leftLv = edge(lv[0], series.hours[cols[0].idx - 1]?.seaLevel);
+  const rightLv = edge(lv[lv.length - 1], series.hours[cols[cols.length - 1].idx + 1]?.seaLevel);
+  const all = [...vals, ...ext.map((t) => t.level), ...[leftLv, rightLv].filter((v): v is number => v != null)];
   const lo = Math.min(...all);
   const hi = Math.max(...all);
   const TH = 64;
   const ty = (v: number) => 18 + (1 - (v - lo) / Math.max(0.1, hi - lo)) * (TH - 36);
   const tx = (hours: number) => (hours - h0) * COL_W + COL_W / 2;
-  const pts = cols.map((c, i) => (lv[i] == null ? null : ([tx(Math.floor((isoToMin(c.time) ?? 0) / 60)), ty(lv[i]!)] as const))).filter(Boolean) as (readonly [number, number])[];
+  const inner = cols.map((c, i) => (lv[i] == null ? null : ([tx(Math.floor((isoToMin(c.time) ?? 0) / 60)), ty(lv[i]!)] as const))).filter(Boolean) as (readonly [number, number])[];
+  const pts = inner.length
+    ? ([...(leftLv != null ? [[0, ty(leftLv)] as const] : []), ...inner, ...(rightLv != null ? [[W, ty(rightLv)] as const] : [])] as (readonly [number, number])[])
+    : inner;
   const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
   const area = pts.length ? `${line} L${pts[pts.length - 1][0]},${TH} L${pts[0][0]},${TH} Z` : '';
 
@@ -142,8 +162,9 @@ export default function ForecastTable({
   };
 
   return (
-    <div className="fc-wrap">
+    <div className={`fc-wrap${only ? ' fit' : ''}`}>
       <div className="fc-scroll" ref={scroller}>
+        {nowX != null && <div className="fc-now" style={{ left: nowX }} title={`Now, ${fmtMin(nowMin!)}`} aria-label={`Now, ${fmtMin(nowMin!)}`} />}
         <table className="fc" style={{ width: 84 + W }}>
           <tbody>
             <tr className="fc-time">
@@ -151,34 +172,10 @@ export default function ForecastTable({
               {cols.map((c) => {
                 const m = isoToMin(c.time) ?? 0;
                 const h = Math.floor(m / 60);
-                const w = inWin(m) && !!onToggleBest;
                 return (
-                  <td
-                    key={c.time}
-                    className={`${c.daylight ? '' : 'night'}${h === nowH ? ' now' : ''}${inWin(m) ? ' win' : ''}${w ? ' win-toggle' : ''}`}
-                    onClick={w ? onToggleBest : undefined}
-                    title={w ? `Best time for you: ${fmtMin(win![0])}–${fmtMin(win![1])}. ${bestOpen ? 'Hide' : 'Show'} the recommendation.` : undefined}
-                  >
+                  <td key={c.time} className={`${c.daylight ? '' : 'night'}${h === nowH ? ' now' : ''}`}>
                     {String(h).padStart(2, '0')}
                     {h === nowH && <span className="now-tag">now</span>}
-                    {w && c.time === firstWin && (
-                      <button
-                        type="button"
-                        className="win-tag"
-                        aria-expanded={bestOpen}
-                        aria-controls="sv-best"
-                        aria-label={`${bestOpen ? 'Hide' : 'Show'} the recommendation for ${fmtMin(win![0])}–${fmtMin(win![1])}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleBest!();
-                        }}
-                      >
-                        Best
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
-                          <path d={bestOpen ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'} />
-                        </svg>
-                      </button>
-                    )}
                   </td>
                 );
               })}
@@ -385,6 +382,7 @@ export default function ForecastTable({
           </tbody>
         </table>
       </div>
+      {legend && (
       <div className="fc-legend muted tiny">
         <span>Spot = how good the waves are (Poor, Poor–Fair, Fair, Fair–Good, Good, Epic above 9) · For you = predicted fun with your surfing profile{rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}</span>
         <span>Surf = estimated face height at the spot (±20 %) · Swell = strongest train offshore, peak period (as surf sites show it){estimated ? ' · some periods estimated from mean periods' : ''}</span>
@@ -405,6 +403,7 @@ export default function ForecastTable({
           ))}
         </span>
       </div>
+      )}
     </div>
   );
 }

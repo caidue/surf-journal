@@ -34,9 +34,9 @@ const STEPS: { id: StepId; optional?: boolean }[] = [
 const QUESTIONS = STEPS.length - 1;
 
 /**
- * "Your surfing": six short questions and three optional ones, then a one-line summary. Shown at
- * first launch (no profile yet) and from Settings → Your surfing (`#/surfing`, `?step=comfort`
- * jumps straight to the comfortable size). Every screen says it can be changed later.
+ * "Your surfing": six short questions and three optional ones. At first launch (no profile yet)
+ * they end on a summary with "Start surfing"; from Settings → Your surfing (`#/surfing`,
+ * `?step=comfort` jumps straight to the comfortable size) "Done" saves and goes back to Settings.
  */
 export default function Onboarding({ settings, go, first, startAt }: { settings: Settings; go: (p: string) => void; first: boolean; startAt?: string | null }) {
   const [draft, setDraft] = useState<SkillProfile>(() => settings.profile ?? profileForStage(4));
@@ -46,7 +46,10 @@ export default function Onboarding({ settings, go, first, startAt }: { settings:
   const unit = settings.heightUnit;
   const h = (m: number) => (unit === 'ft' ? `${Math.round(m * 3.281)} ft` : `${m.toFixed(1)} m`);
   const set = (patch: Partial<SkillProfile>) => setDraft((d) => ({ ...d, ...patch }));
-  const next = () => setI((x) => Math.min(STEPS.length - 1, x + 1));
+  // At first launch the questions end on a summary; when editing, they stop at the last question
+  // and "Done" saves straight away.
+  const lastStep = first ? STEPS.length - 1 : QUESTIONS - 1;
+  const next = () => setI((x) => Math.min(lastStep, x + 1));
   const back = () => (i === 0 ? go('settings') : setI((x) => x - 1));
   /** Choose and move on (single-choice questions). */
   const pick = (patch: Partial<SkillProfile>) => {
@@ -198,13 +201,15 @@ export default function Onboarding({ settings, go, first, startAt }: { settings:
         ) : (
           <>
             {!first && (
-              <button className="btn" onClick={() => setI(STEPS.length - 1)}>
+              <button className={`btn${i === lastStep ? ' primary' : ''}`} onClick={save}>
                 Done
               </button>
             )}
-            <button className="btn primary" onClick={next}>
-              {step.optional && !answered(step.id, draft) ? 'Skip' : 'Next'}
-            </button>
+            {i < lastStep && (
+              <button className="btn primary" onClick={next}>
+                {step.optional && !answered(step.id, draft) ? 'Skip' : 'Next'}
+              </button>
+            )}
           </>
         )}
       </ActionBar>

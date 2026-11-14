@@ -684,6 +684,33 @@ label.field,
 .best-pick .section-head {
   margin-bottom: var(--sp-3);
 }
+.best-pick.collapsed .section-head {
+  margin-bottom: 0;
+}
+/* The whole section folds away from its heading; the state is remembered (localStorage). */
+.picks-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap-sm);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.picks-toggle .eyebrow {
+  margin: 0;
+}
+.picks-toggle .chev {
+  flex: none;
+  transition: transform 0.15s ease;
+}
+.best-pick.collapsed .picks-toggle .chev {
+  transform: rotate(-90deg);
+}
 .pick-list {
   list-style: none;
   margin: 0;
@@ -739,18 +766,6 @@ td.fc-rating.withheld .fc-q,
   background: var(--line-2);
   font-weight: 700;
 }
-/* Day verdict next to "Best picks for you …". */
-.verdict {
-  margin-left: var(--sp-2);
-  border-radius: var(--r-pill);
-  padding: 1px 8px;
-  font-size: 0.6875rem;
-  letter-spacing: 0.02em;
-  vertical-align: 1px;
-}
-.verdict.go { background: #dcfce7; color: #15803d; }
-.verdict.maybe { background: #fef3c7; color: #b45309; }
-.verdict.no { background: var(--line-2); color: var(--muted); }
 /* "Go early: the wind turns onshore around 13:00", "the models disagree", "fairly even day". */
 .timing-notes {
   margin: var(--sp-2) 0;
@@ -797,10 +812,10 @@ td.fc-rating.withheld .fc-q,
   width: 1.1em;
   text-align: center;
   font-weight: 700;
+  color: var(--ink);
 }
 .explain li::before {
   content: '›';
-  color: var(--muted);
 }
 .spot-list {
   display: grid;
@@ -1344,7 +1359,8 @@ ul.plain li::before {
   background: var(--panel);
   border-radius: var(--r-lg);
   width: min(840px, 100%);
-  max-height: min(90vh, 920px);
+  /* A fixed height: the popup doesn't jump in size between tabs (e.g. Sessions with one entry). */
+  height: min(90vh, 920px);
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-3);
@@ -1384,7 +1400,7 @@ ul.plain li::before {
   }
   .sheet {
     width: 100%;
-    max-height: calc(100dvh - var(--sp-6) - env(safe-area-inset-top));
+    height: calc(100dvh - var(--sp-6) - env(safe-area-inset-top));
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     animation: slide-up 0.2s ease-out;
   }
@@ -1463,18 +1479,19 @@ ul.plain li::before {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
-.tab-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #f59e0b;
+/* Long tab labels have a short form for phones. */
+.sv-tabs .tab-short {
+  display: none;
 }
 .sv-panel > :first-child {
   margin-top: 0;
 }
 .sheet-day {
   margin-bottom: var(--sp-3);
+}
+.best-hours-title {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: var(--fs-sm);
 }
 .sheet-best {
   background: var(--panel-2);
@@ -1486,10 +1503,6 @@ ul.plain li::before {
 .sheet-best .explain {
   margin: var(--sp-2) 0 0;
 }
-.best-toggle {
-  display: block;
-  margin: 0 0 var(--sp-2);
-}
 .tide-line + .muted.tiny,
 .fc-wrap + .tide-line {
   margin-top: var(--sp-2);
@@ -1498,7 +1511,7 @@ ul.plain li::before {
   padding: var(--sp-2) 0;
   border-bottom: 1px solid var(--line-2);
 }
-.sv-sessions li::before {
+ul.plain.sv-sessions li::before {
   content: none;
 }
 .sv-sessions .pct {
@@ -1518,9 +1531,11 @@ ul.plain li::before {
     padding: var(--sp-1) 0;
     font-size: 0.6875rem;
   }
-  .sv-tabs .tab-dot {
-    position: absolute;
-    margin: 0 0 18px 22px;
+  .sv-tabs .tab-long {
+    display: none;
+  }
+  .sv-tabs .tab-short {
+    display: inline;
   }
 }
 
@@ -1554,9 +1569,35 @@ ul.plain li::before {
   overflow: hidden;
   margin-bottom: var(--sp-3);
 }
+/* A few hours only (Best time tab): the frame hugs the table. */
+.fc-wrap.fit {
+  width: fit-content;
+  max-width: 100%;
+}
 .fc-scroll {
+  position: relative;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+/* The current time: a small marker at the top of the table and a faint line down (under the sticky row labels). */
+.fc-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(11, 110, 153, 0.35);
+  pointer-events: none;
+  z-index: 1;
+}
+.fc-now::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -5px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid var(--accent);
 }
 .fc {
   border-collapse: separate;
@@ -1606,9 +1647,6 @@ ul.plain li::before {
   color: var(--ink-2);
   position: relative;
 }
-.fc-time td.win {
-  box-shadow: inset 0 -3px 0 var(--good);
-}
 td.fc-wind.unsure {
   position: relative;
 }
@@ -1620,34 +1658,6 @@ td.fc-wind.unsure {
   font-size: 0.625rem;
   font-weight: 800;
   color: var(--warn);
-}
-.fc-time td.win-toggle {
-  cursor: pointer;
-}
-.fc-time td.win-toggle:hover {
-  background-color: #f0fdf4;
-}
-/* "Best ▾" on the first best-window column: opens the recommendation card above the table. */
-.win-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-top: 1px;
-  padding: 0 4px;
-  border: 0;
-  border-radius: 4px;
-  background: var(--good);
-  color: #fff;
-  font: inherit;
-  font-size: 0.625rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  line-height: 1.5;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.win-tag:hover {
-  background: #15803d;
 }
 .fc-time td.now {
   color: var(--accent);
@@ -2536,27 +2546,15 @@ h4.subsection {
 .suit-reasons li {
   margin: 2px 0;
 }
-/* ✓ for what speaks for the hour, − for what speaks against it (coloured by how much), ✕ for "not for you". */
+/* ✓ for what speaks for the hour, − for what speaks against it, ✕ for "not for you" (all in the text colour). */
 .suit-reasons li::before {
   content: '−';
-  color: var(--muted);
 }
 .suit-reasons li.plus::before {
   content: '✓';
-  color: #16a34a;
-}
-.suit-reasons li.s-ok::before {
-  color: #65a30d;
-}
-.suit-reasons li.s-stretch::before {
-  color: #0891b2;
-}
-.suit-reasons li.s-challenging::before {
-  color: #d97706;
 }
 .suit-reasons li.s-unsuitable::before {
   content: '✕';
-  color: #dc2626;
 }
 .peak-pick {
   font-size: 0.8125rem;

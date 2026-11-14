@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.1 — 2026-11-14
+
+- **New "Best time" tab** on each spot, after Info: the recommendation for you, with the forecast for just those hours. The Forecast tab shows the whole day without the "Best" tag or the green line over the best hours.
+- **Best picks can be folded away** on Explore: tap the heading. The app remembers whether you left it open or closed.
+- The spot popup keeps the same height on every tab (it used to shrink on Sessions with few or no sessions), and the stray grey dot above each session there is gone.
+- Editing your surfing from Settings: "Done" now saves and takes you straight back to Settings, without a summary page to save again.
+- Removed the orange dot on the Guide tab (it marked spots with photos but looked like a notification).
+- **Current time in the forecast:** on today's forecast a small marker at the top of the table shows the current time to the minute, with a faint line down the columns.
+- The tide curve in the forecast now spans the full width of the table.
+- Removed the "Worth going / Marginal" badge next to the best picks.
+- The ✓ / − / ✕ marks in the reasons are now in the text colour instead of green, amber and red.
+
 ## 1.4.0 — 2026-11-14
 
 - **Local knowledge now shapes the rating.** Conditional local rules apply every hour, each limited by how well its sources agree: El Muelle low tide on small swells but any tide on big ones; Majanicho's inside peaks only when the outside reefs are about 2 m+ (the A-frame 3 m+); Rocky Point outside and Suicides only on big North Shore swells; Derecha de los Alemanes mushy in N–NW wind; Bristol and Izquierda del Hierro for experts at low tide; Cotillo's Piedra Playa peaks for beginners only at lower tide and under about 1 m; La Caleta and Playa del Moro prefer lower tide on small swells. The explanation names the rule that applied.

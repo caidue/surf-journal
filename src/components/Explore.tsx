@@ -4,7 +4,7 @@ import { saveSettings } from '../db';
 import { useConditions, useMediaQuery } from '../hooks';
 import { bboxAround, bboxOf, inBBox, type BBox } from '../lib/geo';
 import { geocode, parseRegionQuery, PART_LABEL, subBox } from '../lib/geocode';
-import { buildHistory, confidence, explain, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec, dayVerdict } from '../lib/recommend';
+import { buildHistory, confidence, explain, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec } from '../lib/recommend';
 import { scoreColor } from '../lib/rating';
 import { bodyRange, bodyWord, levelName, stageBand } from '../lib/skill';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
@@ -22,6 +22,7 @@ interface Region {
   bbox: BBox;
 }
 
+const PICKS_KEY = 'surf-journal.picksOpen';
 const REGION_KEY = 'surf-journal.region';
 /** Below this width Explore shows either the map or the list, never the map with content below it. */
 export const PHONE_QUERY = '(max-width: 899px)';
@@ -168,6 +169,22 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
   // Best picks: the top three spots for the day (best time window), right now (this hour, today
   // only) or at a time you pick on the selected day.
   const [pickMode, setPickMode] = useState<'day' | 'now' | 'time'>('day');
+  // The whole Best picks section can be collapsed; remembered on this device (open the first time).
+  const [picksOpen, setPicksOpenState] = useState(() => {
+    try {
+      return localStorage.getItem(PICKS_KEY) !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const setPicksOpen = (open: boolean) => {
+    setPicksOpenState(open);
+    try {
+      localStorage.setItem(PICKS_KEY, open ? '1' : '0');
+    } catch {
+      /* per-viewer convenience only */
+    }
+  };
   const mode = dayOffset !== 0 && pickMode === 'now' ? 'day' : pickMode;
   // Daylight hours of the selected day (today: from the current hour on), as minutes after midnight.
   const pickHours = useMemo(() => {
@@ -318,16 +335,18 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
 
         <div className="list-col">
           {recs.length > 0 && (top || mode !== 'day') && (
-            <Card className="best-pick">
+            <Card className={`best-pick${picksOpen ? '' : ' collapsed'}`}>
               <div className="section-head">
-                <div className="eyebrow">
-                  Best picks for you {mode === 'now' ? 'right now' : dayOffset === 0 ? 'today' : dayOptions[dayOffset].label.toLowerCase()}
-                  {mode === 'time' && time != null ? ` at ${fmtMin(time)}` : ''}
-                  {picks.length > 0 && (() => {
-                    const v = dayVerdict(picks[0].hour.score);
-                    return <span className={`verdict ${v.tone}`}>{v.label}</span>;
-                  })()}
-                </div>
+                <button type="button" className="picks-toggle" aria-expanded={picksOpen} aria-controls="best-picks-body" onClick={() => setPicksOpen(!picksOpen)}>
+                  <svg className="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                  <span className="eyebrow">
+                    Best picks for you {mode === 'now' ? 'right now' : dayOffset === 0 ? 'today' : dayOptions[dayOffset].label.toLowerCase()}
+                    {mode === 'time' && time != null ? ` at ${fmtMin(time)}` : ''}
+                  </span>
+                </button>
+                {picksOpen && (
                 <div className="pick-controls">
                   <Segmented
                     options={[
@@ -348,7 +367,10 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                     </select>
                   )}
                 </div>
+                )}
               </div>
+              {picksOpen && (
+              <div id="best-picks-body">
               {picks.length === 0 ? (
                 <p className="muted small">
                   {darkNow
@@ -415,6 +437,8 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                     </li>
                   ))}
                 </ol>
+              )}
+              </div>
               )}
             </Card>
           )}
