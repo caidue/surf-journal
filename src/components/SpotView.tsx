@@ -122,6 +122,20 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
     { id: 'sessions', label: `Sessions${mySessions.length ? ` (${mySessions.length})` : ''}`, icon: 'sessions', short: 'Sessions' },
   ];
 
+  // In the popup the tabs sit in a fixed row between the header and the scrolling content (they never
+  // scroll); on the page they stick under the top bar.
+  const tabBar = (
+    <div className="sv-tabs" role="tablist" aria-label="Spot details">
+            {tabs.map((t) => (
+              <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
+                <Icon name={t.icon} size={18} />
+                <span className={t.short ? 'tab-long' : undefined}>{t.label}</span>
+                {t.short && <span className="tab-short">{t.short}</span>}
+              </button>
+            ))}
+          </div>
+  );
+
   return (
     <div className={`spot-view ${mode}`}>
       <header className="sv-head">
@@ -144,17 +158,11 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
         </div>
       </header>
 
+      {mode === 'sheet' && tabBar}
+
       <div className="sv-scroll" ref={scrollRef}>
         <div ref={tabsAnchor} aria-hidden />
-        <div className="sv-tabs" role="tablist" aria-label="Spot details">
-          {tabs.map((t) => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
-              <Icon name={t.icon} size={18} />
-              <span className={t.short ? 'tab-long' : undefined}>{t.label}</span>
-              {t.short && <span className="tab-short">{t.short}</span>}
-            </button>
-          ))}
-        </div>
+        {mode === 'page' && tabBar}
 
         <div className="sv-panel" role="tabpanel">
           {tab === 'forecast' && (

@@ -11,6 +11,8 @@ import { WIND_BG } from './Timeline';
 
 /** Mark the wind when the models' directions differ by this much (deg). */
 const WIND_SPREAD_WARN = 45;
+/** Show the gusts in the table only when they are this much stronger than the average wind (km/h). */
+const GUST_SHOW_KMH = 15;
 import { DirArrow } from './ui';
 
 const COL_W = 50;
@@ -178,7 +180,7 @@ export default function ForecastTable({
               })}
             </tr>
             <tr>
-              <th scope="row" title="How good the waves are at this spot, whoever you are (0–10): size, period, wind and tide. The faded part shows what the wind costs.">
+              <th scope="row" title="How good the waves are at this spot, whoever you are (0–10): size, period, wind and tide. Hover a score to see what the wind costs.">
                 Spot
                 <small>rating</small>
               </th>
@@ -187,18 +189,15 @@ export default function ForecastTable({
                 const pot = c.quality.potential;
                 if (c.sure.withheld)
                   return (
-                    <td key={c.time} className={`fc-rating withheld${night(c)}`} title={c.sure.withheld}>
-                      <span className="fc-q">?</span>
+                    <td key={c.time} className={`fc-rating${night(c)}`} title={c.sure.withheld}>
+                      <span className="fc-score withheld">?</span>
                     </td>
                   );
                 return (
                   <td key={c.time} className={`fc-rating${night(c)}`} title={`${scoreLabel(q)} · ${q.toFixed(1)}/10${pot - q > 0.3 ? ` · ${pot.toFixed(1)} without the wind` : ''}`}>
-                    <span className="fc-q" style={{ color: scoreColor(q) }}>
+                    {/* The same score pill as the For you row. */}
+                    <span className="fc-score" style={{ background: scoreColor(q), color: '#fff' }}>
                       {q.toFixed(q >= 9.95 ? 0 : 1)}
-                    </span>
-                    <span className="fc-qbar" aria-hidden>
-                      <span className="pot" style={{ width: `${pot * 10}%`, background: scoreColor(pot) }} />
-                      <span className="val" style={{ width: `${q * 10}%`, background: scoreColor(q) }} />
                     </span>
                   </td>
                 );
@@ -243,8 +242,8 @@ export default function ForecastTable({
                 const val = hb == null ? '–' : ft ? String(Math.round(hb * 3.281)) : hb.toFixed(1);
                 return (
                   <td key={c.time} className={`fc-surf${night(c)}`} title={hb == null ? undefined : `${fmtSurfRange(hb, settings.heightUnit)} · ${bodyRange(hb * 0.8, hb * 1.2)}`}>
-                    <span className="fc-bar" style={{ height: `${Math.min(100, ((hb ?? 0) / 3) * 100)}%`, background: scoreColor(c.quality.q) }} />
                     <span className="fc-val">{val}</span>
+                    {hb != null && <WaveFigure h={hb} />}
                   </td>
                 );
               })}
@@ -318,7 +317,7 @@ export default function ForecastTable({
               <th scope="row">
                 Wind
                 <small>{WIND_UNIT_LABEL[settings.windUnit]}</small>
-                <small>grey = gusts</small>
+                <small>grey = strong gusts</small>
               </th>
               {cols.map((c) => {
                 const k = windKind(c.derived);
@@ -342,7 +341,8 @@ export default function ForecastTable({
                     {unsure && <span className="wind-unsure" aria-label="models disagree">?</span>}
                     <DirArrow from={c.derived.windDir} size={13} />
                     <div>{sp == null ? '–' : windIn(sp, settings.windUnit)}</div>
-                    {g != null && <div className="fc-gust">{windIn(g, settings.windUnit)}</div>}
+                    {/* Gusts only when they matter: at least 15 km/h above the average wind. */}
+                    {g != null && sp != null && g - sp >= GUST_SHOW_KMH && <div className="fc-gust">{windIn(g, settings.windUnit)}</div>}
                   </td>
                 );
               })}
@@ -388,7 +388,7 @@ export default function ForecastTable({
       {legendOpen && (
       <div className="fc-legend muted tiny">
         <span>Spot = how good the waves are (Poor, Poor–Fair, Fair, Fair–Good, Good, Epic above 9) · For you = predicted fun with your surfing profile{rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}</span>
-        <span>Surf = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words) · Swell = strongest train offshore, peak period (as surf sites show it){estimated ? ' · some periods estimated from mean periods' : ''}</span>
+        <span>Surf = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words); the wave figure grows with it, from light blue (small) to blue to green (2.6 m+) · Swell = strongest train offshore, peak period (as surf sites show it){estimated ? ' · some periods estimated from mean periods' : ''}</span>
         <span>Energy = strongest train, kJ per metre of crest; hover for the total</span>
         {grid && (
           <span>
@@ -396,7 +396,7 @@ export default function ForecastTable({
             {gridMates.length ? ` · same swell and energy at ${gridMates.join(', ')}` : ' · no other spot in this cell'}
           </span>
         )}
-        <span>Wind = average speed over the hour, with the gusts (the strongest short bursts) in grey below; over the sea, mean of four models (ECMWF, ICON, ARPEGE, GFS), hover for each · ? = the models disagree on the direction</span>
+        <span>Wind = average speed over the hour; strong gusts (bursts at least 15 km/h above it) in grey below, all gusts on hover; over the sea, mean of four models (ECMWF, ICON, ARPEGE, GFS), hover for each · ? = the models disagree on the direction</span>
         <span>
           Wind colour:{' '}
           {(['glassy', 'offshore', 'cross-off', 'cross', 'cross-on', 'onshore'] as const).map((k) => (
@@ -410,3 +410,34 @@ export default function ForecastTable({
     </div>
   );
 }
+
+/** Colour of a surf height: light blue (small) → sky blue → blue → green (2.6 m and up). */
+const WAVE_STOPS: [number, [number, number, number]][] = [
+  [0, [186, 230, 253]],
+  [1.0, [56, 189, 248]],
+  [1.8, [37, 99, 235]],
+  [2.6, [22, 163, 74]],
+];
+export function waveColor(h: number): string {
+  const x = Math.max(0, h);
+  for (let i = 1; i < WAVE_STOPS.length; i++) {
+    const [h1, c1] = WAVE_STOPS[i];
+    if (x <= h1) {
+      const [h0, c0] = WAVE_STOPS[i - 1];
+      const t = (x - h0) / (h1 - h0);
+      return `rgb(${c0.map((v, k) => Math.round(v + (c1[k] - v) * t)).join(',')})`;
+    }
+  }
+  return `rgb(${WAVE_STOPS[WAVE_STOPS.length - 1][1].join(',')})`;
+}
+
+/** A small breaking wave, as tall as the surf (full height at 3 m), coloured by size. */
+function WaveFigure({ h }: { h: number }) {
+  const px = Math.max(6, Math.min(1, h / 3) * 40);
+  return (
+    <svg className="fc-wave" width={34} height={px} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+      <path d="M0 100 C18 92 30 40 52 18 C64 6 84 4 93 17 C98 25 93 36 84 34 C78 32 76 26 70 30 C80 50 92 80 100 100 Z" fill={waveColor(h)} />
+    </svg>
+  );
+}
+

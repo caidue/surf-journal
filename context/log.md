@@ -2,6 +2,8 @@
 
 ## 2026-11-15
 
+* **Update** of [Releases](/operations/releases.md): 1.4.5 committed, tagged `v1.4.5` and pushed.
+* **Update** of [Forecast table](/features/forecast-table.md) (wave figures, Spot score pill, strong gusts only), [Spot view](/features/spot-view.md) (fixed tab row in the popup, no overscroll), [Releases](/operations/releases.md) (1.4.5) and [pending: threshold tuning](/decisions/pending/threshold-tuning.md).
 * **Update** of [Releases](/operations/releases.md): 1.4.4 committed, tagged `v1.4.4` and pushed.
 * **Update** of [Forecast table](/features/forecast-table.md): the Wind row labels the gusts.
 * **Update** of [Forecast table](/features/forecast-table.md): the Surf row shows one height per hour; range and body words in the tooltip.

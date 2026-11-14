@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.5 — 2026-11-15
+
+- **Spot popup tabs stay put:** they sit in a fixed row under the spot's name, and the content no longer bounces past its top or bottom. The forecast table no longer bounces past its first or last hour either.
+- **Wave figures in the Surf row:** a small breaking wave per hour, as tall as the surf and coloured from light blue (small) to blue to green (big), instead of grey-green bars.
+- **Spot and For you rows look the same:** the spot rating now uses the same score pill.
+- **Gusts only when they matter:** the grey gust number shows only when gusts are at least 15 km/h stronger than the average wind; all gusts stay in the tooltip.
+
 ## 1.4.4 — 2026-11-15
 
 - No more stray scrollbar on the tab bar of the spot popup (the active tab's underline overflowed it by a pixel).

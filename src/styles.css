@@ -760,7 +760,6 @@ label.field,
 .sure.medium { color: #b45309; }
 .sure.low { color: var(--muted); border-style: dashed; }
 .sure.withheld { color: var(--muted); border-style: dashed; }
-td.fc-rating.withheld .fc-q,
 .fc-score.withheld {
   color: var(--muted);
   background: var(--line-2);
@@ -1434,7 +1433,8 @@ ul.plain li::before {
 }
 .spot-view.sheet .sv-scroll {
   overflow-y: auto;
-  overscroll-behavior: contain;
+  /* No rubber-band bounce past the top or bottom (and no scroll chaining to the page). */
+  overscroll-behavior: none;
   padding: var(--sp-4) var(--card-pad) calc(var(--sp-6) + env(safe-area-inset-bottom));
 }
 .sv-actions {
@@ -1456,8 +1456,11 @@ ul.plain li::before {
   z-index: 4;
   background: var(--panel);
 }
+/* In the popup the tabs are a fixed row between the header and the scrolling content. */
 .spot-view.sheet .sv-tabs {
-  top: calc(-1 * var(--sp-4));
+  position: static;
+  flex: none;
+  margin: 0;
 }
 .spot-view.page .sv-tabs {
   /* Measured in App.tsx: includes the status-bar area of an installed iPhone app. */
@@ -1598,6 +1601,8 @@ ul.plain.sv-sessions li::before {
 .fc-scroll {
   position: relative;
   overflow-x: auto;
+  /* Stops at the first and last hour: no bounce, no swipe-back navigation. */
+  overscroll-behavior-x: none;
   -webkit-overflow-scrolling: touch;
 }
 /* The current time: a small marker at the top of the table and a faint line down (under the sticky row labels). */
@@ -1699,31 +1704,16 @@ td.fc-wind.unsure {
 }
 td.fc-surf {
   position: relative;
-  height: 58px;
-  vertical-align: bottom;
+  height: 64px;
+  vertical-align: top;
+  padding-top: 3px;
 }
-.fc-rating .fc-q {
-  display: block;
-  font-weight: 700;
-}
-.fc-qbar {
-  position: relative;
-  display: block;
-  height: 4px;
-  margin: 2px 7px 0;
-  border-radius: 2px;
-  background: var(--line-2);
-  overflow: hidden;
-}
-.fc-qbar span {
+/* The wave figure sits at the bottom of the cell, under the number. */
+.fc-wave {
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  border-radius: 2px;
-}
-.fc-qbar .pot {
-  opacity: 0.3;
+  left: 50%;
+  bottom: 2px;
+  transform: translateX(-50%);
 }
 .fc-score.s-stretch {
   box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.55);
@@ -1749,14 +1739,6 @@ td.fc-surf {
 }
 .fc td.empty {
   background: transparent;
-}
-.fc-bar {
-  position: absolute;
-  left: 9px;
-  right: 9px;
-  bottom: 2px;
-  border-radius: 4px 4px 0 0;
-  opacity: 0.35;
 }
 .fc-val {
   position: relative;
