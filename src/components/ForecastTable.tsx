@@ -42,8 +42,6 @@ export default function ForecastTable({
   settings,
   tides,
   gridMates,
-  only,
-  legend = true,
 }: {
   spot: Spot;
   rec: SpotRec;
@@ -53,10 +51,6 @@ export default function ForecastTable({
   settings: Settings;
   tides: TideExtreme[];
   gridMates: string[];
-  /** Show only the hours of this window (minutes after midnight), e.g. the recommended time. */
-  only?: [number, number] | null;
-  /** Show the legend below the table (off for the short table in the Best time tab). */
-  legend?: boolean;
 }) {
   const grid = gridOf(series);
   const scroller = useRef<HTMLDivElement>(null);
@@ -76,9 +70,11 @@ export default function ForecastTable({
     }
   };
   const [rise, set] = daylight(series.days, date);
-  // The whole day (one hour before sunrise to sunset), or just the hours of `only`.
-  const h0 = only ? Math.floor(only[0] / 60) : Math.max(0, Math.floor(rise / 60) - 1);
-  const h1 = only ? Math.max(h0, Math.ceil(only[1] / 60) - 1) : Math.min(23, Math.ceil(set / 60));
+  // One hour before sunrise to sunset.
+  const h0 = Math.max(0, Math.floor(rise / 60) - 1);
+  const h1 = Math.min(23, Math.ceil(set / 60));
+  // The legend is folded away by default (it takes a lot of room); a toggle under the table opens it.
+  const [legendOpen, setLegendOpen] = useState(false);
   const cols = rec.hours.filter((r) => {
     const h = Math.floor((isoToMin(r.time) ?? 0) / 60);
     return h >= h0 && h <= h1;
@@ -162,7 +158,7 @@ export default function ForecastTable({
   };
 
   return (
-    <div className={`fc-wrap${only ? ' fit' : ''}`}>
+    <div className="fc-wrap">
       <div className="fc-scroll" ref={scroller}>
         {nowX != null && <div className="fc-now" style={{ left: nowX }} title={`Now, ${fmtMin(nowMin!)}`} aria-label={`Now, ${fmtMin(nowMin!)}`} />}
         <table className="fc" style={{ width: 84 + W }}>
@@ -382,7 +378,13 @@ export default function ForecastTable({
           </tbody>
         </table>
       </div>
-      {legend && (
+      <button type="button" className={`fc-legend-toggle${legendOpen ? ' open' : ''}`} aria-expanded={legendOpen} onClick={() => setLegendOpen(!legendOpen)}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+        Legend
+      </button>
+      {legendOpen && (
       <div className="fc-legend muted tiny">
         <span>Spot = how good the waves are (Poor, Poor–Fair, Fair, Fair–Good, Good, Epic above 9) · For you = predicted fun with your surfing profile{rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}</span>
         <span>Surf = estimated face height at the spot (±20 %) · Swell = strongest train offshore, peak period (as surf sites show it){estimated ? ' · some periods estimated from mean periods' : ''}</span>

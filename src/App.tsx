@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { queryParam, useRoute, useSessions, useSpots, useStoredSettings } from './hooks';
 import { DEFAULT_SETTINGS, saveSettings } from './db';
 import Onboarding from './components/Onboarding';
@@ -28,6 +29,19 @@ export default function App() {
   const page = route[0] ?? 'explore';
   const pwa = usePwa();
   const change = settings.profile?.lastChange;
+
+  // The top bar's real height (taller on an installed iPhone app, by the status-bar area), so
+  // sticky elements below it (spot tabs, the Explore map) stick right under it, never beneath it.
+  const topbarRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = topbarRef.current;
+    if (!el) return;
+    const set = () => document.documentElement.style.setProperty('--topbar-actual', `${Math.round(el.getBoundingClientRect().height)}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   let body: JSX.Element;
   if (!spots || !sessions || !stored) body = <div className="page muted">Loading…</div>;
@@ -63,7 +77,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="topbar">
+      <header className="topbar" ref={topbarRef}>
         <nav>
           {NAV.map((n) => (
             <a key={n.id} href={`#/${n.id}`} className={active === n.id ? 'on' : ''} aria-current={active === n.id ? 'page' : undefined} aria-label={n.label} title={n.label}>

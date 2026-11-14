@@ -9,11 +9,11 @@ sources:
     id: "report"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T22:20:00+00:00"
+  at: "2026-11-15T09:30:00+00:00"
 ---
 # Hourly forecast table
 
-Columns: daylight hours (one before sunrise to sunset), 50 px each, scrolled to now or the best window. With `only: [startMin, endMin]` it shows just those hours (the Best time tab); `legend={false}` hides the legend. The best window is not marked in the full table: the recommendation has its own tab ([Spot view](/features/spot-view.md)).
+Columns: daylight hours (one before sunrise to sunset), 50 px each, scrolled to now or the best window. The best window is not marked in the table; the recommendation card sits below it ([Spot view](/features/spot-view.md)). The legend is folded away behind a "Legend" toggle under the table (closed by default).
 
 | Row | Content |
 |---|---|

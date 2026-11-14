@@ -630,7 +630,7 @@ label.field,
 }
 .map-col {
   position: sticky;
-  top: calc(var(--topbar-h) + var(--sp-4));
+  top: calc(var(--topbar-actual, var(--topbar-h)) + var(--sp-4));
 }
 .list-col {
   min-width: 0;
@@ -1457,7 +1457,8 @@ ul.plain li::before {
   top: calc(-1 * var(--sp-4));
 }
 .spot-view.page .sv-tabs {
-  top: var(--topbar-h);
+  /* Measured in App.tsx: includes the status-bar area of an installed iPhone app. */
+  top: var(--topbar-actual, var(--topbar-h));
 }
 .sv-tabs button {
   display: inline-flex;
@@ -1488,10 +1489,6 @@ ul.plain li::before {
 }
 .sheet-day {
   margin-bottom: var(--sp-3);
-}
-.best-hours-title {
-  margin: var(--sp-4) 0 var(--sp-2);
-  font-size: var(--fs-sm);
 }
 .sheet-best {
   background: var(--panel-2);
@@ -1568,11 +1565,6 @@ ul.plain.sv-sessions li::before {
   border-radius: var(--r-md);
   overflow: hidden;
   margin-bottom: var(--sp-3);
-}
-/* A few hours only (Best time tab): the frame hugs the table. */
-.fc-wrap.fit {
-  width: fit-content;
-  max-width: 100%;
 }
 .fc-scroll {
   position: relative;
@@ -1787,6 +1779,28 @@ td.fc-surf {
   font-size: 10.5px;
   font-weight: 600;
   fill: #1e293b;
+}
+/* "Legend" under the forecast table: closed by default. */
+.fc-legend-toggle {
+  display: flex;
+  width: 100%;
+  border-top: 1px solid var(--line) !important;
+  align-items: center;
+  gap: var(--sp-1);
+  border: 0;
+  background: none;
+  padding: var(--sp-2) var(--sp-3);
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  cursor: pointer;
+}
+.fc-legend-toggle svg {
+  transform: rotate(-90deg);
+  transition: transform 0.15s ease;
+}
+.fc-legend-toggle.open svg {
+  transform: none;
 }
 .fc-legend {
   display: flex;

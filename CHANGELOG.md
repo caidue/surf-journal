@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.2 — 2026-11-15
+
+- **Recommendation back in the Forecast tab**, below the table; the separate "Best time" tab is gone. The table's legend is folded away behind a "Legend" toggle.
+- Switching tabs on a spot starts the new tab at its top instead of keeping the previous scroll position.
+- The spot tabs (and the Explore map) stick right under the top bar again on an installed iPhone app, where the bar is taller by the status-bar area.
+
 ## 1.4.1 — 2026-11-14
 
 - **New "Best time" tab** on each spot, after Info: the recommendation for you, with the forecast for just those hours. The Forecast tab shows the whole day without the "Best" tag or the green line over the best hours.
