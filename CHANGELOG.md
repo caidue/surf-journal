@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.3 — 2026-11-15
+
+- **Tide stage bars under a spot's Sessions now show data from your first session.** They show your average fun at each tide stage, like the wind bars, with your overall average at the spot as the reference. Before, they were relative to that average, so a single session read 0.0 everywhere.
+
 ## 1.4.2 — 2026-11-15
 
 - **Recommendation back in the Forecast tab**, below the table; the separate "Best time" tab is gone. The table's legend is folded away behind a "Legend" toggle.

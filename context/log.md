@@ -2,6 +2,8 @@
 
 ## 2026-11-15
 
+* **Update** of [Releases](/operations/releases.md): 1.4.3 committed, tagged `v1.4.3` and pushed.
+* **Update** of [Insights](/engine/insights.md): tide stage shows the average fun per stage (like wind), with your average as reference; [Releases](/operations/releases.md) (1.4.3).
 * **Update** of [Releases](/operations/releases.md): 1.4.2 committed, tagged `v1.4.2` and pushed.
 * **Update** of [Spot view](/features/spot-view.md) (recommendation below the forecast, Best time tab removed, scroll reset on tab change, sticky tabs under the measured top bar), [Forecast table](/features/forecast-table.md) (legend toggle) and [Explore](/features/explore.md) (map sticky offset), [Releases](/operations/releases.md) (1.4.2).
 

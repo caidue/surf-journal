@@ -557,18 +557,23 @@ describe('similarity & prediction', () => {
     expect(late.now?.time).toBe('2026-03-01T20:00');
   });
 
-  it('tide insight compares single-value ratings with your average at the spot', () => {
+  it('tide insight: average rating per tide stage, with your average at the spot as reference', () => {
     const tideAt9 = (sign: number) => day('2026-02-01', (h) => ({ seaLevel: sign * Math.cos(((h - 9) / 12.4) * 2 * Math.PI) }));
     const hiS = session('2026-02-01', 8, { id: 'hi' }, tideAt9(1));
     const loS = session('2026-02-01', 4, { id: 'lo' }, tideAt9(-1));
-    const { byTide } = insights(spot, [hiS, loS]);
+    const { byTide, mean, sessions } = insights(spot, [hiS, loS]);
+    expect(mean).toBe(6);
+    expect(sessions).toBe(2);
     const keys = Object.keys(byTide);
     expect(keys.some((k) => k.startsWith('high'))).toBe(true);
     expect(keys.some((k) => k.startsWith('low'))).toBe(true);
     for (const [k, b] of Object.entries(byTide)) {
-      if (k.startsWith('high')) expect(b.mean).toBeCloseTo(2, 5);
-      if (k.startsWith('low')) expect(b.mean).toBeCloseTo(-2, 5);
+      if (k.startsWith('high')) expect(b.mean).toBeCloseTo(8, 5);
+      if (k.startsWith('low')) expect(b.mean).toBeCloseTo(4, 5);
     }
+    // One session: the bars show its rating instead of "+0.0" everywhere.
+    const one = insights(spot, [hiS]);
+    expect(Object.values(one.byTide).every((b) => b.mean === 8)).toBe(true);
   });
 
   it('reads one rating per category; fun is the session rating', () => {

@@ -264,8 +264,12 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
               )}
               {matched.length > 0 && <p className="muted tiny">The % compares each session with the closest daylight hour {dayWord} (change the day on the Forecast tab).</p>}
               <h4>What your ratings say</h4>
-              <p className="muted small">From the fun ratings of your relevant sessions here.</p>
-              <h5>Tide stage (vs. your average here)</h5>
+              <p className="muted small">
+                Average fun rating at each tide stage and wind, from your relevant sessions here
+                {ins.sessions > 0 && ` (${ins.sessions}; your average ${ins.mean.toFixed(1)})`}.
+                {ins.sessions === 1 && ' With one session the bars show that session; they become comparisons as you surf here at other tides and winds.'}
+              </p>
+              <h5>Tide stage</h5>
               <Bars data={ins.byTide} />
               <h5>Wind</h5>
               <Bars data={ins.byWind} labels={Object.fromEntries(Object.entries(WIND_LABEL)) as Record<WindKind, string>} />
@@ -366,8 +370,7 @@ function Bars({ data, labels }: { data: Record<string, { mean: number; minutes: 
             <span className={`bar${v.mean < 0 ? ' neg' : ''}`} style={{ width: `${(Math.abs(v.mean) / max) * 100}%` }} />
           </span>
           <span className="bar-val">
-            {v.mean >= 0.05 && labels === undefined ? '+' : ''}
-            {Math.abs(v.mean) < 0.05 ? '0.0' : v.mean.toFixed(1)} <span className="muted tiny">({Math.round((v.minutes / 60) * 10) / 10} h)</span>
+            {v.mean.toFixed(1)} <span className="muted tiny">({Math.round((v.minutes / 60) * 10) / 10} h)</span>
           </span>
         </div>
       ))}

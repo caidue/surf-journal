@@ -354,9 +354,10 @@ export interface Bucket {
 }
 
 /**
- * How your rating at a spot relates to tide stage and wind. Each surfed hour of a session
- * counts with the minutes you were in the water; tide is shown relative to your average rating
- * at the spot, wind as the plain average.
+ * How your rating at a spot relates to tide stage and wind: the average rating at each tide stage
+ * and each kind of wind, every surfed hour counted with the minutes you were in the water. Your
+ * plain average at the spot (`mean`, over `sessions`) is the reference to compare them with.
+ * (Showing tide relative to that average made a single session read "+0.0" everywhere.)
  */
 export function insights(spot: Spot, sessions: Session[], cat = 'fun') {
   const byTide: Record<string, { sum: number; w: number }> = {};
@@ -374,7 +375,7 @@ export function insights(spot: Spot, sessions: Session[], cat = 'fun') {
       if (d.tideNorm != null) {
         const k = d.tideNorm < 0.33 ? 'low' : d.tideNorm < 0.67 ? 'mid' : 'high';
         const key = d.tideTrend != null && Math.abs(d.tideTrend) > 0.25 ? `${k} ${d.tideTrend > 0 ? 'rising' : 'falling'}` : k;
-        (byTide[key] ??= { sum: 0, w: 0 }).sum += (v - spotMean) * minutes;
+        (byTide[key] ??= { sum: 0, w: 0 }).sum += v * minutes;
         byTide[key].w += minutes;
       }
       const wk = windKind(d);
@@ -386,5 +387,5 @@ export function insights(spot: Spot, sessions: Session[], cat = 'fun') {
   }
   const fin = (o: Record<string, { sum: number; w: number }>) =>
     Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { mean: v.sum / v.w, minutes: v.w } as Bucket]));
-  return { byTide: fin(byTide), byWind: fin(byWind) };
+  return { byTide: fin(byTide), byWind: fin(byWind), mean: spotMean, sessions: relevant.length };
 }
