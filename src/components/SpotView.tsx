@@ -247,7 +247,10 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                       <a href={`#/session/${s.id}`} className="row gap">
                         <ScoreBadge score={sessionOverall(s)} size="sm" />
                         <span>
-                          <strong>{fmtDate(s.date)}</strong> {fmtMin(s.startMin)}–{fmtMin(s.endMin)}
+                          <strong>{fmtDate(s.date)}</strong>{' '}
+                          <span className="when">
+                            {fmtMin(s.startMin)}–{fmtMin(s.endMin)}
+                          </span>
                           <br />
                           <span className="small muted">{sessionSummary(s, spot, settings)}</span>
                         </span>

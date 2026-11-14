@@ -2,6 +2,10 @@
 
 ## 2026-11-15
 
+* **Update** of [Releases](/operations/releases.md): 1.4.4 committed, tagged `v1.4.4` and pushed.
+* **Update** of [Forecast table](/features/forecast-table.md): the Wind row labels the gusts.
+* **Update** of [Forecast table](/features/forecast-table.md): the Surf row shows one height per hour; range and body words in the tooltip.
+* **Update** of [Spot view](/features/spot-view.md): no vertical scrollbar on the tab bar; session rows on phones; [Releases](/operations/releases.md) (1.4.4).
 * **Update** of [Releases](/operations/releases.md): 1.4.3 committed, tagged `v1.4.3` and pushed.
 * **Update** of [Insights](/engine/insights.md): tide stage shows the average fun per stage (like wind), with your average as reference; [Releases](/operations/releases.md) (1.4.3).
 * **Update** of [Releases](/operations/releases.md): 1.4.2 committed, tagged `v1.4.2` and pushed.

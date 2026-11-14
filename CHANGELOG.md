@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.4 — 2026-11-15
+
+- No more stray scrollbar on the tab bar of the spot popup (the active tab's underline overflowed it by a pixel).
+- **Calmer surf row in the forecast:** one height per hour (the middle of the estimate) instead of a range plus a body word; hover a cell for the range and "waist to chest high".
+- **Wind row explained:** the label says "grey = gusts", the gusts are smaller and grey under the average wind, and the tooltip reads "15 km/h on average, gusts up to 23 km/h".
+- Sessions on a spot, on phones: the date and conditions use the full width; the "% like …" badge moves underneath, and the time range no longer breaks across lines.
+
 ## 1.4.3 — 2026-11-15
 
 - **Tide stage bars under a spot's Sessions now show data from your first session.** They show your average fun at each tide stage, like the wind bars, with your overall average at the spot as the reference. Before, they were relative to that average, so a single session read 0.0 everywhere.

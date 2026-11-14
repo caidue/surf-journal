@@ -3,7 +3,7 @@ import type { ConditionsSeries, HourConditions, Settings, Spot } from '../types'
 import { exposure, totalEnergyKJ, trainsByEnergy, windKind, WIND_LABEL, type TideExtreme, type TrainInfo } from '../lib/conditions';
 import { daylight, type SpotRec } from '../lib/recommend';
 import { reasonsText, scoreColor, scoreLabel, SUIT_LABEL } from '../lib/rating';
-import { bodyRange, bodyWord } from '../lib/skill';
+import { bodyRange } from '../lib/skill';
 import { fmtMin, isoToMin, nowMinutesAt } from '../lib/time';
 import { energyColors, fmtDir, fmtEnergy, fmtSurfRange, WIND_UNIT_LABEL, windIn } from '../lib/format';
 import { gridOf, WIND_MODEL_LABEL } from '../lib/openMeteo';
@@ -29,8 +29,9 @@ function slots(h: HourConditions): { swell: TrainInfo[]; wind: TrainInfo | null 
 
 /**
  * Hourly forecast table (surf-forecast style). Spot rating = how good the waves are (word ladder),
- * For you = your predicted fun with your skill profile. Surf = face range at the spot with a body
- * descriptor. Swell = the most energetic train (peak period), expandable into every train;
+ * For you = your predicted fun with your skill profile. Surf = one face height per hour at the spot
+ * (the middle of the ±20 % estimate, like surf-forecast's single number; hover for the range and body
+ * words). Swell = the most energetic train (peak period), expandable into every train;
  * trains outside the spot's swell window are greyed out. Energy = the strongest train's kJ.
  */
 export default function ForecastTable({
@@ -239,12 +240,11 @@ export default function ForecastTable({
               </th>
               {cols.map((c) => {
                 const hb = c.derived.hb;
-                const range = hb == null ? '–' : fmtSurfRange(hb, settings.heightUnit).replace(/ (m|ft)$/, '');
+                const val = hb == null ? '–' : ft ? String(Math.round(hb * 3.281)) : hb.toFixed(1);
                 return (
                   <td key={c.time} className={`fc-surf${night(c)}`} title={hb == null ? undefined : `${fmtSurfRange(hb, settings.heightUnit)} · ${bodyRange(hb * 0.8, hb * 1.2)}`}>
                     <span className="fc-bar" style={{ height: `${Math.min(100, ((hb ?? 0) / 3) * 100)}%`, background: scoreColor(c.quality.q) }} />
-                    <span className="fc-val">{range}</span>
-                    {hb != null && <span className="fc-body">{bodyWord(hb).replace(/ high$/, '').replace('double overhead', '2× OH').replace('well overhead', 'well OH')}</span>}
+                    <span className="fc-val">{val}</span>
                   </td>
                 );
               })}
@@ -318,6 +318,7 @@ export default function ForecastTable({
               <th scope="row">
                 Wind
                 <small>{WIND_UNIT_LABEL[settings.windUnit]}</small>
+                <small>grey = gusts</small>
               </th>
               {cols.map((c) => {
                 const k = windKind(c.derived);
@@ -334,14 +335,14 @@ export default function ForecastTable({
                     style={{ background: k ? WIND_BG[k] : undefined }}
                     title={
                       k
-                        ? `${WIND_LABEL[k]}, from ${fmtDir(c.derived.windDir)}${models ? ` (mean of the models: ${models})` : ''}${unsure ? ` – the models disagree on the direction by up to ${spread}°` : ''}`
+                        ? `${sp == null ? '' : `${windIn(sp, settings.windUnit)} ${WIND_UNIT_LABEL[settings.windUnit]} on average`}${g != null ? `, gusts up to ${windIn(g, settings.windUnit)} ${WIND_UNIT_LABEL[settings.windUnit]}` : ''} · ${WIND_LABEL[k]}, from ${fmtDir(c.derived.windDir)}${models ? ` (mean of the models: ${models})` : ''}${unsure ? ` – the models disagree on the direction by up to ${spread}°` : ''}`
                         : undefined
                     }
                   >
                     {unsure && <span className="wind-unsure" aria-label="models disagree">?</span>}
                     <DirArrow from={c.derived.windDir} size={13} />
                     <div>{sp == null ? '–' : windIn(sp, settings.windUnit)}</div>
-                    {g != null && <div className="muted">{windIn(g, settings.windUnit)}</div>}
+                    {g != null && <div className="fc-gust">{windIn(g, settings.windUnit)}</div>}
                   </td>
                 );
               })}
@@ -387,7 +388,7 @@ export default function ForecastTable({
       {legendOpen && (
       <div className="fc-legend muted tiny">
         <span>Spot = how good the waves are (Poor, Poor–Fair, Fair, Fair–Good, Good, Epic above 9) · For you = predicted fun with your surfing profile{rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}</span>
-        <span>Surf = estimated face height at the spot (±20 %) · Swell = strongest train offshore, peak period (as surf sites show it){estimated ? ' · some periods estimated from mean periods' : ''}</span>
+        <span>Surf = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words) · Swell = strongest train offshore, peak period (as surf sites show it){estimated ? ' · some periods estimated from mean periods' : ''}</span>
         <span>Energy = strongest train, kJ per metre of crest; hover for the total</span>
         {grid && (
           <span>
@@ -395,7 +396,7 @@ export default function ForecastTable({
             {gridMates.length ? ` · same swell and energy at ${gridMates.join(', ')}` : ' · no other spot in this cell'}
           </span>
         )}
-        <span>Wind = over the sea, mean of four models (ECMWF, ICON, ARPEGE, GFS); hover for each · ? = the models disagree on the direction</span>
+        <span>Wind = average speed over the hour, with the gusts (the strongest short bursts) in grey below; over the sea, mean of four models (ECMWF, ICON, ARPEGE, GFS), hover for each · ? = the models disagree on the direction</span>
         <span>
           Wind colour:{' '}
           {(['glassy', 'offshore', 'cross-off', 'cross', 'cross-on', 'onshore'] as const).map((k) => (

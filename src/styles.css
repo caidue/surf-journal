@@ -1443,9 +1443,12 @@ ul.plain li::before {
 .sv-tabs {
   display: flex;
   gap: var(--sp-1);
+  /* Scrolls sideways only if the tabs don't fit; never vertically (the line below is drawn as a
+     shadow, so the active tab's underline no longer pokes 1 px out and makes a scrollbar). */
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
-  border-bottom: 1px solid var(--line);
+  box-shadow: inset 0 -1px 0 var(--line);
   margin: var(--sp-4) calc(-1 * var(--card-pad)) var(--sp-4);
   padding: 0 var(--card-pad);
   position: sticky;
@@ -1472,9 +1475,11 @@ ul.plain li::before {
   font-weight: 600;
   color: var(--muted);
   border-bottom: 3px solid transparent;
-  margin-bottom: -1px;
   white-space: nowrap;
   cursor: pointer;
+}
+.sv-tabs::-webkit-scrollbar {
+  display: none;
 }
 .sv-tabs button.on {
   color: var(--accent);
@@ -1510,6 +1515,30 @@ ul.plain li::before {
 }
 ul.plain.sv-sessions li::before {
   content: none;
+}
+.sv-sessions .when {
+  white-space: nowrap;
+}
+/* Phones: the date and conditions get the full width next to the score; the "% like …" badge
+   (and "not relevant") go underneath. */
+@media (max-width: 600px) {
+  .sv-sessions li > a {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: var(--sp-3);
+    row-gap: var(--sp-1);
+    align-items: start;
+  }
+  .sv-sessions li > a > .score {
+    grid-row: span 3;
+    margin-top: 2px;
+  }
+  .sv-sessions li > a > .pct,
+  .sv-sessions li > a > .badge {
+    grid-column: 2;
+    justify-self: start;
+    margin: 0;
+  }
 }
 .sv-sessions .pct {
   margin-left: auto;
@@ -1673,13 +1702,6 @@ td.fc-surf {
   height: 58px;
   vertical-align: bottom;
 }
-.fc-body {
-  position: relative;
-  display: block;
-  font-size: 0.625rem;
-  color: var(--ink-2);
-  line-height: 1.1;
-}
 .fc-rating .fc-q {
   display: block;
   font-weight: 700;
@@ -1740,8 +1762,12 @@ td.fc-surf {
   position: relative;
   font-weight: 700;
   white-space: nowrap;
-  font-size: 0.75rem;
-  letter-spacing: -0.02em;
+  font-size: 0.8125rem;
+}
+/* Gusts under the average wind: smaller and grey. */
+.fc-wind .fc-gust {
+  color: var(--muted);
+  font-size: 0.6875rem;
 }
 .fc-swell div,
 .fc-wind div {
