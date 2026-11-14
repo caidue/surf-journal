@@ -227,6 +227,7 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
               {tides.length > 0 && (
                 <div className="tide-line" title="Heights relative to mean sea level">
                   <span className="muted small">Tide (vs mean sea level)</span>
+                  <div className="tide-chips">
                   {tides.map((t) => (
                     <span key={t.min} className={`tide-chip ${t.type}`}>
                       {t.type === 'high' ? '▲ High' : '▼ Low'} {fmtMin(t.min)}{' '}
@@ -236,9 +237,9 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                       </span>
                     </span>
                   ))}
+                  </div>
                 </div>
               )}
-              {series && <p className="muted tiny">Data: {series.source}. Weather and marine data by Open-Meteo.com (CC BY 4.0).</p>}
             </>
           )}
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.6 — 2026-11-15
+
+- Forecast: the "Surf" row is now called **Wave**, with a fuller wave figure (as wide as the column, with a curling crest). The "grey = strong gusts" note is gone; the tooltip and legend explain it.
+- **Legend & sources**: the data line that sat below the forecast is now inside the folded legend, without repeating the grid cells.
+- Tide times sit on a row below their "Tide (vs mean sea level)" title.
+
 ## 1.4.5 — 2026-11-15
 
 - **Spot popup tabs stay put:** they sit in a fixed row under the spot's name, and the content no longer bounces past its top or bottom. The forecast table no longer bounces past its first or last hour either.

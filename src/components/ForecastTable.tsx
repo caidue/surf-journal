@@ -6,7 +6,7 @@ import { reasonsText, scoreColor, scoreLabel, SUIT_LABEL } from '../lib/rating';
 import { bodyRange } from '../lib/skill';
 import { fmtMin, isoToMin, nowMinutesAt } from '../lib/time';
 import { energyColors, fmtDir, fmtEnergy, fmtSurfRange, WIND_UNIT_LABEL, windIn } from '../lib/format';
-import { gridOf, WIND_MODEL_LABEL } from '../lib/openMeteo';
+import { WIND_MODEL_LABEL } from '../lib/openMeteo';
 import { WIND_BG } from './Timeline';
 
 /** Mark the wind when the models' directions differ by this much (deg). */
@@ -55,7 +55,6 @@ export default function ForecastTable({
   tides: TideExtreme[];
   gridMates: string[];
 }) {
-  const grid = gridOf(series);
   const scroller = useRef<HTMLDivElement>(null);
   const [open, setOpenState] = useState(() => {
     try {
@@ -233,9 +232,9 @@ export default function ForecastTable({
               })}
             </tr>
             <tr>
-              <th scope="row">
-                Surf
-                <small>{ft ? 'ft' : 'm'}, face</small>
+              <th scope="row" title="Estimated wave height at the spot: the face of the waves, from trough to crest">
+                Wave
+                <small>{ft ? 'ft' : 'm'}</small>
               </th>
               {cols.map((c) => {
                 const hb = c.derived.hb;
@@ -317,7 +316,6 @@ export default function ForecastTable({
               <th scope="row">
                 Wind
                 <small>{WIND_UNIT_LABEL[settings.windUnit]}</small>
-                <small>grey = strong gusts</small>
               </th>
               {cols.map((c) => {
                 const k = windKind(c.derived);
@@ -383,19 +381,14 @@ export default function ForecastTable({
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M6 9l6 6 6-6" />
         </svg>
-        Legend
+        Legend &amp; sources
       </button>
       {legendOpen && (
       <div className="fc-legend muted tiny">
         <span>Spot = how good the waves are (Poor, Poor–Fair, Fair, Fair–Good, Good, Epic above 9) · For you = predicted fun with your surfing profile{rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}</span>
-        <span>Surf = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words); the wave figure grows with it, from light blue (small) to blue to green (2.6 m+) · Swell = strongest train offshore, peak period (as surf sites show it){estimated ? ' · some periods estimated from mean periods' : ''}</span>
+        <span>Wave = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words); the wave figure grows with it, from light blue (small) to blue to green (2.6 m+) · Swell = strongest train offshore, peak period (as surf sites show it){estimated ? ' · some periods estimated from mean periods' : ''}</span>
         <span>Energy = strongest train, kJ per metre of crest; hover for the total</span>
-        {grid && (
-          <span>
-            Grid cell {grid.lat.toFixed(2)}, {grid.lon.toFixed(2)}
-            {gridMates.length ? ` · same swell and energy at ${gridMates.join(', ')}` : ' · no other spot in this cell'}
-          </span>
-        )}
+        <span>{gridMates.length ? `Same swell and energy (same wave-model cell) at ${gridMates.join(', ')}` : 'No other spot shares this wave-model cell'}</span>
         <span>Wind = average speed over the hour; strong gusts (bursts at least 15 km/h above it) in grey below, all gusts on hover; over the sea, mean of four models (ECMWF, ICON, ARPEGE, GFS), hover for each · ? = the models disagree on the direction</span>
         <span>
           Wind colour:{' '}
@@ -405,6 +398,7 @@ export default function ForecastTable({
             </span>
           ))}
         </span>
+        <span>Data: {series.source}. Weather and marine data by Open-Meteo.com (CC BY 4.0).</span>
       </div>
       )}
     </div>
@@ -431,12 +425,13 @@ export function waveColor(h: number): string {
   return `rgb(${WAVE_STOPS[WAVE_STOPS.length - 1][1].join(',')})`;
 }
 
-/** A small breaking wave, as tall as the surf (full height at 3 m), coloured by size. */
+/** A small breaking wave, as tall as the surf (full height from 2.5 m), coloured by size. */
 function WaveFigure({ h }: { h: number }) {
-  const px = Math.max(6, Math.min(1, h / 3) * 40);
+  const px = Math.max(10, Math.min(1, h / 2.5) * 46);
+  // As wide as the column, with a crest curling over to the right; stretched to the wave height.
   return (
-    <svg className="fc-wave" width={34} height={px} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-      <path d="M0 100 C18 92 30 40 52 18 C64 6 84 4 93 17 C98 25 93 36 84 34 C78 32 76 26 70 30 C80 50 92 80 100 100 Z" fill={waveColor(h)} />
+    <svg className="fc-wave" width={COL_W - 6} height={px} viewBox="0 0 40 100" preserveAspectRatio="none" aria-hidden>
+      <path d="M0 100 V34 C0 14 13 2 29 3 C37 4 41 11 37 17 C34 21 28 19 28 14 C28 10 22 11 22 19 C22 26 30 32 40 32 V100 Z" fill={waveColor(h)} />
     </svg>
   );
 }

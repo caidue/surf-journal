@@ -6,14 +6,14 @@ resource: "src/components/SpotView.tsx"
 tags: ["feature", "spot"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-15T12:20:00+00:00"
+  at: "2026-11-15T13:10:00+00:00"
 ---
 # Spot view
 
 `SpotView` is shared by `SpotSheet` (bottom sheet on phones, dialog on desktop, Esc closes, focus returns; a **fixed height** — 90 % of the window up to 920 px, almost full height on phones — so it doesn't change size between tabs) and `SpotPage` (`#/spot/:id`).
 
 Header: name, region · break · level · peaks, **"Also called …"** (aliases), best score for you. Tabs (last one remembered; switching starts the new tab at its top; the bar scrolls sideways only if needed and never shows a vertical scrollbar; in the popup they are a fixed row between header and content, and the content doesn't bounce past its ends — `overscroll-behavior: none`): Forecast · Guide · Info · Sessions. The tabs stick under the top bar, whose real height is measured (`--topbar-actual`, App.tsx), so on an installed iPhone app they don't slide under the taller bar.
-* **Forecast:** day selector, the [forecast table](/features/forecast-table.md) for the whole day (legend folded away behind "Legend"), then the **recommendation card** (best window with suitability badge, confidence badge, surf range with body words, peak period and wind, "Best for you: <peak>", timing notes, suitability reasons, explanation; "Not much for you …" on days without a window), tide chips (high/low with heights vs mean sea level) and the data source line.
+* **Forecast:** day selector, the [forecast table](/features/forecast-table.md) for the whole day (legend folded away behind "Legend"), then the **recommendation card** (best window with suitability badge, confidence badge, surf range with body words, peak period and wind, "Best for you: <peak>", timing notes, suitability reasons, explanation; "Not much for you …" on days without a window), "Tide (vs mean sea level)" with the high/low chips on a row below it. The data source line is inside the table's "Legend & sources".
 * **Guide:** the [spot guide](/features/spot-guide.md), opening with the spot's description ("About this spot"; it used to sit in the header).
 * **Info:** **What the app knows** (knowledge level, rule count, `dataNote`), faces / offshore wind, best swell and size range, tide, break with power and peel, crowds / localism / lifeguard, **Elsewhere: Surfline · surf-forecast.com** links, size factor (default or calibrated), approximate-location warning, small map, source.
 * **Sessions** (phones: "Sessions", without the count; on phones each entry puts the "% like …" badge under the date and conditions so they get the full width): your sessions here with % similarity to the chosen day, and the [insights](/engine/insights.md) bars.
