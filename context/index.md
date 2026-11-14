@@ -55,11 +55,13 @@ Surf science behind the numbers: periods, swell trains, breaking height, energy,
 
 Algorithms: spot rating, suitability rules, skill profile and learning, prediction, similarity. ([folder index](engine/index.md))
 
+* [How sure a rating is](engine/confidence.md) - Knowledge level per spot, confidence per hour, and when the app gives no rating at all.
 * [Day recommendation and best picks](engine/day-recommendation.md) - Best time window per spot and the top three spots for today or right now.
 * [Insights per spot](engine/insights.md) - What your fun ratings say about tide stage and wind at a spot.
 * [Per-peak rating](engine/per-peak-rating.md) - Rating each peak of a spot on its own and naming the best one for you.
 * [Personal prediction (For you)](engine/personal-prediction.md) - Blending the rule-based score with your fun ratings in similar past conditions.
 * [Profile learning from sessions](engine/profile-learning.md) - Bounded, explained, undoable updates of the comfortable size and experience after a session.
+* [Rules engine (local knowledge in the rating)](engine/rules-engine.md) - How the executable local rules change each hour's spot rating and suitability, and how their sources' agreement limits them.
 * [Similarity of conditions](engine/similarity.md) - Analog matching of hours at the same spot.
 * [Size calibration](engine/size-calibration.md) - Per-spot gain from the sizes you noted.
 * [Skill profile](engine/skill-profile.md) - Stages 1–8, comfortable and biggest size, board and experience: what the app knows about the surfer.
@@ -123,6 +125,8 @@ Accepted decisions (numbered) and pending ones. ([folder index](decisions/index.
 * [0015: Split El Hierro into three spots](decisions/0015-split-el-hierro.md) - Izquierda del Hierro, Derecha de los Alemanes and The Bubble are separate spots again (seed 6), as most guides list them.
 * [0016: Wind over the sea from four models](decisions/0016-sea-wind-multi-model.md) - Request wind with cell_selection=sea from ECMWF IFS, ICON, ARPEGE and GFS; use their mean and show where they disagree.
 * [0017: Local knowledge as sourced rules](decisions/0017-local-knowledge-rules.md) - Per-spot local rules with sources and confidence; conflicting sources never become a hard preference.
+* [0018: Rules engine with confidence-limited effects, size fit and no cliffs](decisions/0018-rules-engine.md) - Executable local rules change the rating within limits set by how well their sources agree; small waves count less for progressing surfers; no 0-score cliffs.
+* [0019: Grade how sure each rating is; withhold where guessing is dangerous](decisions/0019-rating-confidence.md) - Ratings carry Reliable / Less certain / Rough guide from local knowledge, model agreement and your sessions; no rating for undocumented expert reefs at low tide.
 * [Accounts, sync and a commercial data plan](decisions/pending/accounts-and-sync.md) - What a public release would need.
 * [Should several challenging causes compound?](decisions/pending/compounding-challenges.md) - Worst status wins, so two problems count like one.
 * [Ask Open-Meteo for per-train peak periods in MFWAM](decisions/pending/open-meteo-upstream.md) - Upstream improvement, not ours to build.

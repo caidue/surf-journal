@@ -14,7 +14,7 @@ import { SPOT_GUIDES } from './spotGuides';
  * Bump SEED_VERSION whenever this list changes: devices then refresh the built-in spots
  * (db.ts → refreshSeedSpots) and move sessions of RETIRED_SPOTS to their new spot.
  */
-export const SEED_VERSION = 7; // 7: corrections from local sources (data/spotRules.ts); 6: El Hierro split; 5: three spots added (3 was used by an earlier build)
+export const SEED_VERSION = 8; // 8: dataNote; 7: corrections from local sources (data/spotRules.ts); 6: El Hierro split; 5: three spots added (3 was used by an earlier build)
 
 /** Spots that were merged into another one: old id → new id. (Seed 4 merged The Bubble into El Hierro; seed 6 split them again.) */
 export const RETIRED_SPOTS: Record<string, string> = {};
@@ -105,6 +105,7 @@ const seed: SeedSpot[] = [
   },
   {
     id: 'fv-mejillones',
+    dataNote: 'Guides disagree on where it is and how it works.',
     name: 'Mejillones',
     aliases: ['El Mejillón', 'Mechihonas'],
     externalIds: { surfForecast: 'Mejillones' },
@@ -371,6 +372,7 @@ const seed: SeedSpot[] = [
   },
   {
     id: 'fv-cotillo-spew-pits',
+    dataNote: 'Guides disagree on where it is (by the lagoons or off the harbour).',
     name: 'Spew Pits',
     aliases: ['El Cotillo – Spew Pits'],
     externalIds: { surfForecast: 'Spew-Pits' },
@@ -419,6 +421,7 @@ const seed: SeedSpot[] = [
   },
   {
     id: 'fv-flag-beach',
+    dataNote: 'Its forecast point lies near Isla de Lobos, so wind and waves here are less reliable.',
     name: 'Flag Beach',
     aliases: ['Playa de Corralejo'],
     externalIds: { surfline: 'flag-beach/640b894d4519055a3bdbaeaf' },

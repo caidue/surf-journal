@@ -9,7 +9,7 @@ sources:
     id: "report"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T14:30:00+00:00"
+  at: "2026-11-14T20:30:00+00:00"
 ---
 # Hourly forecast table
 
@@ -18,6 +18,7 @@ Columns: daylight hours (one before sunrise to sunset), 50 px each, scrolled to 
 | Row | Content |
 |---|---|
 | Time | hour, "now" tag, "Best ▾" toggle on the best window |
+| Withheld hours | "?" in Spot and For you with the reason on hover (For you keeps ✕ when the spot isn't for you anyway) |
 | Wind | mean of four models over the sea (arrow, speed, gust, colour by kind); tooltip lists every model; "?" when they disagree by ≥ 45° |
 | **Spot** rating | q (coloured number) with a bar: solid = q, faded = potential without wind; tooltip with the word (Poor … Epic) |
 | **For you** | predicted fun, ✕ when unsuitable; tooltip with status, best peak and reasons |

@@ -13,16 +13,16 @@ sources:
     title: "Nathanson et al. 2007 (injury risk: overhead 2.4×, reef 2.6×)"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T11:10:00+00:00"
+  at: "2026-11-14T19:30:00+00:00"
 ---
 # Suitability rules
 
-`suitability(spot, derived, profile, unit)` in `src/lib/rating.ts`. Each rule yields a status and a reason; **the worst status wins**. Factors: good 1 · ok 0.85 · **stretch 0.7** · challenging 0.5 · unsuitable 0. H = estimated face height `hb` (already gain-calibrated), **rounded to the shown precision** (0.1 m, or 1 ft) before every comparison, so a reason never reads "~2.2 m vs 2.2 m"; C = comfortable size; M = max(biggest caught, C).
+`suitability(spot, derived, profile, unit)` in `src/lib/rating.ts`. Each rule yields a status and a reason; **the worst status wins**. Factors: good 1 · ok 0.85 · **stretch 0.7** · challenging 0.5 · unsuitable 0. H = estimated face height `hb` (already gain-calibrated), **rounded to the shown precision** (0.1 m, or 1 ft) before every comparison, so a reason never reads "~2.2 m vs 2.2 m"; C = comfortable size; M = max(biggest caught, **1.2 × C**) so a few centimetres more never jump straight from "top of your comfort zone" to "bigger than anything you've surfed".
 
 | Rule | Condition → status |
 |---|---|
-| Spot level | required stage (beginner/all 1, intermediate 4, advanced 6, expert 7) more than one above yours → unsuitable; exactly one above → challenging ("A step up: this spot is usually surfed from Expert (stage 7). Your level: Advanced.") |
-| Size | H ≤ 0.8C good (positive reason); ≤ C ok; ≤ M challenging, or **stretch** with "I want to push my limits"; ≤ 1.15M challenging at stage ≥ 6 else unsuitable; above → unsuitable. Every size reason names both sizes |
+| Spot level | required stage (a local rule can raise the level for the hour, e.g. Bristol and Izquierda del Hierro at low tide → expert, Cotillo's Piedra Playa peaks above mid tide or over ~1 m → intermediate; the reason starts "Local knowledge: …") (beginner/all 1, intermediate 4, advanced 6, expert 7) more than one above yours → unsuitable; exactly one above → challenging ("A step up: this spot is usually surfed from Expert (stage 7). Your level: Advanced.") |
+| Size | **Small for progressing** (stage ≥ 3): `sizeFit(H, C, stage)` = 1 from 0.7C, 0.65 at 0.55C, 0.3 at 0.35C, 0.2 below; under 0.65 → ok with "Small for progressing" / "Too small to practise", and the score factor becomes min(status factor, sizeFit). Otherwise H ≤ 0.8C good (positive reason); ≤ C ok; ≤ M challenging, or **stretch** with "I want to push my limits"; ≤ 1.15M challenging at stage ≥ 6 else unsuitable; above → unsuitable. Every size reason names both sizes |
 | Overhead floor | H > 2.0 m at stage ≤ 5 → challenging |
 | Too small | H below the board's minimum (soft-top 0.3 … step-up 1.5 m) → ok, suggests more volume |
 | Period | Tp ≥ 13 s, H > 0.7C, stage ≤ 5 → ok (challenging if H > C) |
@@ -30,7 +30,7 @@ generated:
 | Bottom | reef/rock with no reef experience → challenging (unsuitable at stage ≤ 3 or H > C); mixed → ok; sand at stage ≤ 3 → positive |
 | Shape | hollow/slab with "prefer mellow" → challenging (unsuitable if H > C); fast/sectiony peel at stage ≤ 3 → challenging; mellow at stage ≤ 4 → positive |
 | Wind | > 45 km/h → challenging at stage ≥ 6 else unsuitable; > 30 km/h at stage ≤ 3 → challenging; offshore > 25 km/h with "prefer mellow" → ok |
-| Paddle-out | rip/current hazard with paddle-out ≤ 1 → challenging if H > 0.8C else ok; H > C with paddle-out ≤ 1 → challenging |
+| Paddle-out | rip/current hazard with paddle-out ≤ 1 → ok (advice); H > C with paddle-out ≤ 1 → challenging |
 | Water | not sure / not confident out of depth, stage ≤ 3, no lifeguard → ok / challenging |
 
 ## Reasons shown

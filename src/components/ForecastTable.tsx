@@ -191,6 +191,12 @@ export default function ForecastTable({
               {cols.map((c) => {
                 const q = c.quality.q;
                 const pot = c.quality.potential;
+                if (c.sure.withheld)
+                  return (
+                    <td key={c.time} className={`fc-rating withheld${night(c)}`} title={c.sure.withheld}>
+                      <span className="fc-q">?</span>
+                    </td>
+                  );
                 return (
                   <td key={c.time} className={`fc-rating${night(c)}`} title={`${scoreLabel(q)} · ${q.toFixed(1)}/10${pot - q > 0.3 ? ` · ${pot.toFixed(1)} without the wind` : ''}`}>
                     <span className="fc-q" style={{ color: scoreColor(q) }}>
@@ -211,6 +217,15 @@ export default function ForecastTable({
               {cols.map((c) => {
                 const bad = c.suit.status === 'unsuitable';
                 const why = reasonsText(c.suit);
+                // "Not for you" stays certain at any tide; only an otherwise possible hour turns into "?".
+                if (c.sure.withheld && !bad)
+                  return (
+                    <td key={c.time} className={night(c).trim()}>
+                      <span className="fc-score withheld" title={c.sure.withheld}>
+                        ?
+                      </span>
+                    </td>
+                  );
                 return (
                   <td key={c.time} className={night(c).trim()}>
                     <span

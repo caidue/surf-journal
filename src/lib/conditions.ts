@@ -21,11 +21,23 @@ export interface Derived {
   /** Wind components relative to the spot (km/h). uOff > 0 = offshore, < 0 = onshore. */
   uOff: number | null;
   uX: number | null;
-  /** Tide height normalised to the day's range (0 = lowest, 1 = highest) and trend (-1 falling .. 1 rising). */
+  /**
+   * Tide position in the middle of the hour between the surrounding low and high (0 = low,
+   * 1 = high), and trend (-1 falling .. 1 rising).
+   */
   tideNorm: number | null;
   tideTrend: number | null;
   waterTemp: number | null;
+  /**
+   * Breaking height (m) the same swell makes on an open north-facing reef: the regional reference
+   * for local rules like "only works when the North Shore is big" (lib/rules.ts).
+   */
+  openHb: number | null;
 }
+
+/** The open North Shore reef used as the regional size reference (exposed to W–N–NE swell). */
+const OPEN_NORTH = { idealSwellDir: 330, swellWindow: 90 };
+const OPEN_GAIN = 0.77;
 
 const G = 9.81;
 const KG = 0.39 * Math.pow(G, 0.2); // Komar & Gaughan (1972) breaker height coefficient
@@ -81,6 +93,12 @@ export function deriveHour(spot: Spot, c: HourConditions, tide?: { norm: number 
     sy += e * Math.sin(toRad(p.dir));
   }
   const hb = parts.length ? gain * Math.sqrt(hbSq) : null;
+  let openSq = 0;
+  for (const p of parts) {
+    const b = breakingHeight(p.h, p.t) * exposure(OPEN_NORTH, p.dir) * p.weight;
+    openSq += b * b;
+  }
+  const openHb = parts.length ? OPEN_GAIN * Math.sqrt(openSq) : null;
   const tDom = eSum > 0 ? tNum / eSum : parts.length ? parts[0].t : null;
   const dirDom = eSum > 0 ? (((Math.atan2(sy, sx) * 180) / Math.PI) + 360) % 360 : parts.length ? parts[0].dir : null;
 
@@ -106,37 +124,68 @@ export function deriveHour(spot: Spot, c: HourConditions, tide?: { norm: number 
     tideNorm: tide?.norm ?? null,
     tideTrend: tide?.trend ?? null,
     waterTemp: c.waterTemp,
+    openHb,
   };
 }
 
-/** Tide height normalised per calendar day, plus rising/falling trend. */
+/**
+ * Tide position for each hour, in the MIDDLE of the hour (the hourly values are instantaneous at
+ * :00; a session or a forecast column covers :00–:59), between the low and the high that bracket
+ * it: 0 = low, 1 = high. This ignores a higher or lower tide later in the night, so "mid" means
+ * halfway up this tide. Edges of the series (no bracketing pair) fall back to the day's range.
+ */
 export function tideInfo(hours: HourConditions[]): { norm: number | null; trend: number | null }[] {
-  const byDay = new Map<string, number[]>();
-  hours.forEach((h, i) => {
-    const day = h.time.slice(0, 10);
-    if (!byDay.has(day)) byDay.set(day, []);
-    byDay.get(day)!.push(i);
-  });
+  const lv = hours.map((h) => h.seaLevel);
+  const mid = lv.map((v, i) => (v == null ? null : lv[i + 1] != null ? (v + lv[i + 1]!) / 2 : v));
+  // Turning points of the hourly sea level.
+  const ext: { i: number; v: number; high: boolean }[] = [];
+  for (let i = 1; i < lv.length - 1; i++) {
+    const [a, b, c] = [lv[i - 1], lv[i], lv[i + 1]];
+    if (a == null || b == null || c == null) continue;
+    const high = b >= a && b > c;
+    const low = b <= a && b < c;
+    if (!high && !low) continue;
+    const last = ext[ext.length - 1];
+    if (last && last.high === high) {
+      if (high ? b > last.v : b < last.v) ext[ext.length - 1] = { i, v: b, high };
+    } else ext.push({ i, v: b, high });
+  }
   const out: { norm: number | null; trend: number | null }[] = hours.map(() => ({ norm: null, trend: null }));
-  for (const idx of byDay.values()) {
-    const vals = idx.map((i) => hours[i].seaLevel).filter((v): v is number => v != null);
-    if (vals.length < 6) continue;
-    const lo = Math.min(...vals);
-    const hi = Math.max(...vals);
+  // Fallback range per calendar day (series edges).
+  const dayRange = new Map<string, [number, number]>();
+  hours.forEach((h) => {
+    if (h.seaLevel == null) return;
+    const d = h.time.slice(0, 10);
+    const r = dayRange.get(d);
+    dayRange.set(d, r ? [Math.min(r[0], h.seaLevel), Math.max(r[1], h.seaLevel)] : [h.seaLevel, h.seaLevel]);
+  });
+  let k = 0;
+  for (let i = 0; i < hours.length; i++) {
+    const v = mid[i];
+    if (v == null) continue;
+    while (k < ext.length && ext[k].i <= i) k++;
+    const prev = ext[k - 1];
+    const next = ext[k];
+    let lo: number;
+    let hi: number;
+    if (prev && next && prev.high !== next.high) {
+      lo = Math.min(prev.v, next.v);
+      hi = Math.max(prev.v, next.v);
+    } else {
+      const r = dayRange.get(hours[i].time.slice(0, 10));
+      if (!r) continue;
+      [lo, hi] = r;
+    }
     const range = hi - lo;
     if (range < 0.05) continue;
-    for (const i of idx) {
-      const v = hours[i].seaLevel;
-      if (v == null) continue;
-      const prev = hours[i - 1]?.seaLevel ?? v;
-      const next = hours[i + 1]?.seaLevel ?? v;
-      const slope = (next - prev) / 2; // m per hour
-      out[i] = {
-        norm: (v - lo) / range,
-        // Max slope of a semi-diurnal tide is ~ range * π / 12 per hour.
-        trend: Math.max(-1, Math.min(1, slope / ((range * Math.PI) / 12))),
-      };
-    }
+    const a = lv[i] ?? v;
+    const b = lv[i + 1] ?? a;
+    const slope = b - a; // m per hour, across this hour
+    out[i] = {
+      norm: Math.max(0, Math.min(1, (v - lo) / range)),
+      // Max slope of a semi-diurnal tide is ~ range * π / 12 per hour.
+      trend: Math.max(-1, Math.min(1, slope / ((range * Math.PI) / 12))),
+    };
   }
   return out;
 }

@@ -2,6 +2,7 @@ import type { DayInfo, HourConditions, Peak, Session, Settings, SkillProfile, Sp
 import { deriveSeries, windKind, type Derived } from './conditions';
 import { rateSpot, type Quality, type Suitability } from './rating';
 import { DEFAULT_PROFILE, levelName, OBSERVED_SIZES, stageGapWeight } from './skill';
+import { sureness, type Sureness } from './confidence';
 import { distance, kernel, mostDifferent, mostDifferentKey } from './similarity';
 import { daysBetween, isoToMin } from './time';
 
@@ -187,8 +188,10 @@ export interface HourRec {
   peak: Peak | null;
   rule: number;
   pred: Prediction;
-  /** Final score 0-10 for you (0 when unsuitable). */
+  /** Final score 0-10 for you (0 when unsuitable or withheld). */
   score: number;
+  /** How sure the rating is; `withheld` = no rating this hour (lib/confidence.ts). */
+  sure: Sureness;
 }
 
 export interface SpotRec {
@@ -203,6 +206,22 @@ export interface SpotRec {
   now: HourRec | null;
   /** True when looking at today and no daylight hours are left. */
   dayOver: boolean;
+  /** When the wind turns onshore (or much worse) within 3 h after the best window starts: minutes after midnight. */
+  windTurn: number | null;
+  /** The best window doesn't clearly beat the rest of the day (by less than 0.5 points). */
+  evenDay: boolean;
+  /** The wind models disagree on the direction at the best hour (spread ≥ 45°). */
+  windUnsure: boolean;
+}
+
+/** Wind models disagreeing by this much (deg) at the best hour is worth saying. */
+export const WIND_UNSURE_DEG = 45;
+
+/** Is a session worth it for you today, judged on the best pick's score (0–10)? */
+export function dayVerdict(bestScore: number | null | undefined): { label: string; tone: 'go' | 'maybe' | 'no' } {
+  if (bestScore == null || bestScore < 3) return { label: 'Not much for you', tone: 'no' };
+  if (bestScore < 5) return { label: 'Marginal', tone: 'maybe' };
+  return { label: 'Worth going', tone: 'go' };
 }
 
 export function daylight(days: DayInfo[] | undefined, date: string): [number, number] {
@@ -239,8 +258,9 @@ export function recommendSpotDay(
     // Spots whose peaks differ (level, size range, tide, shape) are rated per peak.
     const r = rateSpot(spot, d, me, settings.heightUnit);
     const pred = predict(spot, d, r.score, history);
-    const score = r.suit.status === 'unsuitable' ? 0 : pred.yhat;
-    recs.push({ idx: i, time: h.time, daylight, derived: d, quality: r.quality, suit: r.suit, peak: r.peak, rule: r.score, pred, score });
+    const sure = sureness(spot, d, h.windSpread, pred.sumW);
+    const score = r.suit.status === 'unsuitable' || sure.withheld ? 0 : pred.yhat;
+    recs.push({ idx: i, time: h.time, daylight, derived: d, quality: r.quality, suit: r.suit, peak: r.peak, rule: r.score, pred, score, sure });
   });
 
   // Daylight hours only; upcoming ones only when looking at today.
@@ -248,11 +268,13 @@ export function recommendSpotDay(
   let best: HourRec | null = null;
   let bestWindow: [number, number] | null = null;
   let bestVal = -1;
+  const vals: number[] = [];
   for (let i = 0; i < candidates.length; i++) {
     const a = candidates[i];
     const b = candidates[i + 1];
     const contiguous = b && (isoToMin(b.time) ?? 0) - (isoToMin(a.time) ?? 0) === 60;
     const val = contiguous ? (a.score + b.score) / 2 : a.score;
+    vals.push(val);
     if (val > bestVal) {
       bestVal = val;
       best = contiguous && b.score > a.score ? b : a;
@@ -260,6 +282,25 @@ export function recommendSpotDay(
       bestWindow = [Math.max(start, rise), Math.min(start + (contiguous ? 120 : 60), set)];
     }
   }
+  // A window only stands out when it beats the typical rest of the day.
+  const others = vals.filter((v) => v !== bestVal).sort((x, y) => x - y);
+  const median = others.length ? others[Math.floor(others.length / 2)] : bestVal;
+  const evenDay = bestVal > 0.5 && others.length >= 2 && bestVal - median < 0.5;
+  // Go before the wind turns: the first hour within 3 h of the window start where the wind
+  // factor falls below 0.5 while it was still decent at the start.
+  let windTurn: number | null = null;
+  if (bestWindow) {
+    const start = bestWindow[0];
+    const first = recs.find((r) => (isoToMin(r.time) ?? 0) + 60 > start);
+    if (first && first.quality.factors.wind >= 0.6) {
+      const turn = recs.find((r) => {
+        const m = isoToMin(r.time) ?? 0;
+        return m > start && m <= start + 180 && r.quality.factors.wind < 0.5 && r.quality.factors.wind < first.quality.factors.wind - 0.15;
+      });
+      if (turn) windTurn = isoToMin(turn.time) ?? null;
+    }
+  }
+  const windUnsure = !!best && (hours[best.idx]?.windSpread ?? 0) >= WIND_UNSURE_DEG;
   const now =
     nowMin != null
       ? recs.find((r) => {
@@ -267,7 +308,7 @@ export function recommendSpotDay(
           return nowMin >= m && nowMin < m + 60;
         }) ?? null
       : null;
-  return { spot, gain, hours: recs, best, bestWindow, now, dayOver: nowMin != null && recs.length > 0 && candidates.length === 0 };
+  return { spot, gain, hours: recs, best, bestWindow, now, dayOver: nowMin != null && recs.length > 0 && candidates.length === 0, windTurn, evenDay, windUnsure };
 }
 
 /* ------------------------------------------------------------------ */
@@ -295,6 +336,11 @@ export function explain(r: HourRec, fmtSessionDate: (s: Session) => string): str
   } else {
     out.push('No logged sessions here yet: the score comes from the spot guide and your surfing profile.');
   }
+  // Local knowledge that changed this hour (lib/rules.ts), most certain first.
+  const conf = { high: 0, medium: 1, low: 2 } as const;
+  const word = { high: 'sources agree', medium: 'some support', low: 'sources disagree' } as const;
+  for (const f of [...(r.quality.rules ?? [])].filter((x) => x.rule.apply?.type !== 'levelWhen').sort((a, b) => conf[a.rule.confidence] - conf[b.rule.confidence]).slice(0, 2))
+    out.push(`Local knowledge (${word[f.rule.confidence]}): ${f.effect}.`);
   const f = r.quality.factors;
   const weak: string[] = [];
   if (f.size < 0.4) weak.push('size outside the range this spot likes');

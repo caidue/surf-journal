@@ -6,7 +6,7 @@ resource: "src/"
 tags: ["architecture", "code"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T14:30:00+00:00"
+  at: "2026-11-14T20:30:00+00:00"
 ---
 # Code map
 
@@ -30,6 +30,9 @@ generated:
 
 ## Data (`src/data/`)
 * `seedSpots.ts`: built-in spots, names, aliases, external ids, attributes, peak overrides, `SEED_VERSION`, `RETIRED_SPOTS`. [Spot catalogue](/spots/catalogue.md).
+* `../lib/confidence.ts`: knowledge level per spot, confidence per hour, withheld ratings. [How sure a rating is](/engine/confidence.md).
+* `../lib/rules.ts`: the rules engine (`evaluateRules`, `tideWindowFactor`, `inArc`). [Rules engine](/engine/rules-engine.md).
+* `../lib/fixtures/caleta-2026-11-14.ts`: real Open-Meteo data for the La Caleta regression test.
 * `spotRules.ts`: local knowledge per built-in spot (rules with sources, confidence, whether the rating follows them). [Local knowledge](/spots/local-knowledge.md).
 * `spotGuides.ts`: researched guides (peaks, season, boards, access, warnings, parking, facilities, photos, sources). [Spot guide](/features/spot-guide.md).
 

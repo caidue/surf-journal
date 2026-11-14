@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
 import { scoreColor, SUIT_COLOR, SUIT_LABEL, type Suit, type Suitability } from '../lib/rating';
+import type { SpotRec } from '../lib/recommend';
+import { SURE_LABEL, type Sureness } from '../lib/confidence';
+import { fmtMin } from '../lib/time';
 
 export function Chips<T extends string>({
   options,
@@ -169,4 +172,30 @@ export function ConditionsStatus({ error, offline, savedAt, onRetry }: { error: 
       </div>
     );
   return null;
+}
+
+/** "Go before the wind turns", "the models disagree", "fairly even day": what the best window can't say by itself. */
+export function TimingNotes({ rec, showEven = true }: { rec: SpotRec; showEven?: boolean }) {
+  const notes: string[] = [];
+  if (rec.windTurn != null) notes.push(`The wind turns onshore around ${fmtMin(rec.windTurn)}: go early.`);
+  if (rec.windUnsure) notes.push('The wind models disagree on the direction then: check the wind before you go.');
+  if (showEven && rec.evenDay) notes.push('Fairly even day: no time clearly stands out.');
+  if (!notes.length) return null;
+  return (
+    <ul className="timing-notes">
+      {notes.map((n) => (
+        <li key={n}>{n}</li>
+      ))}
+    </ul>
+  );
+}
+
+/** How sure the app is about a rating: Reliable / Less certain / Rough guide, with the reasons on hover. */
+export function SureBadge({ sure }: { sure: Sureness }) {
+  if (sure.withheld) return <span className="sure withheld" title={sure.withheld}>No rating</span>;
+  return (
+    <span className={`sure ${sure.level}`} title={`${SURE_LABEL[sure.level]}: ${sure.reasons.join(', ')}.`}>
+      {SURE_LABEL[sure.level]}
+    </span>
+  );
 }

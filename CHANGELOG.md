@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0 — 2026-11-14
+
+- **Local knowledge now shapes the rating.** Conditional local rules apply every hour, each limited by how well its sources agree: El Muelle low tide on small swells but any tide on big ones; Majanicho's inside peaks only when the outside reefs are about 2 m+ (the A-frame 3 m+); Rocky Point outside and Suicides only on big North Shore swells; Derecha de los Alemanes mushy in N–NW wind; Bristol and Izquierda del Hierro for experts at low tide; Cotillo's Piedra Playa peaks for beginners only at lower tide and under about 1 m; La Caleta and Playa del Moro prefer lower tide on small swells. The explanation names the rule that applied.
+- **Tide measured between the surrounding low and high**, in the middle of each hour, so a higher night tide no longer distorts the day.
+- **Waves too small to progress count less** from stage 3 up ("Small for progressing" for thigh-high waves when you're comfortable to head high). No more sudden 0 scores a few centimetres above your comfort size, and rip currents are advice instead of halving the score.
+- **Timing:** the best picks say when the wind turns onshore after the window starts, when the day is fairly even, and when the wind models disagree; a verdict (Worth going / Marginal / Not much for you) sits next to the heading.
+- On 14 November the app now picks La Caleta's morning (11:00–13:00) instead of the afternoon push.
+- **How sure is the rating?** Every best pick and spot recommendation shows Reliable, Less certain or Rough guide, based on how much local knowledge the app has about the spot, whether the wind models agree, whether the spot's forecast point or location is doubtful, and your own sessions there. The Info tab says what the app knows about each spot. On close scores, best picks prefer spots the app knows well.
+- **Clearer reasons:** ✓ for what speaks for an hour, − for what speaks against it, ✕ for "not for you", instead of coloured dots; the explanation, reasons and timing notes now line up.
+- **No rating where a guess could be dangerous:** expert reefs at low tide that no source describes (currently Spew Pits) show "?" instead of a score. Spots you add yourself start as a rough guide and get surer with your sessions.
+
 ## 1.3.0 — 2026-11-14
 
 - **Wind over the sea, from four models.** The wind used to come from a point about 9 km inland; it now comes from the sea off each spot, as the mean of ECMWF, ICON, ARPEGE and GFS. Hover a wind cell to see each model; a "?" marks hours where they disagree on the direction. Your logged sessions are updated automatically.

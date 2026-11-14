@@ -719,6 +719,49 @@ label.field,
   width: auto;
   min-height: var(--tap-sm); /* keeps 16 px text: no zoom-on-focus in iOS Safari */
 }
+/* How sure a rating is (lib/confidence.ts). */
+.sure {
+  display: inline-block;
+  border-radius: var(--r-pill);
+  padding: 0 8px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid currentColor;
+}
+.sure.high { color: #15803d; }
+.sure.medium { color: #b45309; }
+.sure.low { color: var(--muted); border-style: dashed; }
+.sure.withheld { color: var(--muted); border-style: dashed; }
+td.fc-rating.withheld .fc-q,
+.fc-score.withheld {
+  color: var(--muted);
+  background: var(--line-2);
+  font-weight: 700;
+}
+/* Day verdict next to "Best picks for you …". */
+.verdict {
+  margin-left: var(--sp-2);
+  border-radius: var(--r-pill);
+  padding: 1px 8px;
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  vertical-align: 1px;
+}
+.verdict.go { background: #dcfce7; color: #15803d; }
+.verdict.maybe { background: #fef3c7; color: #b45309; }
+.verdict.no { background: var(--line-2); color: var(--muted); }
+/* "Go early: the wind turns onshore around 13:00", "the models disagree", "fairly even day". */
+.timing-notes {
+  margin: var(--sp-2) 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  color: var(--warn);
+}
+.timing-notes li::before {
+  content: '⏱';
+}
 .pick-list .explain {
   margin-bottom: var(--sp-2);
 }
@@ -731,12 +774,33 @@ label.field,
 }
 .explain {
   margin: var(--sp-2) 0 var(--sp-3);
-  padding-left: var(--sp-5);
-  list-style: disc;
+  padding: 0;
+  list-style: none;
   font-size: var(--fs-sm);
 }
 .explain li + li {
   margin-top: var(--sp-1);
+}
+/* Explanation, reasons and timing notes share one icon column, so their text lines up. */
+.explain li,
+.suit-reasons li,
+.timing-notes li {
+  position: relative;
+  padding-left: 1.4em;
+}
+.explain li::before,
+.suit-reasons li::before,
+.timing-notes li::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.1em;
+  text-align: center;
+  font-weight: 700;
+}
+.explain li::before {
+  content: '›';
+  color: var(--muted);
 }
 .spot-list {
   display: grid;
@@ -2465,39 +2529,34 @@ h4.subsection {
 /* ---------------- suitability reasons ---------------- */
 .suit-reasons {
   list-style: none;
-  margin: var(--sp-1) 0 0;
+  margin: var(--sp-2) 0 0;
   padding: 0;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
 }
 .suit-reasons li {
-  position: relative;
-  padding-left: 1.1em;
   margin: 2px 0;
 }
+/* ✓ for what speaks for the hour, − for what speaks against it (coloured by how much), ✕ for "not for you". */
 .suit-reasons li::before {
-  content: '';
-  position: absolute;
-  left: 0.15em;
-  top: 0.5em;
-  width: 0.5em;
-  height: 0.5em;
-  border-radius: 50%;
-  background: var(--muted);
+  content: '−';
+  color: var(--muted);
 }
 .suit-reasons li.plus::before {
-  background: #16a34a;
+  content: '✓';
+  color: #16a34a;
 }
 .suit-reasons li.s-ok::before {
-  background: #65a30d;
+  color: #65a30d;
 }
 .suit-reasons li.s-stretch::before {
-  background: #0891b2;
+  color: #0891b2;
 }
 .suit-reasons li.s-challenging::before {
-  background: #d97706;
+  color: #d97706;
 }
 .suit-reasons li.s-unsuitable::before {
-  background: #dc2626;
+  content: '✕';
+  color: #dc2626;
 }
 .peak-pick {
   font-size: 0.8125rem;

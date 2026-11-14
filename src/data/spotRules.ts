@@ -10,9 +10,9 @@ import type { RuleSource, SpotRule } from '../types';
  * A source that states a condition ("the lower the tide, the more dangerous") outranks a one-word
  * "best tide" label, which often encodes visitor safety rather than wave quality.
  *
- * `inRating` says whether the spot's rating already follows the rule. Conditional rules (tide by
- * swell size, gates on the regional swell, wind vetoes, timing) need the rules engine (next step)
- * and are shown in the spot guide until then. No source gives a wind speed in knots or a swell
+ * `inRating` says whether the spot's rating follows the rule: as plain spot data (seedSpots.ts) or
+ * through `apply`, which lib/rules.ts evaluates every hour (tide windows by swell size, gates on
+ * the open-reef size, wind caps, level rules). The rest is shown in the spot guide only. No source gives a wind speed in knots or a swell
  * period threshold for any spot: such numbers will be tuning parameters, never "local fact".
  */
 
@@ -47,7 +47,9 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
       text: 'The fallback when the North Shore is too big (or too windy): the inside works on swells of about 2.5–5 m; the outside only when the North Shore is well over 5 m.',
       confidence: 'high',
       sources: [src.playas('es/spot/rocky-point-inside/'), src.wanna('rocky_point_outside'), src.planet, src.atlas('majanicho')],
-      inRating: false,
+      inRating: true,
+      note: 'Applied to the outside reef (it needs about 3.5 m on the open reefs). The inside also works on small days, when schools use it.',
+      apply: { type: 'gate', peak: 'outside', atLeast: 3.5, cap: 1 },
     },
     {
       id: 'rocky-outside-tide',
@@ -74,8 +76,8 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
       text: 'Small to medium swell: only surfable at low tide (dangerous at high tide on the reef). Big swell: holds size, above all at high tide.',
       confidence: 'high',
       sources: [src.playas('es/spot/el-muelle/'), src.surfmarket('muelle'), src.jandia],
-      inRating: false,
-      note: 'The app uses low–mid on every swell; the big-swell exception needs the rules engine.',
+      inRating: true,
+      apply: { type: 'tideBySize', size: 'own', rows: [{ below: 2, range: [0, 0.45] }, { range: [0, 1] }] },
     },
     {
       id: 'muelle-level',
@@ -93,7 +95,8 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
       text: 'Breaks on all tides; the lower the tide, the more powerful and dangerous (low tide is for experts).',
       confidence: 'medium',
       sources: [src.surfmarket('bristol'), src.playas('es/spot/bristol/'), src.planet],
-      inRating: false,
+      inRating: true,
+      apply: { type: 'levelWhen', tideBelow: 0.25, level: 'expert' },
     },
     {
       id: 'bristol-wind',
@@ -130,8 +133,8 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
       text: 'Usually only works when the North Shore is big and clean; mid to high tide.',
       confidence: 'medium',
       sources: [src.wanna('suicidios'), src.sf('Suicides_2'), src.mondo('suicidios/guide/2370')],
-      inRating: false,
-      note: 'The tide part is in the rating; the "North Shore big" condition needs the rules engine.',
+      inRating: true,
+      apply: { type: 'gate', atLeast: 2, cap: 3 },
     },
   ],
   'fv-mejillones': [
@@ -160,8 +163,9 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
       text: 'Small to moderate north swell: low to low-mid, rising (better at low tide; avoid big tides). A preference for higher tide applies, if at all, only on bigger swells.',
       confidence: 'low',
       sources: [src.gonna, src.session1114, src.planet, src.playas('en/?p=7880'), src.billabong, src.tabula],
-      inRating: false,
-      note: 'Sources conflict (high / all tides / low). Until the rules engine applies the size-dependent window, the app gives no tide preference here.',
+      inRating: true,
+      note: 'Sources conflict (high / all tides / low), so this rule can cost at most about a third of the rating.',
+      apply: { type: 'tideBySize', size: 'own', rows: [{ below: 1.8, range: [0, 0.5] }, { range: [0.2, 0.9] }] },
     },
     {
       id: 'caleta-wind',
@@ -184,11 +188,21 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
     {
       id: 'majanicho-inside-gate',
       kind: 'size',
-      text: 'The inside peaks only appear when the outside reefs are about 2 m or more; the bay A-frame from about 3 m outside. Incoming tide, little wind.',
+      text: 'The inside right only appears when the outside reefs are about 2 m or more. Incoming tide, little wind.',
       confidence: 'high',
       sources: [src.playas('es/spot/majanicho-inside/'), src.surfmarket('majanicho'), src.wanna('majanicho')],
-      inRating: false,
-      note: 'The app still treats the inside peaks as working from 0.8 m.',
+      inRating: true,
+      note: 'The size shown is still the open-reef size; the inside wave itself is smaller.',
+      apply: { type: 'gate', peak: 'inside-right', atLeast: 2, cap: 1 },
+    },
+    {
+      id: 'majanicho-aframe-gate',
+      kind: 'size',
+      text: 'The A-frame in the middle of the bay needs about 3 m or more on the outside reefs.',
+      confidence: 'medium',
+      sources: [src.wanna('majanicho'), src.playas('es/spot/majanicho-inside/')],
+      inRating: true,
+      apply: { type: 'gate', peak: 'inside-a', atLeast: 3, cap: 1 },
     },
     {
       id: 'majanicho-outside',
@@ -216,12 +230,22 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
       text: 'Very sensitive to wind: N or NW wind makes it mushy and unrideable.',
       confidence: 'medium',
       sources: [src.wanna('derecha_de_los_alemanes')],
-      inRating: false,
+      inRating: true,
+      apply: { type: 'windCap', from: [300, 20], aboveKmh: 12, cap: 2 },
+    },
+    {
+      id: 'derecha-tide',
+      kind: 'tide',
+      text: 'Works on all tides.',
+      confidence: 'high',
+      sources: [src.wanna('derecha_de_los_alemanes'), src.sf('Los-Alemanes'), src.playas('es/spot/derecha-de-los-alemanes/')],
+      inRating: true,
+      note: 'One school guide prefers low tide.',
     },
     {
       id: 'derecha-ladder',
       kind: 'size',
-      text: 'Needs more swell than the left across the bay; all tides.',
+      text: 'Needs more swell than the left across the bay.',
       confidence: 'high',
       sources: [src.wanna('derecha_de_los_alemanes'), src.sf('Los-Alemanes'), src.playas('en/?p=7914')],
       inRating: true,
@@ -234,7 +258,8 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
       text: 'All tides, but the wave gets very aggressive at low tide (expert territory then). Works on smaller swell than the right.',
       confidence: 'medium',
       sources: [src.jandia, src.surfmarket('izquierda-del-hierro'), src.playas('es/spot/izquiera-del-hierro/'), src.wanna('hierro_left')],
-      inRating: false,
+      inRating: true,
+      apply: { type: 'levelWhen', tideBelow: 0.25, level: 'expert' },
     },
   ],
   'fv-punta-blanca': [
@@ -256,8 +281,9 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
       text: 'Beginners: low tide and swell under about 1 m (at high tide the waves break on the shore). Intermediate and advanced sessions about 3 hours either side of high tide.',
       confidence: 'medium',
       sources: [src.surfescape, src.tripspoint],
-      inRating: false,
-      note: 'The app uses mid–high for the Piedra Playa peaks for everyone.',
+      inRating: true,
+      note: 'Applied as a level rule at the Piedra Playa peaks: above mid tide or over ~1 m they are not for beginners.',
+      apply: { type: 'levelWhen', peak: 'piedra-peaks', tideAbove: 0.6, sizeAbove: 1, level: 'intermediate' },
     },
     {
       id: 'cotillo-castillo',
@@ -295,8 +321,16 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
     {
       id: 'lobos-tide',
       kind: 'tide',
-      text: 'Low to mid tide; starts at about 1–1.5 m and holds 2.5 m+.',
+      text: 'Low to mid tide.',
       confidence: 'high',
+      sources: [src.wanna('los_lobos'), src.planet],
+      inRating: true,
+    },
+    {
+      id: 'lobos-size',
+      kind: 'size',
+      text: 'Starts at about 1–1.5 m and holds 2.5 m+ on N–NW swell; S, SE, E or NE wind.',
+      confidence: 'medium',
       sources: [src.wanna('los_lobos'), src.planet],
       inRating: true,
     },
@@ -358,8 +392,8 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
       text: 'Medium to low tide (rocks show at low); consistent in summer N–E windswell, usually flat in winter unless a big N–NW swell wraps in.',
       confidence: 'medium',
       sources: [src.surfescape, src.atlas('corralejo-surf')],
-      inRating: false,
-      note: 'The app gives no tide preference here yet.',
+      inRating: true,
+      apply: { type: 'tideBySize', size: 'own', rows: [{ range: [0, 0.6] }] },
     },
   ],
 };

@@ -6,7 +6,7 @@ resource: "src/types.ts"
 tags: ["architecture", "schema"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T14:30:00+00:00"
+  at: "2026-11-14T20:30:00+00:00"
 ---
 # Data model
 
@@ -14,7 +14,7 @@ Defined in `src/types.ts`. Stored tables: `spots`, `sessions`, `forecasts`, `geo
 
 # Schema
 
-**Spot**: `id`, `name` (Surfline's where it has one), `aliases?`, `externalIds? {surfline: "slug/id", surfForecast: slug}`, `region`, `lat`, `lon`, `coordsApprox`, `facing`, `idealSwellDir`, `swellWindow`, `minSize`, `maxSize` (breaking face height, m), `tide`, `breakType` (beach/reef/point), `bottom` (sand/reef/rock/mixed), `level` (beginner/all/intermediate/advanced/expert), `power?` (mellow/punchy/hollow/slab), `peel?` (slow/medium/fast/sectiony), `lifeguard?`, `crowd?`, `localism?`, `hazards[]`, `description`, `peaks[]`, `guide?`, `gain`, `source?`, `custom?`.
+**Spot**: `id`, `name` (Surfline's where it has one), `aliases?`, `dataNote?` (why its forecast point or location is doubtful), `externalIds? {surfline: "slug/id", surfForecast: slug}`, `region`, `lat`, `lon`, `coordsApprox`, `facing`, `idealSwellDir`, `swellWindow`, `minSize`, `maxSize` (breaking face height, m), `tide`, `breakType` (beach/reef/point), `bottom` (sand/reef/rock/mixed), `level` (beginner/all/intermediate/advanced/expert), `power?` (mellow/punchy/hollow/slab), `peel?` (slow/medium/fast/sectiony), `lifeguard?`, `crowd?`, `localism?`, `hazards[]`, `description`, `peaks[]`, `guide?`, `gain`, `source?`, `custom?`.
 
 **Peak**: `id`, `name`, `description?`, `breakType?`, `bottom?`, `direction?`, `level?`, `goodWhen?`, `season?`, rating overrides `minSize?`, `maxSize?`, `tide?`, `power?`, `peel?` ([Per-peak rating](/engine/per-peak-rating.md)).
 
@@ -34,4 +34,4 @@ Defined in `src/types.ts`. Stored tables: `spots`, `sessions`, `forecasts`, `geo
 
 **UserPhoto**: `id`, `spotId`, `blob` (JPEG ≤ 1600 px), `width`, `height`, `caption?`, `addedAt`.
 
-Derived (not stored): `Derived` per hour in `src/lib/conditions.ts` (`hb`, `tDom`, `dirDom`, `energy`, wind components `uOff`/`uX`, `tideNorm`, `tideTrend`).
+Derived (not stored): `Derived` per hour in `src/lib/conditions.ts` (`hb`, `tDom`, `dirDom`, `energy`, wind components `uOff`/`uX`, `tideNorm`, `tideTrend` (between the bracketing low and high, mid-hour), `openHb` (the same swell on an open north-facing reef, for local-rule gates)).

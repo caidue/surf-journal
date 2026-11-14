@@ -2,11 +2,13 @@
 
 Algorithms: spot rating, suitability rules, skill profile and learning, prediction, similarity.
 
+* [How sure a rating is](confidence.md) - Knowledge level per spot, confidence per hour, and when the app gives no rating at all.
 * [Day recommendation and best picks](day-recommendation.md) - Best time window per spot and the top three spots for today or right now.
 * [Insights per spot](insights.md) - What your fun ratings say about tide stage and wind at a spot.
 * [Per-peak rating](per-peak-rating.md) - Rating each peak of a spot on its own and naming the best one for you.
 * [Personal prediction (For you)](personal-prediction.md) - Blending the rule-based score with your fun ratings in similar past conditions.
 * [Profile learning from sessions](profile-learning.md) - Bounded, explained, undoable updates of the comfortable size and experience after a session.
+* [Rules engine (local knowledge in the rating)](rules-engine.md) - How the executable local rules change each hour's spot rating and suitability, and how their sources' agreement limits them.
 * [Similarity of conditions](similarity.md) - Analog matching of hours at the same spot.
 * [Size calibration](size-calibration.md) - Per-spot gain from the sizes you noted.
 * [Skill profile](skill-profile.md) - Stages 1–8, comfortable and biggest size, board and experience: what the app knows about the surfer.

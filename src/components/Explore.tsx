@@ -4,7 +4,7 @@ import { saveSettings } from '../db';
 import { useConditions, useMediaQuery } from '../hooks';
 import { bboxAround, bboxOf, inBBox, type BBox } from '../lib/geo';
 import { geocode, parseRegionQuery, PART_LABEL, subBox } from '../lib/geocode';
-import { buildHistory, confidence, explain, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec } from '../lib/recommend';
+import { buildHistory, confidence, explain, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec, dayVerdict } from '../lib/recommend';
 import { scoreColor } from '../lib/rating';
 import { bodyRange, bodyWord, levelName, stageBand } from '../lib/skill';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
@@ -15,7 +15,7 @@ import MapView, { type MapMarker } from './MapView';
 import SpotSheet from './SpotSheet';
 import SpotThumb from './SpotThumb';
 import { Icon } from './icons';
-import { Card, ConditionsStatus, DirArrow, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons } from './ui';
+import { Card, ConditionsStatus, DirArrow, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons, TimingNotes, SureBadge } from './ui';
 
 interface Region {
   label: string;
@@ -195,9 +195,11 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
               return hour ? [{ rec: r, hour }] : [];
             })
           : recs.filter((r) => r.best).map((r) => ({ rec: r, hour: r.best! }));
+    // On close scores, a spot the app knows well beats one rated by the general model only.
+    const sureBonus = { high: 0.4, medium: 0.2, low: 0 } as const;
     return ranked
       .filter((x) => x.hour.score > 0.5)
-      .sort((a, b) => b.hour.score - a.hour.score)
+      .sort((a, b) => b.hour.score + sureBonus[b.hour.sure.level] - (a.hour.score + sureBonus[a.hour.sure.level]))
       .slice(0, 3);
   }, [recs, mode, time]);
   const darkNow = mode === 'now' && recs.length > 0 && !recs.some((r) => r.now?.daylight);
@@ -321,6 +323,10 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                 <div className="eyebrow">
                   Best picks for you {mode === 'now' ? 'right now' : dayOffset === 0 ? 'today' : dayOptions[dayOffset].label.toLowerCase()}
                   {mode === 'time' && time != null ? ` at ${fmtMin(time)}` : ''}
+                  {picks.length > 0 && (() => {
+                    const v = dayVerdict(picks[0].hour.score);
+                    return <span className={`verdict ${v.tone}`}>{v.label}</span>;
+                  })()}
                 </div>
                 <div className="pick-controls">
                   <Segmented
@@ -395,6 +401,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                           Best for you: <strong>{hour.peak.name}</strong>
                         </div>
                       )}
+                      {mode === 'day' && <TimingNotes rec={rec} />}
                       <ul className="explain">
                           {explain(hour, (s) => fmtDate(s.date)).map((l) => (
                             <li key={l}>{l}</li>
@@ -402,7 +409,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                       </ul>
                       <div className="row gap wrap">
                         <SuitBadge status={hour.suit.status} />
-                        <span className="muted small">confidence: {confidence(hour.pred)}</span>
+                        <SureBadge sure={hour.sure} />
                       </div>
                       <SuitReasons suit={hour.suit} />
                     </li>

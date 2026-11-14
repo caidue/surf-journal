@@ -6,7 +6,7 @@ resource: "src/lib/recommend.ts"
 tags: ["engine", "recommendation"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-14T20:30:00+00:00"
 ---
 # Day recommendation and best picks
 
@@ -14,6 +14,12 @@ generated:
 * calibrates the gain, derives every hour, rates it per peak, predicts For you;
 * **daylight** hours = at least half the hour between sunrise and sunset;
 * **best window** = the best single or two consecutive upcoming daylight hours (average score), clipped to daylight;
-* `now` = the current hour when looking at today; `dayOver` when no daylight is left (Explore then jumps to tomorrow once).
+* `now` = the current hour when looking at today; `dayOver` when no daylight is left (Explore then jumps to tomorrow once);
+* `windTurn`: the first hour within 3 h after the window starts where the wind factor drops below 0.5 (and by more than 0.15) → "The wind turns onshore around 13:00: go early.";
+* `evenDay`: the best window beats the median of the other windows by less than 0.5 → "Fairly even day";
+* `sure` on every hour ([How sure a rating is](/engine/confidence.md)): Reliable / Less certain / Rough guide, or `withheld` (score 0, never a best window);
+* `windUnsure`: the wind models disagree by ≥ 45° at the best hour → "check the wind before you go".
 
-**Best picks** (Explore): the top three spots by best-window score ("Today") or by this hour's score ("Now"), with score > 0.5. The top pick also shows the explanation and suitability reasons.
+`TimingNotes` (ui.tsx) shows these under each pick (day mode) and on the spot's recommendation card. `dayVerdict(bestScore)`: Worth going ≥ 5, Marginal ≥ 3, else Not much for you; shown next to "Best picks for you …".
+
+**Best picks** (Explore): the top three spots by best-window score ("Today") or by this hour's score ("Now"), with score > 0.5. Every pick shows the explanation (incl. "Local knowledge (sources agree): …" lines for rules that changed the hour) and suitability reasons.

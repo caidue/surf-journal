@@ -13,7 +13,7 @@ sources:
     title: "Research: surf metrics, spots and skill model (2026-11)"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-14T19:30:00+00:00"
 ---
 # Spot rating (wave quality)
 
@@ -23,7 +23,8 @@ generated:
 * **fSize(hb, minSize, maxSize):** 0 below half the minimum; ramps to 0.6 at the minimum; 0.65–1 inside the range peaking at the geometric mean; fades to 0 at 1.5 × maxSize.
 * **fPeriod(Tp)** on the **peak** period: 0.25 below 6 s → 0.75 at 9 s → 1.0 from 12 s.
 * **fWind:** 1 when glassy (< 6 km/h); minus up to 0.85 for onshore (full at 22 km/h) and up to 0.5 for cross-shore (35 km/h); strong offshore over 30 km/h and any wind over 45 km/h cut further.
-* **fTide:** 1 inside the spot's (or peak's) tide range, −2.2 per unit outside, floor 0.3.
+* **fTide:** 1 inside the spot's (or peak's) tide range, −2.2 per unit outside, floor 0.3. A local tide rule replaces it ([Rules engine](/engine/rules-engine.md)).
+* **Local rules** then cap the result: a gate (e.g. "Majanicho inside needs the open reefs at ~2 m+") caps q and the potential, a wind rule (e.g. "Derecha mushy in N–NW wind") caps q. `Quality.rules` lists the rules that changed the hour.
 
 ## Word ladder
 `scoreLabel()`: Poor < 2, Poor–Fair < 3.5, Fair < 5, Fair–Good < 6.5, Good ≤ 9, **Epic only above 9**. `scoreColor()` uses the same steps.

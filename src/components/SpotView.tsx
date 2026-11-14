@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session, Settings, Spot } from '../types';
 import { useConditions } from '../hooks';
 import { tideExtremes, windKind, WIND_LABEL, type WindKind } from '../lib/conditions';
-import { buildHistory, calibratedGain, confidence, explain, insights, matchSession, recommendSpotDay, sessionOverall } from '../lib/recommend';
+import { buildHistory, calibratedGain, explain, insights, matchSession, recommendSpotDay, sessionOverall } from '../lib/recommend';
+import { KNOWLEDGE_LABEL, spotKnowledge } from '../lib/confidence';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
 import { compass, haversineKm } from '../lib/geo';
 import { similarityPct } from '../lib/similarity';
@@ -14,7 +15,7 @@ import { Icon, type IconName } from './icons';
 import MapView from './MapView';
 import SpotGuide from './SpotGuide';
 import { sessionSummary } from './Journal';
-import { ConditionsStatus, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons } from './ui';
+import { ConditionsStatus, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons, TimingNotes, SureBadge } from './ui';
 
 export type SpotTab = 'forecast' | 'guide' | 'sessions' | 'info';
 const TAB_KEY = 'surf-journal.spotTab';
@@ -185,13 +186,14 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                       {fmtSurf(best.derived.hb, settings.heightUnit)} · {best.derived.tDom ? `${Math.round(best.derived.tDom)} s · ` : ''}
                       {WIND_LABEL[windKind(best.derived) ?? 'glassy']} {fmtWind(best.derived.windSpeed, settings.windUnit)}
                     </span>
-                    <span className="muted small">confidence: {confidence(best.pred)}</span>
+                    <SureBadge sure={best.sure} />
                   </div>
                   {best.peak && (
                     <div className="peak-pick">
                       Best for you: <strong>{best.peak.name}</strong>
                     </div>
                   )}
+                  {rec && <TimingNotes rec={rec} />}
                   <SuitReasons suit={best.suit} />
                   <ul className="explain">
                     {explain(best, (s) => fmtDate(s.date)).map((l) => (
@@ -318,6 +320,18 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                     </dd>
                   </>
                 )}
+                <dt>What the app knows</dt>
+                <dd>
+                  {(() => {
+                    const k = spotKnowledge(spot);
+                    return (
+                      <>
+                        <strong>{KNOWLEDGE_LABEL[k.level]}</strong>: {k.text} {k.rules > 0 && 'See the Guide tab.'}
+                        {spot.dataNote && <div className="muted small">{spot.dataNote}</div>}
+                      </>
+                    );
+                  })()}
+                </dd>
                 <dt>Size factor</dt>
                 <dd>
                   {calib.n >= 2

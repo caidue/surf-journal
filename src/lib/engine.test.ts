@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { HourConditions, Session, Settings, Spot, WaveTrain } from '../types';
 import { SLOTS } from '../types';
 import { angdiff, destination, haversineKm } from './geo';
-import { breakingHeight, deriveHour, deriveSeries, exposure, tideExtremes, totalEnergyKJ, waveEnergyKJ, windKind } from './conditions';
-import { fPeriod, quality, rateSpot, ratedPeaks, scoreLabel, suitability } from './rating';
+import { breakingHeight, deriveHour, deriveSeries, exposure, tideExtremes, tideInfo, totalEnergyKJ, waveEnergyKJ, windKind } from './conditions';
+import { fPeriod, quality, rateSpot, ratedPeaks, scoreLabel, sizeFit, suitability } from './rating';
 import { bodyRange, learnFromSession, profileForStage, profileSummary, snapshot, undoLastChange } from './skill';
 import { RETIRED_SPOTS, SEED_SPOTS } from '../data/seedSpots';
 import { SPOT_RULES } from '../data/spotRules';
@@ -12,6 +12,10 @@ import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight,
 import { parseRegionQuery, subBox } from './geocode';
 import { monthRanges } from './format';
 import { DEFAULT_SETTINGS, withCurrentCategories } from '../db';
+import { evaluateRules, inArc } from './rules';
+import { spotKnowledge, sureness, tideKnown } from './confidence';
+import { marineHour, windHour } from './openMeteo';
+import caleta from './fixtures/caleta-2026-11-14';
 
 const spot: Spot = {
   id: 's',
@@ -332,6 +336,137 @@ describe('local knowledge', () => {
     const c = byId('fv-la-caleta');
     expect(exposure(c, 350)).toBe(1);
     expect(exposure(c, 315)).toBeLessThan(0.5);
+  });
+});
+
+describe('rules engine', () => {
+  const byId = (id: string) => SEED_SPOTS.find((x) => x.id === id)!;
+  const at = (id: string, o: Parameters<typeof hour>[1], tide = 0.5, peak?: string) => {
+    const sp = byId(id);
+    const d = deriveHour({ ...sp, gain: 1 }, hour('2026-01-01T10:00', o), { norm: tide, trend: 0.5 });
+    return { sp, d, r: evaluateRules(id, d, peak) };
+  };
+  it('arcs wrap through north', () => {
+    expect(inArc(350, [300, 20])).toBe(true);
+    expect(inArc(10, [300, 20])).toBe(true);
+    expect(inArc(90, [300, 20])).toBe(false);
+  });
+  it('Majanicho inside only works when the open reefs are about 2 m+', () => {
+    const small = at('fv-majanicho', { swell: [0.9, 11, 330] }, 0.7, 'inside-right');
+    expect(small.r.cap).toBeLessThanOrEqual(1);
+    expect(small.r.fired[0].rule.id).toBe('majanicho-inside-gate');
+    const big = at('fv-majanicho', { swell: [2.4, 14, 330] }, 0.7, 'inside-right');
+    expect(big.r.cap).toBeNull();
+  });
+  it('Derecha de los Alemanes goes mushy in N–NW wind', () => {
+    const n = at('fv-derecha-alemanes', { swell: [1.5, 12, 330], windSpeed: 20, windDir: 350 });
+    expect(n.r.windCap).toBeLessThan(4);
+    expect(quality(n.sp, n.d, n.r).q).toBeLessThan(4);
+    expect(at('fv-derecha-alemanes', { swell: [1.5, 12, 330], windSpeed: 20, windDir: 160 }).r.windCap).toBeNull();
+  });
+  it('a disputed tide rule costs at most about a third; a well-sourced one more', () => {
+    const caletaHigh = at('fv-la-caleta', { swell: [1, 11, 350] }, 1);
+    expect(caletaHigh.r.tide).toBeGreaterThanOrEqual(0.65);
+    const muelleHigh = at('fv-el-muelle', { swell: [1, 11, 320] }, 1);
+    expect(muelleHigh.r.tide).toBeLessThan(0.5);
+    // On a big swell El Muelle holds size at high tide.
+    expect(at('fv-el-muelle', { swell: [2.6, 14, 320] }, 1).r.tide).toBe(1);
+  });
+  it('low tide at Bristol is for experts', () => {
+    const low = at('fv-bristol', { swell: [1.3, 12, 320] }, 0.1);
+    expect(low.r.level).toBe('expert');
+    const s6 = suitability(low.sp, low.d, profileForStage(6), 'm', { level: 'expert', why: 'low tide' });
+    expect(s6.status).toBe('challenging');
+    expect(s6.reasons.some((x) => /Local knowledge/.test(x.text))).toBe(true);
+  });
+  it('Cotillo: beginners at the Piedra Playa peaks only at lower tide and under ~1 m', () => {
+    const high = at('fv-cotillo-piedra-playa', { swell: [0.6, 10, 300] }, 0.8, 'piedra-peaks');
+    expect(high.r.level).toBe('intermediate');
+    expect(at('fv-cotillo-piedra-playa', { swell: [0.4, 9, 300] }, 0.2, 'piedra-peaks').r.level).toBeNull();
+  });
+});
+
+describe('size fit and no cliffs', () => {
+  const C = 1.8;
+  const me = { ...stage4, comfort: C };
+  it('thigh-high waves are small for an intermediate comfortable to head high (Flag Beach, 14 Nov)', () => {
+    const r = suitability(spot, { ...deriveHour(spot, hour('t')), hb: 0.7 }, me);
+    expect(r.reasons[0].text).toMatch(/^Small for progressing/);
+    expect(r.factor).toBeLessThan(0.5);
+    expect(sizeFit(0.7, C, 2)).toBe(1); // beginners learn in small waves
+    expect(sizeFit(1.4, C, 4)).toBe(1);
+  });
+  it('a few centimetres above your comfort size is never "nothing you have surfed"', () => {
+    const r = suitability(spot, { ...deriveHour(spot, hour('t')), hb: 1.9 }, { ...me, paddleOut: 2 });
+    expect(r.status).not.toBe('unsuitable');
+  });
+  it('rips alone are advice, not a halving', () => {
+    const r = suitability({ ...spot, hazards: ['rips'] }, { ...deriveHour(spot, hour('t')), hb: 1.3 }, me);
+    expect(r.status).not.toBe('challenging');
+  });
+});
+
+describe('tide and timing', () => {
+  it('measures the tide between the surrounding low and high, in the middle of the hour', () => {
+    // Semi-diurnal tide with a much higher night high: the day's rise from -1 to +0.2 m still reaches "high".
+    const level = (h: number) => (h < 12 ? 1.2 * Math.cos(((h - 3) / 12.4) * 2 * Math.PI) - 0.2 : 0.6 * Math.cos(((h - 15.4) / 12.4) * 2 * Math.PI) - 0.4);
+    const hrs = day('2026-03-01', (h) => ({ seaLevel: Math.round(level(h) * 100) / 100 }));
+    const t = tideInfo(hrs);
+    expect(t[15].norm).toBeGreaterThan(0.85); // near the afternoon high, although the night high was higher
+    expect(t[12].trend).toBeGreaterThan(0);
+  });
+  it('says when the wind turns onshore after the best window starts', () => {
+    // Swell arrives at 10:00; the wind turns from offshore to onshore at 12:00.
+    const hrs = day('2026-03-01', (h) => ({ swell: h < 10 ? [0.3, 8, 320] : [0.8, 11, 320], windSpeed: 22, windDir: h < 12 ? 180 : 10 }));
+    const r = recommendSpotDay({ ...spot, tide: 'all' }, hrs, undefined, [], { ...DEFAULT_SETTINGS, profile: stage4 }, stage4, '2026-03-01', '2026-02-01', null);
+    expect(r.bestWindow![0]).toBeLessThan(12 * 60);
+    expect(r.windTurn).toBe(12 * 60);
+  });
+  it('La Caleta, 14 Nov 2026: the morning beats the afternoon push (regression case)', () => {
+    const mh = caleta.marine.hourly;
+    const wh = caleta.weather.hourly;
+    const wi = new Map<string, number>(wh.time.map((t: string, i: number) => [t, i]));
+    const hrs: HourConditions[] = mh.time.map((time: string, i: number) => ({ time, ...marineHour(mh, i), ...windHour(wh, wi.get(time)) }));
+    const days = caleta.weather.daily.time.map((date: string, i: number) => ({ date, sunrise: caleta.weather.daily.sunrise_ecmwf_ifs[i], sunset: caleta.weather.daily.sunset_ecmwf_ifs[i] }));
+    const me = { ...stage4, comfort: 1.8 };
+    const c = SEED_SPOTS.find((x) => x.id === 'fv-la-caleta')!;
+    const r = recommendSpotDay(c, hrs, days, [], { ...DEFAULT_SETTINGS, profile: me }, me, '2026-11-14', '2026-11-13', null);
+    const at = (hh: string) => r.hours.find((h) => h.time.endsWith(`T${hh}:00`))!;
+    expect(r.bestWindow![0]).toBeLessThanOrEqual(11 * 60);
+    expect(at('11').score).toBeGreaterThan(at('13').score);
+    expect(at('13').quality.rules.some((f) => f.rule.id === 'caleta-tide-by-size')).toBe(true);
+    expect(at('11').quality.rules).toHaveLength(0);
+  });
+});
+
+describe('how sure a rating is', () => {
+  const byId = (id: string) => SEED_SPOTS.find((x) => x.id === id)!;
+  const d = (id: string, tide: number) => deriveHour(byId(id), hour('2026-01-01T10:00', { swell: [1.5, 12, 330] }), { norm: tide, trend: 0.3 });
+  it('grades what the app knows about a spot', () => {
+    expect(spotKnowledge(byId('fv-la-caleta')).level).toBe('local');
+    expect(spotKnowledge(byId('fv-the-bubble')).level).toBe('partial');
+    expect(spotKnowledge(spot).level).toBe('general'); // your own spot, or anywhere outside the area
+  });
+  it('is less sure when the wind models disagree or the forecast point is doubtful, surer with your sessions', () => {
+    expect(sureness(byId('fv-la-caleta'), d('fv-la-caleta', 0.5), 10, 0).level).toBe('high');
+    expect(sureness(byId('fv-la-caleta'), d('fv-la-caleta', 0.5), 60, 0).level).toBe('medium');
+    expect(sureness(byId('fv-flag-beach'), d('fv-flag-beach', 0.5), 10, 0).level).toBe('low');
+    expect(sureness(spot, deriveHour(spot, hour('t')), 0, 2).level).toBe('medium');
+  });
+  it('gives no rating where guessing could be dangerous: an expert reef at low tide with no tide source', () => {
+    expect(tideKnown(byId('fv-cotillo-spew-pits'))).toBe(false);
+    expect(sureness(byId('fv-cotillo-spew-pits'), d('fv-cotillo-spew-pits', 0.1), 0, 0).withheld).toMatch(/low tide/);
+    expect(sureness(byId('fv-cotillo-spew-pits'), d('fv-cotillo-spew-pits', 0.6), 0, 0).withheld).toBeUndefined();
+    expect(sureness(byId('fv-derecha-alemanes'), d('fv-derecha-alemanes', 0.1), 0, 0).withheld).toBeUndefined();
+    expect(sureness(byId('fv-la-caleta'), d('fv-la-caleta', 0.1), 0, 0).withheld).toBeUndefined();
+  });
+  it('a withheld hour never becomes a best window', () => {
+    const sp = byId('fv-cotillo-spew-pits');
+    const hrs = day('2026-03-01', (h) => ({ swell: [2.5, 14, 290], windSpeed: 10, windDir: 90, seaLevel: Math.sin(((h - 3) / 12.4) * 2 * Math.PI) }));
+    const r = recommendSpotDay(sp, hrs, undefined, [], { ...DEFAULT_SETTINGS, profile: profileForStage(8) }, profileForStage(8), '2026-03-01', '2026-02-01', null);
+    for (const h of r.hours.filter((x) => x.sure.withheld)) expect(h.score).toBe(0);
+    expect(r.hours.some((x) => x.sure.withheld)).toBe(true);
+    expect(r.best?.sure.withheld).toBeUndefined();
   });
 });
 

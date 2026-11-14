@@ -118,6 +118,8 @@ export interface Spot {
   name: string;
   /** Other names people use (search finds them all). */
   aliases?: string[];
+  /** Why this spot's forecast or location is doubtful (lowers how sure its ratings are). */
+  dataNote?: string;
   externalIds?: ExternalIds;
   region: string;
   lat: number;
@@ -213,11 +215,28 @@ export interface SpotRule {
   text: string;
   confidence: RuleConfidence;
   sources: RuleSource[];
-  /** True when the spot's rating already follows the rule; false when it needs the rules engine. */
+  /** True when the spot's rating follows the rule (as spot data, or through `apply`). */
   inRating: boolean;
   /** Where sources disagree, or what is still uncertain. */
   note?: string;
+  /** What the rules engine does with it (lib/rules.ts). Without it the rule is guide text only. */
+  apply?: RuleApply;
 }
+
+/**
+ * Executable forms of a local rule. Sizes are breaking face heights (m): `own` = at this spot,
+ * `open` = on an open north-facing reef nearby (the regional reference for "when the North
+ * Shore is big"). Tide positions are 0 = low … 1 = high between the surrounding low and high.
+ */
+export type RuleApply =
+  /** Preferred tide range by swell size (first row whose `below` is above the size wins). Replaces the spot's tide preference. */
+  | { type: 'tideBySize'; peak?: string; size: 'own' | 'open'; rows: { below?: number; range: [number, number] }[] }
+  /** Works only when the open-reef size reaches `atLeast`; otherwise the spot rating is capped at `cap`. */
+  | { type: 'gate'; peak?: string; atLeast: number; cap: number }
+  /** Wind from `from` (deg, clockwise range) above `aboveKmh` caps the rating at `cap`. */
+  | { type: 'windCap'; peak?: string; from: [number, number]; aboveKmh: number; cap: number }
+  /** When the condition holds, the spot needs a higher level (suitability). */
+  | { type: 'levelWhen'; peak?: string; tideBelow?: number; tideAbove?: number; sizeAbove?: number; level: SpotLevel };
 
 export interface WindModelValue {
   model: string;

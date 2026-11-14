@@ -10,12 +10,12 @@ sources:
     title: "Research: surf metrics, spots and skill model (2026-11)"
   - resource: "https://www.surfline.com/surf-reports-forecasts-cams-map/@28.715,-13.93,11z"
     id: "surfline-map"
-seed_version: "7"
+seed_version: "8"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T14:30:00+00:00"
+  at: "2026-11-14T20:30:00+00:00"
 ---
-# Built-in spot catalogue (seed 7)
+# Built-in spot catalogue (seed 8)
 
 Ids never change; names follow Surfline where it has the spot ([Naming](/spots/naming.md)). Pin = where the coordinates come from.
 
@@ -43,6 +43,6 @@ Ids never change; names follow Surfline where it has the spot ([Naming](/spots/n
 | fv-glass-beach | **El Burro (Glass Beach)** | El Burro, Glass Beach, Glasbeach, Playa del Burro | ✓ | El-Burro | all | – | OSM/Wannasurf; approximate |
 | fv-playa-del-moro | Playa del Moro | – | ✓ | – | beginner | – | OSM (Surfline's pin 1.2 km north; to verify) |
 
-Seed 7 corrected the spots where the app contradicted local sources ([Local knowledge](/spots/local-knowledge.md)): La Caleta swell 350° ± 40° (NW doesn't wrap in), no tide preference (conflicting sources), no punchy/fast or rips tags; Generosa and Spew Pits no tide preference; Rocky Point outside low–mid tide; El Muelle expert; Punta Blanca mellow; Playa los Matos intermediate. The table below shows the spots' names and ids; their attributes are in `src/data/seedSpots.ts`.
+Seed 8 added `dataNote` for Flag Beach (forecast point near Lobos), Mejillones and Spew Pits (disputed location). Seed 7 corrected the spots where the app contradicted local sources ([Local knowledge](/spots/local-knowledge.md)): La Caleta swell 350° ± 40° (NW doesn't wrap in), no tide preference (conflicting sources), no punchy/fast or rips tags; Generosa and Spew Pits no tide preference; Rocky Point outside low–mid tide; El Muelle expert; Punta Blanca mellow; Playa los Matos intermediate. The table below shows the spots' names and ids; their attributes are in `src/data/seedSpots.ts`.
 
 No retired spots: seed 4 merged `fv-the-bubble` into `fv-el-hierro`, seed 6 split El Hierro into three spots again ([decision 0015](/decisions/0015-split-el-hierro.md)); `fv-el-hierro` is now the left. "✓ (shared)" = all three link to Surfline's one spot for the area. Attributes per spot (power, peel, crowd, localism, lifeguard) and rating overrides per peak are in `src/data/seedSpots.ts`; guides in `src/data/spotGuides.ts`. Seed 5 added the three spots other services list: Corralejo Beach and Playa los Matos (Surfline) and Suicides (surf-forecast, Wannasurf) ([decision 0013](/decisions/0013-add-spots-other-services-list.md)). Corralejo Beach and Playa los Matos sit 200 m apart and share their settings, because no source tells them apart; Surfline lists both.
