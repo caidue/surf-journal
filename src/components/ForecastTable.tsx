@@ -6,8 +6,11 @@ import { reasonsText, scoreColor, scoreLabel, SUIT_LABEL } from '../lib/rating';
 import { bodyRange, bodyWord } from '../lib/skill';
 import { fmtMin, isoToMin, nowMinutesAt } from '../lib/time';
 import { energyColors, fmtDir, fmtEnergy, fmtSurfRange, WIND_UNIT_LABEL, windIn } from '../lib/format';
-import { gridOf } from '../lib/openMeteo';
+import { gridOf, WIND_MODEL_LABEL } from '../lib/openMeteo';
 import { WIND_BG } from './Timeline';
+
+/** Mark the wind when the models' directions differ by this much (deg). */
+const WIND_SPREAD_WARN = 45;
 import { DirArrow } from './ui';
 
 const COL_W = 50;
@@ -312,13 +315,22 @@ export default function ForecastTable({
                 const k = windKind(c.derived);
                 const sp = c.derived.windSpeed;
                 const g = c.derived.windGust;
+                const h = series.hours[c.idx];
+                const spread = h?.windSpread ?? 0;
+                const unsure = spread >= WIND_SPREAD_WARN;
+                const models = h?.windModels?.map((x) => `${WIND_MODEL_LABEL[x.model] ?? x.model} ${fmtDir(x.dir)}, ${windIn(x.speed, settings.windUnit)} ${WIND_UNIT_LABEL[settings.windUnit]}`).join(' · ');
                 return (
                   <td
                     key={c.time}
-                    className={`fc-wind${night(c)}`}
+                    className={`fc-wind${night(c)}${unsure ? ' unsure' : ''}`}
                     style={{ background: k ? WIND_BG[k] : undefined }}
-                    title={k ? `${WIND_LABEL[k]}, from ${fmtDir(c.derived.windDir)}` : undefined}
+                    title={
+                      k
+                        ? `${WIND_LABEL[k]}, from ${fmtDir(c.derived.windDir)}${models ? ` (mean of the models: ${models})` : ''}${unsure ? ` – the models disagree on the direction by up to ${spread}°` : ''}`
+                        : undefined
+                    }
                   >
+                    {unsure && <span className="wind-unsure" aria-label="models disagree">?</span>}
                     <DirArrow from={c.derived.windDir} size={13} />
                     <div>{sp == null ? '–' : windIn(sp, settings.windUnit)}</div>
                     {g != null && <div className="muted">{windIn(g, settings.windUnit)}</div>}
@@ -368,6 +380,7 @@ export default function ForecastTable({
             {gridMates.length ? ` · same swell and energy at ${gridMates.join(', ')}` : ' · no other spot in this cell'}
           </span>
         )}
+        <span>Wind = over the sea, mean of four models (ECMWF, ICON, ARPEGE, GFS); hover for each · ? = the models disagree on the direction</span>
         <span>
           Wind colour:{' '}
           {(['glassy', 'offshore', 'cross-off', 'cross', 'cross-on', 'onshore'] as const).map((k) => (

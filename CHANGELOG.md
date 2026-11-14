@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0 — 2026-11-14
+
+- **Wind over the sea, from four models.** The wind used to come from a point about 9 km inland; it now comes from the sea off each spot, as the mean of ECMWF, ICON, ARPEGE and GFS. Hover a wind cell to see each model; a "?" marks hours where they disagree on the direction. Your logged sessions are updated automatically.
+- **Local knowledge for every spot**, in the Guide tab: when it works and for whom, from local and first-hand sources, each with how much the sources agree and whether the rating already uses it.
+- **Spot data corrected from local sources:** La Caleta needs a northerly swell (north-west swell doesn't wrap in) and no longer prefers mid–high tide, since the sources disagree; Generosa and Spew Pits have no tide preference for the same reason; Rocky Point outside low to mid tide; El Muelle experts only; Punta Blanca mellow; Playa los Matos intermediate.
+
 ## 1.2.1 — 2026-11-14
 
 - **"Your level" instead of "Stage 4"** in Explore: a coloured badge with your level, which opens Settings → Your surfing. Each of the 8 stages now has its own level: Beginner, Beginner+, Improver, Intermediate, Intermediate+, Advanced, Expert, Expert+. Reasons and the stage card use these names too.

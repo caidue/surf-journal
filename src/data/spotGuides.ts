@@ -434,7 +434,7 @@ export const SPOT_GUIDES: Record<string, { peaks: Peak[]; guide: SpotGuide }> = 
         "bottom": "reef",
         "direction": "left and right",
         "level": "intermediate",
-        "goodWhen": "Mid to high rising tide on a NW–N swell of about 1.5–3 m, with S–SE wind."
+        "goodWhen": "A northerly swell (NW swell doesn’t wrap into the bay) with E–S wind, before the wind turns N. Guides disagree on the tide; on small swells lower tide is better, according to the most specific one."
       }
     ],
     "guide": {
@@ -1187,7 +1187,7 @@ export const SPOT_GUIDES: Record<string, { peaks: Peak[]; guide: SpotGuide }> = 
         "breakType": "beach",
         "bottom": "sand",
         "direction": "left and right",
-        "level": "all",
+        "level": "intermediate",
         "goodWhen": "Any tide on a N–NE swell with light W–SW (offshore) wind, ideally early before the NE trades."
       }
     ],

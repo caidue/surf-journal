@@ -154,7 +154,7 @@ export interface Spot {
 }
 
 /** Version of the stored conditions (sessions and cached forecasts); older snapshots are re-fetched. */
-export const CONDITIONS_VERSION = 2;
+export const CONDITIONS_VERSION = 3; // 3: wind over the sea from four models (cell_selection=sea)
 
 /** One swell train (or the wind sea) in one hour, offshore. */
 export interface WaveTrain {
@@ -181,12 +181,49 @@ export interface HourConditions {
   trains: WaveTrain[];
   /** Peak periods estimated from mean periods (dates before the peak-period archives start). */
   tpEstimated?: boolean;
+  /** Wind over the sea: the mean of the wind models (direction averaged as vectors). */
   windSpeed: number | null; // km/h
   windDir: number | null; // deg, "coming from"
   windGust: number | null; // km/h
+  /** Each wind model's values (forecast and historical-forecast dates; ERA5 has one model). */
+  windModels?: WindModelValue[];
+  /** Largest direction difference (deg) between a model and the mean, among models with ≥ 5 km/h. */
+  windSpread?: number;
   seaLevel: number | null; // m relative to MSL, includes tide
   waterTemp: number | null;
   airTemp: number | null;
+}
+
+/** How much the sources behind a local rule agree. */
+export type RuleConfidence = 'high' | 'medium' | 'low';
+/** What kind of source a rule comes from (most local first). */
+export type RuleSourceKind = 'local' | 'first-hand' | 'portal' | 'school' | 'travel' | 'forecast-site' | 'observation';
+export interface RuleSource {
+  name: string;
+  url?: string;
+  kind: RuleSourceKind;
+}
+/**
+ * One piece of local knowledge about a spot: when it works, for whom, what to watch out for, or
+ * where to go instead. Written in our own words, with its sources and how much they agree.
+ */
+export interface SpotRule {
+  id: string;
+  kind: 'tide' | 'swell' | 'size' | 'wind' | 'level' | 'role' | 'timing' | 'logistics';
+  text: string;
+  confidence: RuleConfidence;
+  sources: RuleSource[];
+  /** True when the spot's rating already follows the rule; false when it needs the rules engine. */
+  inRating: boolean;
+  /** Where sources disagree, or what is still uncertain. */
+  note?: string;
+}
+
+export interface WindModelValue {
+  model: string;
+  speed: number; // km/h
+  dir: number; // deg, "coming from"
+  gust: number | null;
 }
 
 export interface DayInfo {

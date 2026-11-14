@@ -6,7 +6,7 @@ resource: "src/types.ts"
 tags: ["architecture", "schema"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-14T14:30:00+00:00"
 ---
 # Data model
 
@@ -18,7 +18,9 @@ Defined in `src/types.ts`. Stored tables: `spots`, `sessions`, `forecasts`, `geo
 
 **Peak**: `id`, `name`, `description?`, `breakType?`, `bottom?`, `direction?`, `level?`, `goodWhen?`, `season?`, rating overrides `minSize?`, `maxSize?`, `tide?`, `power?`, `peel?` ([Per-peak rating](/engine/per-peak-rating.md)).
 
-**HourConditions** (version `CONDITIONS_VERSION = 2`): `time` (local), `waveH`, `waveDir`, `waveTp` (peak), `waveTe` (energy period), `trains: WaveTrain[]`, `tpEstimated?`, `windSpeed`, `windDir`, `windGust` (km/h), `seaLevel` (m vs MSL incl. tide), `waterTemp`, `airTemp`.
+**HourConditions** (version `CONDITIONS_VERSION = 3`): `time` (local), `waveH`, `waveDir`, `waveTp` (peak), `waveTe` (energy period), `trains: WaveTrain[]`, `tpEstimated?`, `windSpeed`, `windDir`, `windGust` (km/h; mean of the wind models over the sea), `windModels?: {model, speed, dir, gust}[]`, `windSpread?` (deg), `seaLevel` (m vs MSL incl. tide), `waterTemp`, `airTemp`.
+
+**SpotRule** (`src/data/spotRules.ts`, not stored): `id`, `kind` (tide/swell/size/wind/level/role/timing/logistics), `text`, `confidence` (high/medium/low), `sources: {name, url?, kind}[]`, `inRating`, `note?`. See [Local knowledge](/spots/local-knowledge.md).
 
 **WaveTrain**: `kind` (swell/wind), `h` (m, scaled to MFWAM Hs), `tp` (peak period, s), `dir` (from, deg).
 

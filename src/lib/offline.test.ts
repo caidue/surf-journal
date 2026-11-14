@@ -4,7 +4,7 @@ import { db } from '../db';
 import { SEED_SPOTS } from '../data/seedSpots';
 import type { ConditionsSeries, HourConditions, Session } from '../types';
 import { CONDITIONS_VERSION, SLOTS } from '../types';
-import { cellKey, fetchSeries, gridKey, marineHour } from './openMeteo';
+import { cellKey, fetchSeries, gridKey, marineHour, windHour } from './openMeteo';
 import { profileForStage, snapshot } from './skill';
 import { samplePoint } from './geo';
 import { syncPendingSessions } from './sync';
@@ -268,3 +268,36 @@ describe('four-model marine data', () => {
     expect(h.tpEstimated).toBe(true);
   });
 });
+
+describe('wind over the sea from several models', () => {
+  const at = (o: Record<string, number | null>) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, [v]]));
+  const four = (dirs: number[], speeds = [11, 12, 12, 12.6]) =>
+    at(
+      Object.fromEntries(
+        ['ecmwf_ifs', 'icon_seamless', 'meteofrance_arpege_europe', 'gfs_seamless'].flatMap((m, i) => [
+          [`wind_speed_10m_${m}`, speeds[i]],
+          [`wind_direction_10m_${m}`, dirs[i]],
+          [`wind_gusts_10m_${m}`, speeds[i] + 6],
+        ]),
+      ),
+    );
+  it('averages the directions as vectors and keeps each model (La Caleta, 14 Nov 13:00)', () => {
+    const w = windHour(four([39, 12, 12, 27]), 0);
+    expect(w.windDir).toBeGreaterThanOrEqual(20);
+    expect(w.windDir).toBeLessThanOrEqual(25); // NNE: onshore at a spot facing 345°
+    expect(w.windModels).toHaveLength(4);
+    expect(w.windSpread).toBeLessThan(45);
+  });
+  it('averages across north correctly and flags models that disagree', () => {
+    expect(windHour(four([350, 10, 0, 5]), 0).windDir).toBeLessThan(10);
+    expect(windHour(four([91, 35, 75, 56]), 0).windSpread).toBeGreaterThan(25);
+    expect(windHour(four([180, 0, 90, 270]), 0).windSpread).toBeGreaterThanOrEqual(45);
+  });
+  it('ignores the direction of a model in near calm, and falls back to a single model (ERA5)', () => {
+    expect(windHour(four([0, 180, 0, 0], [12, 2, 12, 12]), 0).windSpread).toBe(0);
+    const era = windHour(at({ wind_speed_10m: 14, wind_direction_10m: 30, wind_gusts_10m: 20 }), 0);
+    expect(era.windDir).toBe(30);
+    expect(era.windModels).toBeUndefined();
+  });
+});
+

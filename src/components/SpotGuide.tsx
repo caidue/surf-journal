@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { Spot, UserPhoto } from '../types';
+import type { RuleConfidence, Spot, SpotRule, UserPhoto } from '../types';
+import { rulesFor } from '../data/spotRules';
 import { db } from '../db';
 import { uid } from '../lib/time';
 import { MONTH_NAMES, monthRanges } from '../lib/format';
@@ -50,6 +51,8 @@ export default function SpotGuide({ spot, compact }: { spot: Spot; compact?: boo
           <p className="guide-intro">{spot.description}</p>
         </section>
       )}
+
+      <LocalRules rules={rulesFor(spot.id)} />
 
       <Photos spot={spot} />
 
@@ -421,5 +424,52 @@ function Lightbox({ photo, onClose, onCaption }: { photo: Shown; onClose: () => 
       </figure>
     </div>,
     document.body,
+  );
+}
+
+const CONFIDENCE_LABEL: Record<RuleConfidence, string> = { high: 'Sources agree', medium: 'Some support', low: 'Sources disagree' };
+const CONFIDENCE_TITLE: Record<RuleConfidence, string> = {
+  high: 'Several independent local sources say this.',
+  medium: 'One local source, with support from others or from how reefs work.',
+  low: 'Sources conflict, or only one source says it.',
+};
+
+/** Local knowledge: when the spot works and for whom, with sources and how much they agree. */
+function LocalRules({ rules }: { rules: SpotRule[] }) {
+  if (!rules.length) return null;
+  return (
+    <section>
+      <h4>Local knowledge</h4>
+      <ul className="local-rules">
+        {rules.map((r) => (
+          <li key={r.id}>
+            <p>{r.text}</p>
+            {r.note && <p className="muted small">{r.note}</p>}
+            <div className="rule-meta">
+              <span className={`rule-conf ${r.confidence}`} title={CONFIDENCE_TITLE[r.confidence]}>
+                {CONFIDENCE_LABEL[r.confidence]}
+              </span>
+              <span className={`rule-use${r.inRating ? ' on' : ''}`} title={r.inRating ? 'The spot rating already follows this.' : 'Shown for your information; the rating does not apply it yet.'}>
+                {r.inRating ? 'In the rating' : 'Not in the rating yet'}
+              </span>
+              <span className="muted tiny rule-sources">
+                {r.sources.map((s, k) => (
+                  <span key={k}>
+                    {k > 0 && ' · '}
+                    {s.url ? (
+                      <a href={s.url} target="_blank" rel="noreferrer">
+                        {s.name}
+                      </a>
+                    ) : (
+                      s.name
+                    )}
+                  </span>
+                ))}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

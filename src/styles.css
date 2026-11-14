@@ -1545,6 +1545,18 @@ ul.plain li::before {
 .fc-time td.win {
   box-shadow: inset 0 -3px 0 var(--good);
 }
+td.fc-wind.unsure {
+  position: relative;
+}
+/* The wind models disagree on the direction (spread ≥ 45°). */
+.wind-unsure {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 0.625rem;
+  font-weight: 800;
+  color: var(--warn);
+}
 .fc-time td.win-toggle {
   cursor: pointer;
 }
@@ -1735,6 +1747,47 @@ td.fc-surf {
 }
 .guide .facts {
   margin: 0;
+}
+/* Local knowledge in the spot guide: each rule with how much its sources agree, and its sources. */
+.local-rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.local-rules li {
+  border-left: 3px solid var(--line);
+  padding-left: var(--sp-3);
+}
+.local-rules li p {
+  margin: 0 0 var(--sp-1);
+}
+.rule-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+}
+.rule-conf,
+.rule-use {
+  border-radius: var(--r-pill);
+  padding: 0 8px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.rule-conf.high { background: #dcfce7; color: #15803d; }
+.rule-conf.medium { background: #e0f2fe; color: #0b6e99; }
+.rule-conf.low { background: #fef3c7; color: #b45309; }
+.rule-use {
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.rule-use.on {
+  border-color: var(--good);
+  color: var(--good);
 }
 .peak-cards {
   display: grid;

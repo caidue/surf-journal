@@ -6,6 +6,7 @@ import { breakingHeight, deriveHour, deriveSeries, exposure, tideExtremes, total
 import { fPeriod, quality, rateSpot, ratedPeaks, scoreLabel, suitability } from './rating';
 import { bodyRange, learnFromSession, profileForStage, profileSummary, snapshot, undoLastChange } from './skill';
 import { RETIRED_SPOTS, SEED_SPOTS } from '../data/seedSpots';
+import { SPOT_RULES } from '../data/spotRules';
 import { distance, kernel, SIMILAR_MIN_K } from './similarity';
 import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, insights, ratingFor, sessionOverall } from './recommend';
 import { parseRegionQuery, subBox } from './geocode';
@@ -310,6 +311,27 @@ describe('spots and peaks', () => {
     // ~1.8 m face: in a stage-6 surfer's range; the main reef is an expert (stage 7) wave.
     const d = deriveHour({ ...suicides, gain: 1 }, hour('2026-01-01T10:00', { swell: [1.1, 13, 330], seaLevel: 0.5 }), { norm: 0.8, trend: 0 });
     expect(rateSpot(suicides, d, profileForStage(6)).peak?.id).toBe('inside-left');
+  });
+});
+
+describe('local knowledge', () => {
+  const byId = (id: string) => SEED_SPOTS.find((s) => s.id === id)!;
+  it('has sourced rules for every built-in spot, and only for built-in spots', () => {
+    for (const s of SEED_SPOTS) expect(SPOT_RULES[s.id]?.length, s.id).toBeGreaterThan(0);
+    for (const [id, rules] of Object.entries(SPOT_RULES)) {
+      expect(SEED_SPOTS.some((s) => s.id === id), id).toBe(true);
+      for (const r of rules) expect(r.sources.length, r.id).toBeGreaterThan(0);
+    }
+    const ids = Object.values(SPOT_RULES).flat().map((r) => r.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+  it('turns conflicting tide sources into no tide preference, not a hard one', () => {
+    for (const id of ['fv-la-caleta', 'fv-generoso', 'fv-cotillo-spew-pits']) expect(byId(id).tide, id).toBe('all');
+  });
+  it('La Caleta needs a northerly swell: north-west swell barely reaches it', () => {
+    const c = byId('fv-la-caleta');
+    expect(exposure(c, 350)).toBe(1);
+    expect(exposure(c, 315)).toBeLessThan(0.5);
   });
 });
 

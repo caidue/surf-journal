@@ -88,6 +88,7 @@ Spot content: the built-in catalogue, naming, special cases. ([folder index](spo
 
 * [Built-in spot catalogue](spots/catalogue.md) - The 21 built-in northern Fuerteventura spots: ids, names, aliases, external ids, level, peaks and pin status.
 * [El Hierro area (three spots)](spots/el-hierro.md) - Izquierda del Hierro, Derecha de los Alemanes and The Bubble: how sources split and place them, and how the app models them.
+* [Local knowledge (spot rules)](spots/local-knowledge.md) - Per-spot rules from local sources: what they cover, how confidence is set, which are in the rating and which wait for the rules engine.
 * [Spot naming](spots/naming.md) - Why spots carry Surfline's names, how aliases work, and the Generosa/Generoso question.
 
 # Influences
@@ -120,6 +121,8 @@ Accepted decisions (numbered) and pending ones. ([folder index](decisions/index.
 * [0013: Add the spots other services list](decisions/0013-add-spots-other-services-list.md) - Corralejo Beach and Playa los Matos (Surfline) and Suicides (surf-forecast, Wannasurf) became built-in spots in seed 5.
 * [0014: Link to Surfline and surf-forecast, never fetch from them](decisions/0014-link-out-never-fetch.md) - External spot ids are only used to build links; no data is requested from or copied out of those services.
 * [0015: Split El Hierro into three spots](decisions/0015-split-el-hierro.md) - Izquierda del Hierro, Derecha de los Alemanes and The Bubble are separate spots again (seed 6), as most guides list them.
+* [0016: Wind over the sea from four models](decisions/0016-sea-wind-multi-model.md) - Request wind with cell_selection=sea from ECMWF IFS, ICON, ARPEGE and GFS; use their mean and show where they disagree.
+* [0017: Local knowledge as sourced rules](decisions/0017-local-knowledge-rules.md) - Per-spot local rules with sources and confidence; conflicting sources never become a hard preference.
 * [Accounts, sync and a commercial data plan](decisions/pending/accounts-and-sync.md) - What a public release would need.
 * [Should several challenging causes compound?](decisions/pending/compounding-challenges.md) - Worst status wins, so two problems count like one.
 * [Ask Open-Meteo for per-train peak periods in MFWAM](decisions/pending/open-meteo-upstream.md) - Upstream improvement, not ours to build.
@@ -131,6 +134,8 @@ Accepted decisions (numbered) and pending ones. ([folder index](decisions/index.
 
 Research reports behind the decisions. ([folder index](research/index.md))
 
+* [Local surf school spot knowledge](research/local-surf-school-spot-knowledge.md) - Deep research: how local schools decide where and when to surf, per-spot local rules for all 21 spots, wind over the sea from several models, and a plan for a rules engine with validation.
+* [Rating errors at La Caleta](research/rating-errors-at-la-caleta.md) - Deep research: why La Caleta was rated best at 13:00 on 2026-11-14 (a hard mid–high tide factor), why thigh-high waves read "Right in your range", and how other services rate tide and size.
 * [Surf journal app feasibility](research/surf-journal-app-feasibility.md) - Deep research before building: competitors, data APIs, spot data, similarity methods, stack, cost. Some feature ideas were later dropped (feel curves, per-peak segments).
 * [Surf metrics, spot data and skill model](research/surf-metrics-spots-and-skill-model.md) - Deep research: period/energy conventions of surf sites, Open-Meteo model capabilities, spot naming across services, and a skill model with onboarding and rules. Implemented in v1.1.
 

@@ -2,6 +2,9 @@
 
 ## 2026-11-14
 
+* **Update** of [Releases](/operations/releases.md): 1.3.0 committed, tagged `v1.3.0` and pushed.
+* **Creation** of [Local knowledge](/spots/local-knowledge.md), [decision 0016](/decisions/0016-sea-wind-multi-model.md) (wind over the sea, four models), [decision 0017](/decisions/0017-local-knowledge-rules.md) (sourced spot rules) and the research copies [Rating errors at La Caleta](/research/rating-errors-at-la-caleta.md) and [Local surf school spot knowledge](/research/local-surf-school-spot-knowledge.md).
+* **Update** of [Open-Meteo weather](/data-sources/open-meteo-weather.md), [Wind](/domain/wind.md), [Data model](/architecture/data-model.md) (`CONDITIONS_VERSION` 3, `windModels`, `windSpread`, `SpotRule`), [Code map](/architecture/code-map.md), [Spot catalogue](/spots/catalogue.md) (seed 7 corrections), [Spot guide](/features/spot-guide.md), [Forecast table](/features/forecast-table.md), [Releases](/operations/releases.md) (1.3.0) and the pending notes on [spot pins](/decisions/pending/verify-spot-pins.md) and [threshold tuning](/decisions/pending/threshold-tuning.md).
 * **Update** of [Releases](/operations/releases.md): 1.2.1 committed, tagged `v1.2.1` and pushed.
 * **Update** of [Skill profile](/engine/skill-profile.md), [Explore](/features/explore.md), [Settings](/features/settings.md) and [Suitability rules](/engine/suitability-rules.md): one level name per stage (Beginner … Expert+), shown as the "Your level" badge in Explore and in place of "stage N" in texts.
 * **Update** of [Spot view](/features/spot-view.md) and [Forecast table](/features/forecast-table.md): table first; recommendation card hidden until the best window's "Best" tag opens it; tide chips below the table.

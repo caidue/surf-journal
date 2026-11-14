@@ -1,7 +1,8 @@
-import type { ConditionsSeries, DayInfo, HourConditions, WaveTrain } from '../types';
+import type { ConditionsSeries, DayInfo, HourConditions, WaveTrain, WindModelValue } from '../types';
 import { CONDITIONS_VERSION } from '../types';
 import { db } from '../db';
 import { addDays, daysBetween, todayAt } from './time';
+import { angdiff } from './geo';
 
 /**
  * Open-Meteo (CC BY 4.0, free for non-commercial use, no API key).
@@ -18,7 +19,10 @@ import { addDays, daysBetween, todayAt } from './time';
  * Dates without GFS data fall back to MFWAM's trains with Tp ≈ 1.3 × the mean period (flagged).
  *
  * Forecast API (recent past ~3 months + 16-day forecast), Historical Forecast API (2022+) and the
- * ERA5 archive (1940+) for wind, air temperature, sunrise and sunset.
+ * ERA5 archive (1940+) for wind, air temperature, sunrise and sunset. Wind is read OVER THE SEA
+ * (`cell_selection=sea`; the default picks a land cell, which near Majanicho was 9 km inland) from
+ * four models (WIND_MODELS). The hour's wind is their mean, with each model's values and the
+ * direction spread kept, so "models disagree" can be shown. ERA5 (oldest dates) has one model.
  */
 
 const MODELS = { mf: 'meteofrance_wave', ec: 'ecmwf_wam', gfs: 'ncep_gfswave016', cur: 'meteofrance_currents' } as const;
@@ -43,6 +47,11 @@ const MARINE_VARS = [
   'sea_surface_temperature',
 ];
 const WEATHER_VARS = ['wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m', 'temperature_2m'];
+/** Wind models over the Canaries (7–10 km; no finer model reaches the islands through Open-Meteo). */
+export const WIND_MODELS = ['ecmwf_ifs', 'icon_seamless', 'meteofrance_arpege_europe', 'gfs_seamless'] as const;
+export const WIND_MODEL_LABEL: Record<string, string> = { ecmwf_ifs: 'ECMWF', icon_seamless: 'ICON', meteofrance_arpege_europe: 'ARPEGE', gfs_seamless: 'GFS' };
+/** Directions are only compared where a model has at least this much wind (km/h). */
+const SPREAD_MIN_KMH = 5;
 /** Peak period ≈ 1.3 × mean period (Tm01) for typical swell spectra (JONSWAP, γ ≈ 1–3.3: 1.29–1.34). */
 export const TP_FROM_MEAN = 1.3;
 const TRAIN_PREFIXES: [string, WaveTrain['kind']][] = [
@@ -142,28 +151,63 @@ export function marineHour(mh: Json, i: number): Omit<HourConditions, 'time' | '
   };
 }
 
+/** Extra query for the weather endpoint: sea cell, and the model list where the endpoint offers it. */
+function weatherExtra(endpoint: string): string {
+  return `&daily=sunrise,sunset&cell_selection=sea${endpoint.includes('archive') ? '' : `&models=${WIND_MODELS.join(',')}`}`;
+}
+
+/** One hour of wind (and air temperature) from a weather response: the models' mean, each model, the spread. */
+export function windHour(wh: Json, j: number | undefined): Pick<HourConditions, 'windSpeed' | 'windDir' | 'windGust' | 'airTemp' | 'windModels' | 'windSpread'> {
+  const at = (k: string) => (j == null ? null : num(wh[k]?.[j]));
+  const models: WindModelValue[] = [];
+  const temps: number[] = [];
+  for (const m of WIND_MODELS) {
+    const speed = at(`wind_speed_10m_${m}`);
+    const dir = at(`wind_direction_10m_${m}`);
+    if (speed != null && dir != null) models.push({ model: m, speed, dir, gust: at(`wind_gusts_10m_${m}`) });
+    const t = at(`temperature_2m_${m}`);
+    if (t != null) temps.push(t);
+  }
+  if (!models.length) {
+    // One model (ERA5 archive, or an endpoint without the model list).
+    return { windSpeed: at('wind_speed_10m'), windDir: at('wind_direction_10m'), windGust: at('wind_gusts_10m'), airTemp: at('temperature_2m') };
+  }
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const rad = Math.PI / 180;
+  const sx = mean(models.map((x) => Math.sin(x.dir * rad)));
+  const cx = mean(models.map((x) => Math.cos(x.dir * rad)));
+  const dir = Math.round(((Math.atan2(sx, cx) / rad) + 360) % 360);
+  const gusts = models.map((x) => x.gust).filter((g): g is number => g != null);
+  const windy = models.filter((x) => x.speed >= SPREAD_MIN_KMH);
+  return {
+    windSpeed: Math.round(mean(models.map((x) => x.speed)) * 10) / 10,
+    windDir: dir,
+    windGust: gusts.length ? Math.round(mean(gusts) * 10) / 10 : null,
+    airTemp: temps.length ? Math.round(mean(temps) * 10) / 10 : null,
+    windModels: models,
+    windSpread: windy.length >= 2 ? Math.round(Math.max(...windy.map((x) => Math.abs(angdiff(x.dir, dir))))) : 0,
+  };
+}
+
 function merge(marine: Json | undefined, weather: Json | undefined): { hours: HourConditions[]; days: DayInfo[] } {
   const times: string[] = marine?.hourly?.time ?? weather?.hourly?.time ?? [];
   const mh = marine?.hourly ?? {};
   const wh = weather?.hourly ?? {};
   const wIndex = new Map<string, number>((weather?.hourly?.time ?? []).map((t: string, i: number) => [t, i]));
   const hours = times.map((time, i) => {
-    const j = wIndex.get(time);
-    const w = (k: string) => (j == null ? null : num(wh[k]?.[j]));
     return {
       time,
       ...marineHour(mh, i),
-      windSpeed: w('wind_speed_10m'),
-      windDir: w('wind_direction_10m'),
-      windGust: w('wind_gusts_10m'),
-      airTemp: w('temperature_2m'),
+      ...windHour(wh, wIndex.get(time)),
     } satisfies HourConditions;
   });
   const d = weather?.daily;
+  // With a model list, sunrise/sunset come back once per model (identical): take the first there is.
+  const daily = (name: string, i: number): string | null => d?.[name]?.[i] ?? WIND_MODELS.map((m) => d?.[`${name}_${m}`]?.[i]).find((v) => v != null) ?? null;
   const days: DayInfo[] = (d?.time ?? []).map((date: string, i: number) => ({
     date,
-    sunrise: d.sunrise?.[i] ?? null,
-    sunset: d.sunset?.[i] ?? null,
+    sunrise: daily('sunrise', i),
+    sunset: daily('sunset', i),
   }));
   return { hours, days };
 }
@@ -242,7 +286,7 @@ export async function fetchSeries(points: Point[], start: string, end: string, o
           console.warn('marine', e);
           return [] as Json[];
         }),
-        getJson(`${weatherEndpoint(start, today)}?${qs(chunk, WEATHER_VARS, start, end, '&daily=sunrise,sunset')}`),
+        getJson(`${weatherEndpoint(start, today)}?${qs(chunk, WEATHER_VARS, start, end, weatherExtra(weatherEndpoint(start, today)))}`),
       ]);
       const series = chunk.map((p, k) => {
         const m = marine[k];
@@ -259,7 +303,7 @@ export async function fetchSeries(points: Point[], start: string, end: string, o
           version: CONDITIONS_VERSION,
           gridLat: num(m?.latitude) ?? undefined,
           gridLon: num(m?.longitude) ?? undefined,
-          source: `Open-Meteo marine: MFWAM height, ECMWF WAM peak period, GFS-Wave 0.16° swell trains${hours.some((h) => h.tpEstimated) ? ' (periods partly estimated)' : ''} (${m ? `grid ${num(m.latitude)?.toFixed(2)}, ${num(m.longitude)?.toFixed(2)}` : 'unavailable'}) + ${weatherEndpoint(start, today).includes('archive') ? 'ERA5 archive' : 'weather model'} wind`,
+          source: `Open-Meteo marine: MFWAM height, ECMWF WAM peak period, GFS-Wave 0.16° swell trains${hours.some((h) => h.tpEstimated) ? ' (periods partly estimated)' : ''} (${m ? `grid ${num(m.latitude)?.toFixed(2)}, ${num(m.longitude)?.toFixed(2)}` : 'unavailable'}) + wind over the sea: ${weatherEndpoint(start, today).includes('archive') ? 'ERA5 archive' : 'mean of ECMWF IFS, ICON, ARPEGE and GFS'}${w ? ` (grid ${num(w.latitude)?.toFixed(2)}, ${num(w.longitude)?.toFixed(2)})` : ''}`,
           fetchedAt: Date.now(),
         };
         return s;

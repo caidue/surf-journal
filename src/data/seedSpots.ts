@@ -14,7 +14,7 @@ import { SPOT_GUIDES } from './spotGuides';
  * Bump SEED_VERSION whenever this list changes: devices then refresh the built-in spots
  * (db.ts → refreshSeedSpots) and move sessions of RETIRED_SPOTS to their new spot.
  */
-export const SEED_VERSION = 6; // 6: El Hierro split into three spots; 5: Suicides, Playa los Matos, Corralejo Beach (3 was used by an earlier build)
+export const SEED_VERSION = 7; // 7: corrections from local sources (data/spotRules.ts); 6: El Hierro split; 5: three spots added (3 was used by an earlier build)
 
 /** Spots that were merged into another one: old id → new id. (Seed 4 merged The Bubble into El Hierro; seed 6 split them again.) */
 export const RETIRED_SPOTS: Record<string, string> = {};
@@ -52,7 +52,7 @@ const seed: SeedSpot[] = [
       'Corralejo reef with long lefts and shorter rights. The inside is the classic all-levels wave at high tide; the outside reef ("Bajo del Medio") holds more size but suffers more from wind. Enter from the side.',
     peakOverrides: {
       inside: { tide: 'mid-high', maxSize: 2.2 },
-      outside: { minSize: 1.8, maxSize: 4, power: 'mellow' },
+      outside: { minSize: 1.8, maxSize: 4, power: 'mellow', tide: 'low-mid' }, // Wannasurf: low–mid (spotRules)
     },
   },
   {
@@ -71,7 +71,7 @@ const seed: SeedSpot[] = [
     tide: 'low-mid',
     breakType: 'reef',
     bottom: 'rock',
-    level: 'advanced',
+    level: 'expert', // shallow slab by the harbour wall (local sources, spotRules)
     power: 'slab',
     peel: 'fast',
     crowd: 'high',
@@ -138,7 +138,7 @@ const seed: SeedSpot[] = [
     swellWindow: 60,
     minSize: 1,
     maxSize: 3.5,
-    tide: 'high',
+    tide: 'all', // sources conflict (low–mid / high only / all): no preference until sessions settle it (spotRules)
     breakType: 'reef',
     bottom: 'reef',
     level: 'intermediate',
@@ -180,19 +180,18 @@ const seed: SeedSpot[] = [
     lat: 28.7508, // fuerteventuraplayas, a few minutes east of Majanicho
     lon: -13.9234,
     facing: 345,
-    idealSwellDir: 315,
-    swellWindow: 70,
+    idealSwellDir: 350, // needs a northerly swell; NW swell doesn't wrap into the bay (gonna.surf, spotRules)
+    swellWindow: 40,
     minSize: 0.8,
     maxSize: 3,
-    tide: 'mid-high',
+    tide: 'all', // sources conflict; the size-dependent window (low to low-mid on small swell) needs the rules engine
     breakType: 'reef',
     bottom: 'reef',
     level: 'intermediate',
-    power: 'punchy',
-    peel: 'fast',
     crowd: 'high',
-    hazards: ['crowds', 'rips', 'shifty outside'],
-    description: 'Reef with quick lefts (and rights), best on a mid-rising tide. Crowded and shifty on the outside.',
+    hazards: ['crowds', 'shifty outside'],
+    description:
+      'Reef in a small bay with lefts and rights, used by surf schools for improvers and intermediates. Needs a northerly swell (NW swell doesn’t wrap in) and E–S wind; N–NNE wind is onshore. Sources disagree on the tide: the most specific one says lower tide is better on small swells. Crowded, shifty on the outside.',
   },
   {
     id: 'fv-majanicho',
@@ -313,7 +312,7 @@ const seed: SeedSpot[] = [
     breakType: 'reef',
     bottom: 'reef',
     level: 'intermediate',
-    power: 'punchy',
+    power: 'mellow', // "soft in a way no other North Shore reef is" (The Surf Atlas, spotRules)
     crowd: 'medium',
     hazards: ['long paddle', 'rocks', 'rips', 'urchins'],
     description: 'Reef A-frame, lefts and rights, reached via a dirt track. The inside reforms and is a good practice zone.',
@@ -382,7 +381,7 @@ const seed: SeedSpot[] = [
     swellWindow: 60,
     minSize: 1.2,
     maxSize: 3.5,
-    tide: 'mid',
+    tide: 'all', // no source gives a tide preference (spotRules)
     breakType: 'reef',
     bottom: 'reef',
     level: 'expert',
@@ -455,7 +454,7 @@ const seed: SeedSpot[] = [
     tide: 'all',
     breakType: 'beach',
     bottom: 'sand',
-    level: 'all',
+    level: 'intermediate', // "so long as you can judge a rip and check the tide" (The Surf Atlas, spotRules)
     power: 'mellow',
     peel: 'medium',
     crowd: 'low',

@@ -17,6 +17,8 @@ Accepted decisions (numbered) and pending ones.
 * [0013: Add the spots other services list](0013-add-spots-other-services-list.md) - Corralejo Beach and Playa los Matos (Surfline) and Suicides (surf-forecast, Wannasurf) became built-in spots in seed 5.
 * [0014: Link to Surfline and surf-forecast, never fetch from them](0014-link-out-never-fetch.md) - External spot ids are only used to build links; no data is requested from or copied out of those services.
 * [0015: Split El Hierro into three spots](0015-split-el-hierro.md) - Izquierda del Hierro, Derecha de los Alemanes and The Bubble are separate spots again (seed 6), as most guides list them.
+* [0016: Wind over the sea from four models](0016-sea-wind-multi-model.md) - Request wind with cell_selection=sea from ECMWF IFS, ICON, ARPEGE and GFS; use their mean and show where they disagree.
+* [0017: Local knowledge as sourced rules](0017-local-knowledge-rules.md) - Per-spot local rules with sources and confidence; conflicting sources never become a hard preference.
 
 # Pending decisions
 
