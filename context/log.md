@@ -2,6 +2,8 @@
 
 ## 2026-11-15
 
+* **Update** of [Releases](/operations/releases.md): 1.4.7 committed, tagged `v1.4.7` and pushed.
+* **Update** of [Forecast table](/features/forecast-table.md): back to the slim breaking-wave figure, with a pointed peak; [Releases](/operations/releases.md) (1.4.7).
 * **Update** of [Releases](/operations/releases.md): 1.4.6 committed, tagged `v1.4.6` and pushed.
 * **Update** of [Forecast table](/features/forecast-table.md) (Wave row, new wave figure, Legend & sources incl. the data line) and [Spot view](/features/spot-view.md) (tide chips below their title), [Releases](/operations/releases.md) (1.4.6).
 * **Update** of [Releases](/operations/releases.md): 1.4.5 committed, tagged `v1.4.5` and pushed.

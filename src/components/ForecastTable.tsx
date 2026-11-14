@@ -425,13 +425,13 @@ export function waveColor(h: number): string {
   return `rgb(${WAVE_STOPS[WAVE_STOPS.length - 1][1].join(',')})`;
 }
 
-/** A small breaking wave, as tall as the surf (full height from 2.5 m), coloured by size. */
+/** A small breaking wave, as tall as the surf (full height at 3 m), coloured by size. */
 function WaveFigure({ h }: { h: number }) {
-  const px = Math.max(10, Math.min(1, h / 2.5) * 46);
-  // As wide as the column, with a crest curling over to the right; stretched to the wave height.
+  const px = Math.max(6, Math.min(1, h / 3) * 40);
+  // A slim back rising to a pointed peak, a small lip, then the face down to the right.
   return (
-    <svg className="fc-wave" width={COL_W - 6} height={px} viewBox="0 0 40 100" preserveAspectRatio="none" aria-hidden>
-      <path d="M0 100 V34 C0 14 13 2 29 3 C37 4 41 11 37 17 C34 21 28 19 28 14 C28 10 22 11 22 19 C22 26 30 32 40 32 V100 Z" fill={waveColor(h)} />
+    <svg className="fc-wave" width={34} height={px} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+      <path d="M0 100 C22 94 38 58 58 26 C66 12 74 4 84 2 L91 11 C85 11 81 15 79 22 C83 50 92 80 100 100 Z" fill={waveColor(h)} />
     </svg>
   );
 }

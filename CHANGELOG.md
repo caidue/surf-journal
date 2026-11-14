@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.7 — 2026-11-15
+
+- Forecast: the Wave row is back to the slimmer breaking-wave figures, now with a sharper, pointed peak instead of a rounded crest.
+
 ## 1.4.6 — 2026-11-15
 
 - Forecast: the "Surf" row is now called **Wave**, with a fuller wave figure (as wide as the column, with a curling crest). The "grey = strong gusts" note is gone; the tooltip and legend explain it.
