@@ -13,7 +13,7 @@ sources:
     title: "Nathanson et al. 2007 (injury risk: overhead 2.4×, reef 2.6×)"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T23:35:00+00:00"
+  at: "2026-11-14T11:10:00+00:00"
 ---
 # Suitability rules
 
@@ -21,7 +21,7 @@ generated:
 
 | Rule | Condition → status |
 |---|---|
-| Spot level | required stage (beginner/all 1, intermediate 4, advanced 6, expert 7) more than one above yours → unsuitable; exactly one above → challenging ("A step up…") |
+| Spot level | required stage (beginner/all 1, intermediate 4, advanced 6, expert 7) more than one above yours → unsuitable; exactly one above → challenging ("A step up: this spot is usually surfed from Expert (stage 7). Your level: Advanced.") |
 | Size | H ≤ 0.8C good (positive reason); ≤ C ok; ≤ M challenging, or **stretch** with "I want to push my limits"; ≤ 1.15M challenging at stage ≥ 6 else unsuitable; above → unsuitable. Every size reason names both sizes |
 | Overhead floor | H > 2.0 m at stage ≤ 5 → challenging |
 | Too small | H below the board's minimum (soft-top 0.3 … step-up 1.5 m) → ok, suggests more volume |

@@ -1,9 +1,9 @@
 import type { SkillProfile, Stage } from '../types';
-import { boardInfo, bodyWord, REEF_OPTIONS, STAGES, stageBand, stageInfo } from '../lib/skill';
+import { boardInfo, bodyWord, levelName, REEF_OPTIONS, STAGES, stageBand, stageInfo } from '../lib/skill';
 
 /**
- * The surfer's stage at a glance: a big stage badge, the skill band (Beginner … Expert, the same
- * bands that unlock spot levels), the stage's own words, a 1–8 ladder and badges for the key answers.
+ * The surfer's stage at a glance: a big stage badge coloured by skill band, the level name
+ * (Beginner … Expert+, one per stage), the stage's own words, a 1–8 ladder and badges for the key answers.
  */
 export default function StageCard({ profile: p, unit }: { profile: SkillProfile; unit: 'm' | 'ft' }) {
   const info = stageInfo(p.stage);
@@ -18,13 +18,13 @@ export default function StageCard({ profile: p, unit }: { profile: SkillProfile;
       </div>
       <div className="stage-main">
         <div className="stage-tags">
-          <span className="stage-band">{band}</span>
+          <span className="stage-band">{levelName(p.stage)}</span>
           <span className="stage-short">{info.short}</span>
         </div>
         <p className="stage-title">“{info.title}”</p>
         <ol className="stage-ladder" aria-label={`Stage ${p.stage} of ${STAGES.length}: ${info.short}`}>
           {STAGES.map((s) => (
-            <li key={s.stage} className={s.stage < p.stage ? 'done' : s.stage === p.stage ? 'on' : ''} title={`Stage ${s.stage}: ${s.short} (${stageBand(s.stage as Stage)})`}>
+            <li key={s.stage} className={s.stage < p.stage ? 'done' : s.stage === p.stage ? 'on' : ''} title={`Stage ${s.stage}: ${levelName(s.stage as Stage)} · ${s.short}`}>
               {s.stage}
             </li>
           ))}

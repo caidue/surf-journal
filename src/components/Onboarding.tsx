@@ -86,7 +86,7 @@ export default function Onboarding({ settings, go, first, startAt }: { settings:
               // At first launch a stage pre-fills the later answers with what's typical for it.
               pick(first && (!touchedStage || s.stage !== draft.stage) ? { ...profileForStage(s.stage as Stage, draft.board), wantsChallenge: draft.wantsChallenge } : { stage: s.stage as Stage });
               setTouchedStage(true);
-            }, undefined, s.stage),
+            }, s.level, s.stage),
           )}
         </ul>
       );

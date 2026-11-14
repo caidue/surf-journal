@@ -1,6 +1,6 @@
 import type { Peak, SkillProfile, Spot, SpotLevel, TidePref } from '../types';
 import type { Derived } from './conditions';
-import { boardInfo, bodyWord, REQUIRED_STAGE, stageInfo } from './skill';
+import { boardInfo, bodyWord, levelName, REQUIRED_STAGE, stageInfo } from './skill';
 
 /**
  * Rule-based spot rating, synthesised from public descriptions of Surf-Forecast,
@@ -156,8 +156,8 @@ export function suitability(spot: Spot, d: Derived, p: SkillProfile, unit: 'm' |
 
   // The spot's (or peak's) level, as a stage.
   const req = REQUIRED_STAGE[spot.level];
-  if (req - st > 1) add('spot', 'unsuitable', `This spot needs ${LEVEL_WORD[spot.level]} skills (stage ${req}+). You're stage ${st}.`);
-  else if (req - st === 1) add('spot', 'challenging', `A step up: this spot is usually surfed from stage ${req}. You're stage ${st}.`);
+  if (req - st > 1) add('spot', 'unsuitable', `This spot needs ${LEVEL_WORD[spot.level]} skills (${levelName(req)}, stage ${req}+). Your level: ${levelName(st)}.`);
+  else if (req - st === 1) add('spot', 'challenging', `A step up: this spot is usually surfed from ${levelName(req)} (stage ${req}). Your level: ${levelName(st)}.`);
 
   if (H != null) {
     if (H <= 0.8 * C) add('size', 'good', `Right in your range: ~${h(H)} (${bodyWord(H)}); you're comfortable to ${bodyWord(C)} (${h(C)}).`, true);

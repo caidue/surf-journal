@@ -6,7 +6,7 @@ import { bboxAround, bboxOf, inBBox, type BBox } from '../lib/geo';
 import { geocode, parseRegionQuery, PART_LABEL, subBox } from '../lib/geocode';
 import { buildHistory, confidence, explain, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec } from '../lib/recommend';
 import { scoreColor } from '../lib/rating';
-import { bodyRange, bodyWord } from '../lib/skill';
+import { bodyRange, bodyWord, levelName, stageBand } from '../lib/skill';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
 import { fmtFeature, fmtSurfRange, fmtWind } from '../lib/format';
 import { tideLabel, windKind, WIND_LABEL, type Derived } from '../lib/conditions';
@@ -277,10 +277,13 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
         <div className="toolbar">
           {settings.profile && (
             <div className="tb-item">
-              <span className="tb-label">You</span>
-              <button className="tb-you" onClick={() => go('settings')} title="Your surfing: stage and the size you're comfortable in. Change it under Settings.">
-                Stage {settings.profile.stage}
-                {phone ? '' : ` · comfortable to ${bodyWord(settings.profile.comfort)}`}
+              <span className="tb-label">Your level</span>
+              <button
+                className={`tb-you level-badge band-${stageBand(settings.profile.stage).toLowerCase()}`}
+                onClick={() => go('settings')}
+                title={`${levelName(settings.profile.stage)} (stage ${settings.profile.stage} of 8), comfortable to ${bodyWord(settings.profile.comfort)}. Tap to see or change it in Settings → Your surfing.`}
+              >
+                {levelName(settings.profile.stage)}
               </button>
             </div>
           )}

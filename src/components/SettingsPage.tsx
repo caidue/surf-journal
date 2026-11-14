@@ -5,7 +5,7 @@ import { db, exportAll, importAll, refreshSeedSpots, saveSettings, type Backup }
 import { SEED_SPOTS } from '../data/seedSpots';
 import { addDemoSessions, removeDemoSessions } from '../lib/demo';
 import { todayAt, uid } from '../lib/time';
-import { boardInfo, bodyWord, PADDLE_OPTIONS, profileCheck, REEF_OPTIONS, rustyOffer, STEEP_OPTIONS, stageInfo, undoLastChange, WATER_OPTIONS } from '../lib/skill';
+import { boardInfo, bodyWord, levelName, PADDLE_OPTIONS, profileCheck, REEF_OPTIONS, rustyOffer, STEEP_OPTIONS, stageInfo, undoLastChange, WATER_OPTIONS } from '../lib/skill';
 import { Card, Segmented } from './ui';
 import StageCard from './StageCard';
 import { isIOS, promptInstall, requestPersistence, storageStatus, usePwa } from '../lib/pwa';
@@ -125,7 +125,7 @@ function ProfileCard({ settings, sessions, go }: { settings: Settings; sessions:
       <dl className="profile-facts">
         <dt>Stage</dt>
         <dd>
-          {p.stage}: {stageInfo(p.stage).title} {edit('stage')}
+          {levelName(p.stage)} (stage {p.stage}): {stageInfo(p.stage).title} {edit('stage')}
         </dd>
         <dt>Comfortable in</dt>
         <dd>

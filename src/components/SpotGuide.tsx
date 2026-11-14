@@ -44,6 +44,13 @@ export default function SpotGuide({ spot, compact }: { spot: Spot; compact?: boo
 
   return (
     <div className={`guide${compact ? ' compact' : ''}`}>
+      {spot.description && (
+        <section>
+          <h4>About this spot</h4>
+          <p className="guide-intro">{spot.description}</p>
+        </section>
+      )}
+
       <Photos spot={spot} />
 
       {spot.peaks.length > 0 && (

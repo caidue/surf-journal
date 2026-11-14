@@ -1,7 +1,7 @@
 import type { DayInfo, HourConditions, Peak, Session, Settings, SkillProfile, Spot } from '../types';
 import { deriveSeries, windKind, type Derived } from './conditions';
 import { rateSpot, type Quality, type Suitability } from './rating';
-import { DEFAULT_PROFILE, OBSERVED_SIZES, stageGapWeight } from './skill';
+import { DEFAULT_PROFILE, levelName, OBSERVED_SIZES, stageGapWeight } from './skill';
 import { distance, kernel, mostDifferent, mostDifferentKey } from './similarity';
 import { daysBetween, isoToMin } from './time';
 
@@ -49,7 +49,7 @@ export function sessionWeight(s: Session, settings: Pick<Settings, 'halfLifeMont
   const then = s.skillAtTime?.stage;
   const now = settings.profile?.stage;
   const kappa = then && now ? stageGapWeight(then, now) : 1;
-  return { w: decay * kappa, why: kappa < 1 ? `logged at stage ${then} (you're stage ${now} now)` : null };
+  return { w: decay * kappa, why: kappa < 1 ? `logged as ${levelName(then!)} (you're ${levelName(now!)} now)` : null };
 }
 
 /* ------------------------------------------------------------------ */

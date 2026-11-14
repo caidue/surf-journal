@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session, Settings, Spot } from '../types';
 import { useConditions } from '../hooks';
 import { tideExtremes, windKind, WIND_LABEL, type WindKind } from '../lib/conditions';
@@ -100,6 +100,14 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
   const dayOptions = [0, 1, 2].map((o) => ({ id: String(o), label: o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : fmtDate(addDays(today, o), { weekday: 'long' }) }));
   const dayWord = dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : 'that day';
   const best = rec?.best ?? null;
+  // The recommendation card is hidden at first: the table comes first, and the best window's
+  // "Best" tag in the table (or the "Why?" link on days without one) opens it.
+  const [bestOpen, setBestOpen] = useState(false);
+  const bestRef = useRef<HTMLDivElement>(null);
+  const toggleBest = () => setBestOpen((o) => !o);
+  useEffect(() => {
+    if (bestOpen) bestRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [bestOpen]);
   const photoCount = spot.guide?.photos?.length ?? 0;
 
   const tabs: { id: SpotTab; label: string; icon: IconName }[] = [
@@ -132,8 +140,6 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
       </header>
 
       <div className="sv-scroll">
-        {spot.description && <p className="sv-desc">{spot.description}</p>}
-
         <div className="sv-tabs" role="tablist" aria-label="Spot details">
           {tabs.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
@@ -159,8 +165,13 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                   </button>
                 </div>
               )}
-              {best && (
-                <div className="sheet-best">
+              {best && !(rec?.bestWindow && best.score > 0.5) && (
+                <button type="button" className="link small best-toggle" aria-expanded={bestOpen} aria-controls="sv-best" onClick={toggleBest}>
+                  Not much for you {dayWord} · {bestOpen ? 'Hide why' : 'Why?'}
+                </button>
+              )}
+              {best && bestOpen && (
+                <div className="sheet-best" id="sv-best" ref={bestRef}>
                   <div className="row gap wrap">
                     <SuitBadge status={best.suit.status} />
                     {rec?.bestWindow && best.score > 0.5 ? (
@@ -189,6 +200,22 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                   </ul>
                 </div>
               )}
+              {rec && series ? (
+                <ForecastTable
+                  spot={spot}
+                  rec={rec}
+                  series={series}
+                  date={date}
+                  isToday={date === today}
+                  settings={settings}
+                  tides={tides}
+                  gridMates={gridMates}
+                  bestOpen={bestOpen}
+                  onToggleBest={toggleBest}
+                />
+              ) : (
+                <p className="muted">{loading ? 'Loading forecast…' : 'No forecast available for this spot.'}</p>
+              )}
               {tides.length > 0 && (
                 <div className="tide-line" title="Heights relative to mean sea level">
                   <span className="muted small">Tide (vs mean sea level)</span>
@@ -202,11 +229,6 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                     </span>
                   ))}
                 </div>
-              )}
-              {rec && series ? (
-                <ForecastTable spot={spot} rec={rec} series={series} date={date} isToday={date === today} settings={settings} tides={tides} gridMates={gridMates} />
-              ) : (
-                <p className="muted">{loading ? 'Loading forecast…' : 'No forecast available for this spot.'}</p>
               )}
               {series && <p className="muted tiny">Data: {series.source}. Weather and marine data by Open-Meteo.com (CC BY 4.0).</p>}
             </>

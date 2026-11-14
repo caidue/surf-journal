@@ -9,15 +9,15 @@ sources:
     id: "report"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-14T10:45:00+00:00"
 ---
 # Hourly forecast table
 
-Columns: daylight hours (one before sunrise to sunset), 50 px each, scrolled to now or the best window; the best window is underlined.
+Columns: daylight hours (one before sunrise to sunset), 50 px each, scrolled to now or the best window; the best window is underlined in green, and its first column carries a "Best ▾" tag (props `bestOpen`, `onToggleBest`): tapping it or any best-window column shows or hides the recommendation card above the table.
 
 | Row | Content |
 |---|---|
-| Time | hour, "now" tag |
+| Time | hour, "now" tag, "Best ▾" toggle on the best window |
 | **Spot** rating | q (coloured number) with a bar: solid = q, faded = potential without wind; tooltip with the word (Poor … Epic) |
 | **For you** | predicted fun, ✕ when unsuitable; tooltip with status, best peak and reasons |
 | Surf (m, face) | range ±20 % (e.g. 1.9–2.9) on one line + body word (chest, head, overhead, 2× OH) |

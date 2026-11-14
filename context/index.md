@@ -78,7 +78,7 @@ User-facing screens and flows. ([folder index](features/index.md))
 * [Session logging](features/session-logging.md) - Logging a session on the day's conditions timeline, with ratings, details and how it felt.
 * [Settings](features/settings.md) - Your surfing, units, spots, how old sessions count, categories, phone/offline, data, demo, about.
 * [Spot editor](features/spot-editor.md) - Adding and editing spots, peaks and guides.
-* [Spot guide](features/spot-guide.md) - Peaks, season, boards, access, warnings, parking, facilities and photos for a spot.
+* [Spot guide](features/spot-guide.md) - About this spot, peaks, season, boards, access, warnings, parking, facilities and photos for a spot.
 * [Spot view](features/spot-view.md) - Everything about one spot in tabs, as a sheet over Explore or as its own page.
 * [Conditions timeline](features/timeline.md) - The SVG day chart used to mark a session: For you, surf, swell, energy, wind, tide.
 

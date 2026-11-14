@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 — 2026-11-14
+
+- **"Your level" instead of "Stage 4"** in Explore: a coloured badge with your level, which opens Settings → Your surfing. Each of the 8 stages now has its own level: Beginner, Beginner+, Improver, Intermediate, Intermediate+, Advanced, Expert, Expert+. Reasons and the stage card use these names too.
+- **Forecast tab opens on the table.** The recommendation card is hidden until you tap the green "Best ▾" tag on the best time in the table (or "Why?" on days with nothing for you); high and low tide times moved below the table.
+- **Spot description moved to the Guide tab**, as "About this spot" at the top, instead of sitting between the spot's name and the tabs.
+
 ## 1.2.0 — 2026-11-14
 
 - **Best picks at a time you choose:** next to the day's best and "Now", "At…" picks a time on the selected day and ranks the spots for that hour.

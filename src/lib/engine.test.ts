@@ -232,7 +232,7 @@ describe('suitability rules', () => {
 
 describe('skill profile', () => {
   it('summarises the profile in one line', () => {
-    expect(profileSummary(stage4)).toBe('Stage 4 · comfortable to chest high (1.2 m) · caught up to 1.5 m · some reef · mid-length');
+    expect(profileSummary(stage4)).toBe('Intermediate (stage 4) · comfortable to chest high (1.2 m) · caught up to 1.5 m · some reef · mid-length');
     expect(bodyRange(1.8, 2.3)).toBe('head to overhead');
     expect(bodyRange(1.0, 1.4)).toBe('waist to shoulder high');
   });

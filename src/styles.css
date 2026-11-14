@@ -1357,11 +1357,6 @@ ul.plain li::before {
   overscroll-behavior: contain;
   padding: var(--sp-4) var(--card-pad) calc(var(--sp-6) + env(safe-area-inset-bottom));
 }
-.sv-desc {
-  margin: 0 0 var(--sp-2);
-  font-size: var(--fs-sm);
-  color: var(--muted);
-}
 .sv-actions {
   margin-bottom: var(--sp-2);
 }
@@ -1426,6 +1421,14 @@ ul.plain li::before {
 }
 .sheet-best .explain {
   margin: var(--sp-2) 0 0;
+}
+.best-toggle {
+  display: block;
+  margin: 0 0 var(--sp-2);
+}
+.tide-line + .muted.tiny,
+.fc-wrap + .tide-line {
+  margin-top: var(--sp-2);
 }
 .sv-sessions li {
   padding: var(--sp-2) 0;
@@ -1541,6 +1544,34 @@ ul.plain li::before {
 }
 .fc-time td.win {
   box-shadow: inset 0 -3px 0 var(--good);
+}
+.fc-time td.win-toggle {
+  cursor: pointer;
+}
+.fc-time td.win-toggle:hover {
+  background-color: #f0fdf4;
+}
+/* "Best ▾" on the first best-window column: opens the recommendation card above the table. */
+.win-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 1px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--good);
+  color: #fff;
+  font: inherit;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1.5;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.win-tag:hover {
+  background: #15803d;
 }
 .fc-time td.now {
   color: var(--accent);
@@ -1696,6 +1727,11 @@ td.fc-surf {
 }
 .guide p {
   margin: 0 0 var(--sp-2);
+}
+.guide .guide-intro {
+  color: var(--ink-2);
+  line-height: 1.55;
+  margin: 0;
 }
 .guide .facts {
   margin: 0;
@@ -2674,6 +2710,24 @@ h4.subsection {
 .tb-you:hover {
   border-color: var(--accent);
 }
+/* "Your level" in the Explore toolbar: the level name as a badge in the band's colour. */
+.tb-you.level-badge {
+  --band: var(--accent);
+  border-color: var(--band);
+  background: var(--band);
+  color: #fff;
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  padding: 4px 14px;
+}
+.tb-you.level-badge:hover {
+  filter: brightness(1.1);
+  border-color: var(--band);
+}
+.tb-you.level-badge.band-beginner { --band: #15803d; }
+.tb-you.level-badge.band-intermediate { --band: #0b6e99; }
+.tb-you.level-badge.band-advanced { --band: #b45309; }
+.tb-you.level-badge.band-expert { --band: #b91c1c; }
 .ext-links {
   display: flex;
   flex-wrap: wrap;

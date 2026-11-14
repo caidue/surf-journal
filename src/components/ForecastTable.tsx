@@ -39,6 +39,8 @@ export default function ForecastTable({
   settings,
   tides,
   gridMates,
+  bestOpen = false,
+  onToggleBest,
 }: {
   spot: Spot;
   rec: SpotRec;
@@ -48,6 +50,9 @@ export default function ForecastTable({
   settings: Settings;
   tides: TideExtreme[];
   gridMates: string[];
+  /** The recommendation card (shown above the table) is open: the best window's tag toggles it. */
+  bestOpen?: boolean;
+  onToggleBest?: () => void;
 }) {
   const grid = gridOf(series);
   const scroller = useRef<HTMLDivElement>(null);
@@ -77,6 +82,7 @@ export default function ForecastTable({
   const win = rec.bestWindow;
   // An hour column belongs to the best window if any part of that hour does (e.g. 07:00 for 07:17–09:00).
   const inWin = (m: number) => !!win && !!rec.best && rec.best.score > 0.5 && m + 60 > win[0] && m < win[1];
+  const firstWin = cols.find((c) => inWin(isoToMin(c.time) ?? 0))?.time;
 
   // Start the table at the current hour (today) or the best window, so the useful part is in view.
   useEffect(() => {
@@ -142,10 +148,34 @@ export default function ForecastTable({
               {cols.map((c) => {
                 const m = isoToMin(c.time) ?? 0;
                 const h = Math.floor(m / 60);
+                const w = inWin(m) && !!onToggleBest;
                 return (
-                  <td key={c.time} className={`${c.daylight ? '' : 'night'}${h === nowH ? ' now' : ''}${inWin(m) ? ' win' : ''}`}>
+                  <td
+                    key={c.time}
+                    className={`${c.daylight ? '' : 'night'}${h === nowH ? ' now' : ''}${inWin(m) ? ' win' : ''}${w ? ' win-toggle' : ''}`}
+                    onClick={w ? onToggleBest : undefined}
+                    title={w ? `Best time for you: ${fmtMin(win![0])}–${fmtMin(win![1])}. ${bestOpen ? 'Hide' : 'Show'} the recommendation.` : undefined}
+                  >
                     {String(h).padStart(2, '0')}
                     {h === nowH && <span className="now-tag">now</span>}
+                    {w && c.time === firstWin && (
+                      <button
+                        type="button"
+                        className="win-tag"
+                        aria-expanded={bestOpen}
+                        aria-controls="sv-best"
+                        aria-label={`${bestOpen ? 'Hide' : 'Show'} the recommendation for ${fmtMin(win![0])}–${fmtMin(win![1])}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleBest!();
+                        }}
+                      >
+                        Best
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
+                          <path d={bestOpen ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'} />
+                        </svg>
+                      </button>
+                    )}
                   </td>
                 );
               })}

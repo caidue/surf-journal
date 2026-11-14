@@ -2,6 +2,10 @@
 
 ## 2026-11-14
 
+* **Update** of [Releases](/operations/releases.md): 1.2.1 committed, tagged `v1.2.1` and pushed.
+* **Update** of [Skill profile](/engine/skill-profile.md), [Explore](/features/explore.md), [Settings](/features/settings.md) and [Suitability rules](/engine/suitability-rules.md): one level name per stage (Beginner … Expert+), shown as the "Your level" badge in Explore and in place of "stage N" in texts.
+* **Update** of [Spot view](/features/spot-view.md) and [Forecast table](/features/forecast-table.md): table first; recommendation card hidden until the best window's "Best" tag opens it; tide chips below the table.
+* **Update** of [Spot guide](/features/spot-guide.md) and [Spot view](/features/spot-view.md): the description opens the Guide tab ("About this spot") instead of the header; [Releases](/operations/releases.md) for 1.2.1.
 * **Update** of [Releases](/operations/releases.md): 1.2.0 committed, tagged `v1.2.0` and pushed.
 * **Update** of [Explore](/features/explore.md): all three best picks show the same details (explanation and suitability reasons).
 * **Update** of [Explore](/features/explore.md) (best picks at a picked time), [Settings](/features/settings.md) and [Onboarding](/features/onboarding.md) (stage card; footer above the action bar; helper text removed; spacing in step 8), [Skill profile](/engine/skill-profile.md) (short stage names, skill bands) and [Code map](/architecture/code-map.md) (`StageCard.tsx`).

@@ -75,6 +75,8 @@ export interface StageInfo {
   title: string;
   /** Two or three words for badges and the stage card. */
   short: string;
+  /** One level name per stage (Beginner … Expert+), shown as "Your level". */
+  level: string;
   /** Default comfortable (C) and biggest (M) face height. */
   comfort: number;
   max: number;
@@ -85,19 +87,22 @@ export interface StageInfo {
 }
 
 export const STAGES: StageInfo[] = [
-  { stage: 1, title: "I've never surfed, or I ride whitewater with a push", short: 'First waves', comfort: 0.5, max: 0.7, reefExp: 0, steepExp: 0, paddleOut: 0 },
-  { stage: 2, title: 'I stand up and steer in the whitewater on my own', short: 'Whitewater', comfort: 0.7, max: 0.9, reefExp: 0, steepExp: 0, paddleOut: 0 },
-  { stage: 3, title: "I'm catching my first green waves and starting to angle", short: 'First green waves', comfort: 0.9, max: 1.2, reefExp: 0, steepExp: 0, paddleOut: 1 },
-  { stage: 4, title: 'I catch green waves on my own and ride along the face', short: 'Riding the face', comfort: 1.2, max: 1.5, reefExp: 1, steepExp: 0, paddleOut: 1 },
-  { stage: 5, title: 'I do bottom and top turns, generate speed, and surf head high on my own', short: 'Turns and speed', comfort: 1.5, max: 1.8, reefExp: 1, steepExp: 1, paddleOut: 2 },
-  { stage: 6, title: 'I link turns, make steep take-offs and enjoy overhead waves', short: 'Overhead waves', comfort: 2.2, max: 3.0, reefExp: 2, steepExp: 1, paddleOut: 2 },
-  { stage: 7, title: 'I surf heavy waves, barrels and shallow reefs, well overhead', short: 'Heavy waves', comfort: 3.0, max: 5.0, reefExp: 2, steepExp: 2, paddleOut: 3 },
-  { stage: 8, title: 'I surf big waves, double overhead and up', short: 'Big waves', comfort: 3.6, max: 5.0, reefExp: 3, steepExp: 2, paddleOut: 3 },
+  { stage: 1, title: "I've never surfed, or I ride whitewater with a push", short: 'First waves', level: 'Beginner', comfort: 0.5, max: 0.7, reefExp: 0, steepExp: 0, paddleOut: 0 },
+  { stage: 2, title: 'I stand up and steer in the whitewater on my own', short: 'Whitewater', level: 'Beginner+', comfort: 0.7, max: 0.9, reefExp: 0, steepExp: 0, paddleOut: 0 },
+  { stage: 3, title: "I'm catching my first green waves and starting to angle", short: 'First green waves', level: 'Improver', comfort: 0.9, max: 1.2, reefExp: 0, steepExp: 0, paddleOut: 1 },
+  { stage: 4, title: 'I catch green waves on my own and ride along the face', short: 'Riding the face', level: 'Intermediate', comfort: 1.2, max: 1.5, reefExp: 1, steepExp: 0, paddleOut: 1 },
+  { stage: 5, title: 'I do bottom and top turns, generate speed, and surf head high on my own', short: 'Turns and speed', level: 'Intermediate+', comfort: 1.5, max: 1.8, reefExp: 1, steepExp: 1, paddleOut: 2 },
+  { stage: 6, title: 'I link turns, make steep take-offs and enjoy overhead waves', short: 'Overhead waves', level: 'Advanced', comfort: 2.2, max: 3.0, reefExp: 2, steepExp: 1, paddleOut: 2 },
+  { stage: 7, title: 'I surf heavy waves, barrels and shallow reefs, well overhead', short: 'Heavy waves', level: 'Expert', comfort: 3.0, max: 5.0, reefExp: 2, steepExp: 2, paddleOut: 3 },
+  { stage: 8, title: 'I surf big waves, double overhead and up', short: 'Big waves', level: 'Expert+', comfort: 3.6, max: 5.0, reefExp: 3, steepExp: 2, paddleOut: 3 },
 ];
 
 export const stageInfo = (s: Stage) => STAGES[s - 1];
 
-/** The skill band a stage belongs to, matching the spot levels it unlocks (REQUIRED_STAGE). */
+/** The level name for a stage: Beginner, Beginner+, Improver, Intermediate, Intermediate+, Advanced, Expert, Expert+. */
+export const levelName = (s: Stage) => STAGES[s - 1].level;
+
+/** The skill band a stage belongs to (for colours), matching the spot levels it unlocks (REQUIRED_STAGE). */
 export function stageBand(s: Stage): 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' {
   return s >= 7 ? 'Expert' : s >= 6 ? 'Advanced' : s >= 4 ? 'Intermediate' : 'Beginner';
 }
@@ -192,7 +197,7 @@ const fmtM = (m: number, unit: 'm' | 'ft') => (unit === 'ft' ? `${Math.round(m *
 /** "Stage 4 · comfortable to chest high (1.2 m) · caught up to 1.5 m · sand only · mid-length". */
 export function profileSummary(p: SkillProfile, unit: 'm' | 'ft' = 'm'): string {
   return [
-    `Stage ${p.stage}`,
+    `${levelName(p.stage)} (stage ${p.stage})`,
     `comfortable to ${bodyWord(p.comfort)} (${fmtM(p.comfort, unit)})`,
     `caught up to ${fmtM(Math.max(p.max, p.comfort), unit)}`,
     REEF_OPTIONS[p.reefExp].short,
