@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0 — 2026-11-15
+
+- **Time filter on Explore**, next to the day: Any time (the default: each spot's best window), Now, or an hour of that day. Best picks and the spot list follow it, so the Today / Now / At… switch inside Best picks is gone.
+- With a time chosen, opening a spot scrolls its forecast to that hour and the next ones.
+- **Area as a breadcrumb** ("Fuerteventura › North") with a pin; tap it to search another area or use Near me. Your level badge sits on the same narrow row, on the right.
+- The "No daylight left today, so you're seeing tomorrow" notice is gone; the Day filter already shows Tomorrow.
+
 ## 1.4.7 — 2026-11-15
 
 - Forecast: the Wave row is back to the slimmer breaking-wave figures, now with a sharper, pointed peak instead of a rounded crest.

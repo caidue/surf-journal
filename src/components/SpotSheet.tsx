@@ -9,12 +9,14 @@ interface Props {
   sessions: Session[];
   settings: Settings;
   initialDay: number;
+  /** Chosen time on that day (minutes): the forecast opens scrolled to it. */
+  focusMin?: number;
   onClose: () => void;
   go: (path: string) => void;
 }
 
 /** The spot view as a popup over Explore: bottom sheet on phones, dialog on wider screens. */
-export default function SpotSheet({ spot, spots, sessions, settings, initialDay, onClose, go }: Props) {
+export default function SpotSheet({ spot, spots, sessions, settings, initialDay, focusMin, onClose, go }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -42,6 +44,7 @@ export default function SpotSheet({ spot, spots, sessions, settings, initialDay,
           go={go}
           mode="sheet"
           initialDay={initialDay}
+          focusMin={focusMin}
           titleId="sheet-title"
           headerActions={
             <>

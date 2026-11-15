@@ -23,6 +23,12 @@ interface Region {
 }
 
 const PICKS_KEY = 'surf-journal.picksOpen';
+
+/** "North of Fuerteventura" → ["Fuerteventura", "North"]; other labels stay one crumb. */
+function crumbsOf(label: string): string[] {
+  const m = /^(.+?) of (.+)$/.exec(label);
+  return m ? [m[2], m[1]] : [label];
+}
 const REGION_KEY = 'surf-journal.region';
 /** Below this width Explore shows either the map or the list, never the map with content below it. */
 export const PHONE_QUERY = '(max-width: 899px)';
@@ -48,7 +54,15 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
   const [region, setRegion] = useState<Region | null>(loadRegion);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [dayOffset, setDayOffset] = useState(0);
+  /** The location picker (search + near me), opened from the breadcrumb. */
+  const [locOpen, setLocOpen] = useState(false);
+  const [dayOffset, setDayOffsetState] = useState(0);
+  /** Time filter on the selected day: none (the whole day), now (today only) or an hour (minutes). */
+  const [timeSel, setTimeSel] = useState<'now' | number | null>(null);
+  const setDayOffset = (d: number) => {
+    setDayOffsetState(d);
+    if (d !== 0) setTimeSel((t) => (t === 'now' ? null : t));
+  };
   const [selected, setSelected] = useState<string | null>(null);
   /** Spot whose details sheet is open (from a map marker or a list card). */
   const [sheet, setSheet] = useState<string | null>(null);
@@ -120,6 +134,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
       setRegion(r);
       storeRegion(r);
       saveSettings({ lastQuery: text });
+      setLocOpen(false);
     } finally {
       setSearching(false);
     }
@@ -139,6 +154,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
         setRegion(r);
         storeRegion(r);
         setSearching(false);
+        setLocOpen(false);
       },
       (err) => {
         setSearchError(err.message || 'Could not get your location.');
@@ -166,9 +182,8 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
   const recBySpot = useMemo(() => new Map(recs.map((r) => [r.spot.id, r])), [recs]);
   const top = recs.find((r) => r.best && r.best.score > 0.5) ?? null;
 
-  // Best picks: the top three spots for the day (best time window), right now (this hour, today
-  // only) or at a time you pick on the selected day.
-  const [pickMode, setPickMode] = useState<'day' | 'now' | 'time'>('day');
+  // Best picks follow the Day and Time filters: the top three spots for the day (best time window),
+  // right now (this hour, today only) or at the chosen hour of the selected day.
   // The whole Best picks section can be collapsed; remembered on this device (open the first time).
   const [picksOpen, setPicksOpenState] = useState(() => {
     try {
@@ -185,7 +200,6 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
       /* per-viewer convenience only */
     }
   };
-  const mode = dayOffset !== 0 && pickMode === 'now' ? 'day' : pickMode;
   // Daylight hours of the selected day (today: from the current hour on), as minutes after midnight.
   const pickHours = useMemo(() => {
     const nowH = recs[0]?.now ? isoToMin(recs[0].now.time) ?? 0 : 0;
@@ -193,15 +207,11 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
     for (const r of recs) for (const h of r.hours) if (h.daylight) set.add(isoToMin(h.time) ?? -1);
     return [...set].filter((m) => m >= 0 && (dayOffset !== 0 || m >= nowH)).sort((a, b) => a - b);
   }, [recs, dayOffset]);
-  const [pickTime, setPickTime] = useState<number | null>(null);
-  // Keep the picked time on the selected day: default to the top pick's best hour, else the first hour.
-  const time =
-    pickTime != null && pickHours.includes(pickTime)
-      ? pickTime
-      : (() => {
-          const b = top?.best ? isoToMin(top.best.time) : null;
-          return b != null && pickHours.includes(b) ? b : pickHours[0] ?? null;
-        })();
+  const dayOverEarly = dayOffset === 0 && recs.length > 0 && recs.every((r) => r.dayOver);
+  // An hour that isn't on the selected day (e.g. already past today) counts as no time filter.
+  const mode: 'day' | 'now' | 'time' =
+    timeSel === 'now' ? (dayOffset === 0 && !dayOverEarly ? 'now' : 'day') : timeSel != null && pickHours.includes(timeSel) ? 'time' : 'day';
+  const time = mode === 'time' ? (timeSel as number) : null;
   const picks = useMemo(() => {
     const ranked: { rec: SpotRec; hour: HourRec }[] =
       mode === 'now'
@@ -220,7 +230,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
       .slice(0, 3);
   }, [recs, mode, time]);
   const darkNow = mode === 'now' && recs.length > 0 && !recs.some((r) => r.now?.daylight);
-  const dayOver = dayOffset === 0 && recs.length > 0 && recs.every((r) => r.dayOver);
+  const dayOver = dayOverEarly;
 
   // Opening the app after sunset: jump to tomorrow once.
   const [autoSwitched, setAutoSwitched] = useState(false);
@@ -276,39 +286,88 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
   return (
     <div className={`page explore view-${view}`}>
       <div className="explore-controls">
-        <form
-          className="searchbar"
-          onSubmit={(e) => {
-            e.preventDefault();
-            search(query);
-          }}
-        >
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Where are you? e.g. northern Fuerteventura" aria-label="Region" enterKeyHint="search" />
-          <button className="btn primary" disabled={searching} aria-label="Show spots">
-            <Icon name="search" size={18} />
-            <span className="btn-text">{searching ? 'Searching…' : 'Show spots'}</span>
+        <div className="explore-top">
+          <button
+            type="button"
+            className="crumbs"
+            aria-expanded={locOpen}
+            aria-controls="loc-picker"
+            onClick={() => setLocOpen(!locOpen)}
+            title="Change the area"
+          >
+            <Icon name="pin" size={16} />
+            <span className="crumb-list">
+              {(region ? crumbsOf(region.label) : ['All spots']).map((c, i) => (
+                <span key={i} className="crumb">
+                  {i > 0 && <span className="crumb-sep" aria-hidden>›</span>}
+                  {c}
+                </span>
+              ))}
+            </span>
+            <svg className="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
           </button>
-          <button type="button" className="btn" onClick={nearMe} aria-label="Spots near me">
-            <Icon name="locate" size={18} />
-            <span className="btn-text">Near me</span>
-          </button>
-        </form>
-        <div className="toolbar">
           {settings.profile && (
-            <div className="tb-item">
-              <span className="tb-label">Your level</span>
-              <button
-                className={`tb-you level-badge band-${stageBand(settings.profile.stage).toLowerCase()}`}
-                onClick={() => go('settings')}
-                title={`${levelName(settings.profile.stage)} (stage ${settings.profile.stage} of 8), comfortable to ${bodyWord(settings.profile.comfort)}. Tap to see or change it in Settings → Your surfing.`}
-              >
-                {levelName(settings.profile.stage)}
-              </button>
-            </div>
+            <button
+              className={`tb-you level-badge band-${stageBand(settings.profile.stage).toLowerCase()}`}
+              onClick={() => go('settings')}
+              aria-label={`Your level: ${levelName(settings.profile.stage)}. Change it in Settings`}
+              title={`Your level: ${levelName(settings.profile.stage)} (stage ${settings.profile.stage} of 8), comfortable to ${bodyWord(settings.profile.comfort)}. Tap to see or change it in Settings → Your surfing.`}
+            >
+              {levelName(settings.profile.stage)}
+            </button>
           )}
+        </div>
+        {locOpen && (
+          <form
+            id="loc-picker"
+            className="searchbar"
+            onSubmit={(e) => {
+              e.preventDefault();
+              search(query);
+            }}
+            onKeyDown={(e) => e.key === 'Escape' && setLocOpen(false)}
+          >
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Where are you? e.g. northern Fuerteventura"
+              aria-label="Area"
+              enterKeyHint="search"
+            />
+            <button className="btn primary" disabled={searching} aria-label="Show spots">
+              <Icon name="search" size={18} />
+              <span className="btn-text">{searching ? 'Searching…' : 'Show spots'}</span>
+            </button>
+            <button type="button" className="btn" onClick={nearMe} aria-label="Spots near me">
+              <Icon name="locate" size={18} />
+              <span className="btn-text">Near me</span>
+            </button>
+          </form>
+        )}
+        <div className="toolbar">
           <div className="tb-item">
             <span className="tb-label">Day</span>
             <Segmented options={dayOptions} value={String(dayOffset)} onChange={(v) => setDayOffset(Number(v))} />
+          </div>
+          <div className="tb-item tb-time">
+            <span className="tb-label">Time</span>
+            <select
+              className={`time-filter${mode === 'day' ? ' unset' : ''}`}
+              aria-label="Time"
+              value={mode === 'now' ? 'now' : mode === 'time' ? String(time) : ''}
+              onChange={(e) => setTimeSel(e.target.value === '' ? null : e.target.value === 'now' ? 'now' : Number(e.target.value))}
+            >
+              <option value="">Any time</option>
+              {dayOffset === 0 && !dayOver && <option value="now">Now</option>}
+              {pickHours.map((m) => (
+                <option key={m} value={m}>
+                  {fmtMin(m)}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         {searchError && <div className="alert">{searchError}</div>}
@@ -342,44 +401,20 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                     <path d="M6 9l6 6 6-6" />
                   </svg>
                   <span className="eyebrow">
-                    Best picks for you {mode === 'now' ? 'right now' : dayOffset === 0 ? 'today' : dayOptions[dayOffset].label.toLowerCase()}
+                    Best picks for you {mode === 'now' ? 'right now' : dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : dayOptions[dayOffset].label}
                     {mode === 'time' && time != null ? ` at ${fmtMin(time)}` : ''}
                   </span>
                 </button>
-                {picksOpen && (
-                <div className="pick-controls">
-                  <Segmented
-                    options={[
-                      { id: 'day' as const, label: dayOffset === 0 ? 'Today' : dayOffset === 1 ? 'Tomorrow' : dayOptions[dayOffset].label, title: 'The best time window at each spot' },
-                      ...(dayOffset === 0 ? [{ id: 'now' as const, label: 'Now', title: 'This hour' }] : []),
-                      { id: 'time' as const, label: 'At…', title: 'Pick a time on this day' },
-                    ]}
-                    value={mode}
-                    onChange={setPickMode}
-                  />
-                  {mode === 'time' && pickHours.length > 0 && (
-                    <select className="pick-time" aria-label="Time" value={time ?? ''} onChange={(e) => setPickTime(Number(e.target.value))}>
-                      {pickHours.map((m) => (
-                        <option key={m} value={m}>
-                          {fmtMin(m)}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                )}
               </div>
               {picksOpen && (
               <div id="best-picks-body">
               {picks.length === 0 ? (
                 <p className="muted small">
                   {darkNow
-                    ? "It's dark at the spots right now. Switch to Today, or look at tomorrow."
+                    ? "It's dark at the spots right now. Set the time to Any time for today's best windows, or look at tomorrow."
                     : mode === 'time'
-                      ? pickHours.length
-                        ? `Nothing really works for you at ${fmtMin(time ?? 0)}. Try another time, or the whole day.`
-                        : 'No daylight hours left on this day.'
-                      : 'Nothing really works for you right now. Switch to Today to see the best times later.'}
+                      ? `Nothing really works for you at ${fmtMin(time ?? 0)}. Try another time, or Any time for the best of the day.`
+                      : 'Nothing really works for you right now. Set the time to Any time to see the best times later today.'}
                 </p>
               ) : (
                 <ol className="pick-list">
@@ -442,9 +477,6 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
               )}
             </Card>
           )}
-          {autoSwitched && dayOffset === 1 && (
-            <div className="alert soft">No daylight left today, so you're seeing tomorrow. Current conditions are on each spot's page.</div>
-          )}
           {!loading && regionSpots.length > 0 && !top && recs.length > 0 && (
             <Card>
               {dayOver ? (
@@ -474,7 +506,8 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
           <div className="spot-list">
             {(recs.length ? recs.map((r) => r.spot) : regionSpots).map((spot) => {
               const r = recBySpot.get(spot.id);
-              const show = r?.now ?? r?.best;
+              const atTime = mode === 'time' ? r?.hours.find((h) => isoToMin(h.time) === time) : undefined;
+              const show = atTime ?? r?.now ?? r?.best;
               return (
                 <Card
                   key={spot.id}
@@ -488,7 +521,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                   <p className="desc">{spot.description}</p>
                   {show ? (
                     <div className="cond-line">
-                      <span className="muted small">{r?.now && dayOffset === 0 ? 'Now' : `At ${fmtMin(isoToMin(show.time) ?? 0)}`}:</span>
+                      <span className="muted small">{!atTime && r?.now && dayOffset === 0 ? 'Now' : `At ${fmtMin(isoToMin(show.time) ?? 0)}`}:</span>
                       <span title={show.derived.hb != null ? bodyRange(show.derived.hb * 0.8, show.derived.hb * 1.2) : undefined}>
                         <strong>{fmtSurfRange(show.derived.hb, settings.heightUnit)}</strong> {show.derived.tDom ? `${Math.round(show.derived.tDom)} s` : ''}{' '}
                         <DirArrow from={show.derived.dirDom} />
@@ -582,7 +615,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
           const spot = spots.find((x) => x.id === sheet);
           if (!spot) return null;
           return (
-            <SpotSheet spot={spot} spots={spots} sessions={sessions} settings={settings} initialDay={dayOffset} onClose={closeSheet} go={go} />
+            <SpotSheet spot={spot} spots={spots} sessions={sessions} settings={settings} initialDay={dayOffset} focusMin={mode === 'time' ? time ?? undefined : undefined} onClose={closeSheet} go={go} />
           );
         })()}
     </div>

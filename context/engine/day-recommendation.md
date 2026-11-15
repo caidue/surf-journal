@@ -6,7 +6,7 @@ resource: "src/lib/recommend.ts"
 tags: ["engine", "recommendation"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T22:20:00+00:00"
+  at: "2026-11-15T15:10:00+00:00"
 ---
 # Day recommendation and best picks
 
@@ -22,4 +22,4 @@ generated:
 
 `TimingNotes` (ui.tsx) shows these under each pick (day mode) and on the spot's recommendation card (below the forecast table).
 
-**Best picks** (Explore): the top three spots by best-window score ("Today") or by this hour's score ("Now"), with score > 0.5. Every pick shows the explanation (incl. "Local knowledge (sources agree): …" lines for rules that changed the hour) and suitability reasons.
+**Best picks** (Explore): the top three spots by best-window score (Time filter "Any time"), by this hour's score ("Now") or by the chosen hour's score, with score > 0.5. Every pick shows the explanation (incl. "Local knowledge (sources agree): …" lines for rules that changed the hour) and suitability reasons.

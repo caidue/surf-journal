@@ -9,11 +9,11 @@ sources:
     id: "report"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-15T14:20:00+00:00"
+  at: "2026-11-15T15:10:00+00:00"
 ---
 # Hourly forecast table
 
-Columns: daylight hours (one before sunrise to sunset), 50 px each, scrolled to now or the best window. The best window is not marked in the table; the recommendation card sits below it ([Spot view](/features/spot-view.md)). The legend and the data sources are folded away behind a "Legend & sources" toggle under the table (closed by default): what each row means, which spots share the wave-model cell, wind colours, and the data line (models and grid cells, Open-Meteo CC BY 4.0).
+Columns: daylight hours (one before sunrise to sunset), 50 px each, scrolled to the time chosen in Explore's Time filter (one hour before it when at least four columns fit), else to now or the best window. The best window is not marked in the table; the recommendation card sits below it ([Spot view](/features/spot-view.md)). The legend and the data sources are folded away behind a "Legend & sources" toggle under the table (closed by default): what each row means, which spots share the wave-model cell, wind colours, and the data line (models and grid cells, Open-Meteo CC BY 4.0).
 
 | Row | Content |
 |---|---|

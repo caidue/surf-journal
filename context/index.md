@@ -73,7 +73,7 @@ Algorithms: spot rating, suitability rules, skill profile and learning, predicti
 User-facing screens and flows. ([folder index](features/index.md))
 
 * [Demo sessions](features/demo-sessions.md) - Random sessions on real past conditions to try the app.
-* [Explore](features/explore.md) - Region search, map and list of spots, best picks for the day, now or a picked time, similar past sessions.
+* [Explore](features/explore.md) - Area breadcrumb, day and time filters, map and list of spots, best picks for them, similar past sessions.
 * [Hourly forecast table](features/forecast-table.md) - Surf-forecast-style hourly table: spot rating, For you, surf, swell trains, energy, wind, tide.
 * [Journal](features/journal.md) - List of logged sessions with filters, stats and relevance switches.
 * [Onboarding: Your surfing](features/onboarding.md) - First-launch questions that build the skill profile; also the profile editor.

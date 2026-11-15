@@ -38,6 +38,8 @@ interface Props {
   /** 'sheet' = popup over Explore, 'page' = its own page (#/spot/:id). Same content either way. */
   mode: 'sheet' | 'page';
   initialDay?: number;
+  /** Chosen time on the initial day (minutes after midnight): the forecast opens scrolled to it. */
+  focusMin?: number;
   /** Extra buttons for the header (close / open as page). */
   headerActions?: ReactNode;
   titleId?: string;
@@ -49,7 +51,7 @@ interface Props {
  * Best time (the recommendation for you, with the forecast for just those hours) and Sessions
  * (with how similar each was to the chosen day, and what your ratings say).
  */
-export default function SpotView({ spot, spots, sessions, settings, go, mode, initialDay = 0, headerActions, titleId }: Props) {
+export default function SpotView({ spot, spots, sessions, settings, go, mode, initialDay = 0, focusMin, headerActions, titleId }: Props) {
   const today = todayAt();
   const [dayOffset, setDayOffset] = useState(initialDay);
   const [tab, setTabState] = useState<SpotTab>(loadTab);
@@ -189,6 +191,7 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                   settings={settings}
                   tides={tides}
                   gridMates={gridMates}
+                  focusMin={dayOffset === initialDay ? focusMin : undefined}
                 />
               ) : (
                 <p className="muted">{loading ? 'Loading forecast…' : 'No forecast available for this spot.'}</p>

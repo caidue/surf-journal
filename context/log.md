@@ -2,6 +2,8 @@
 
 ## 2026-11-15
 
+* **Update** of [Releases](/operations/releases.md): 1.5.0 committed, tagged `v1.5.0` and pushed.
+* **Update** of [Explore](/features/explore.md) (area breadcrumb and level badge row, Time filter driving Best picks and the spot list, tomorrow notice removed), [Day recommendation](/engine/day-recommendation.md), [Forecast table](/features/forecast-table.md) (opens at the chosen time), [Releases](/operations/releases.md) (1.5.0).
 * **Update** of [Releases](/operations/releases.md): 1.4.7 committed, tagged `v1.4.7` and pushed.
 * **Update** of [Forecast table](/features/forecast-table.md): back to the slim breaking-wave figure, with a pointed peak; [Releases](/operations/releases.md) (1.4.7).
 * **Update** of [Releases](/operations/releases.md): 1.4.6 committed, tagged `v1.4.6` and pushed.

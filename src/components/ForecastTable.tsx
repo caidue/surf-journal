@@ -45,6 +45,7 @@ export default function ForecastTable({
   settings,
   tides,
   gridMates,
+  focusMin,
 }: {
   spot: Spot;
   rec: SpotRec;
@@ -54,6 +55,8 @@ export default function ForecastTable({
   settings: Settings;
   tides: TideExtreme[];
   gridMates: string[];
+  /** A chosen time (minutes after midnight): open with it and the next hours in view. */
+  focusMin?: number;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [open, setOpenState] = useState(() => {
@@ -92,15 +95,20 @@ export default function ForecastTable({
   const nowH = nowMin == null ? null : Math.floor(nowMin / 60);
   const win = rec.bestWindow;
 
-  // Start the table at the current hour (today) or the best window, so the useful part is in view.
+  // Start the table at the chosen time, else the current hour (today) or the best window, so the
+  // useful part is in view. A chosen time keeps one hour before it in view when there's room for it
+  // and the next two or three hours.
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
-    const target = nowH ?? (win ? Math.floor(win[0] / 60) : null);
+    const focusH = focusMin != null ? Math.floor(focusMin / 60) : null;
+    const target = focusH ?? nowH ?? (win ? Math.floor(win[0] / 60) : null);
     if (target == null) return;
-    el.scrollLeft = Math.max(0, (target - h0 - 1) * COL_W);
+    const fits = Math.floor((el.clientWidth - 84) / COL_W);
+    const before = focusH != null && fits < 4 ? 0 : 1;
+    el.scrollLeft = Math.max(0, (target - h0 - before) * COL_W);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, spot.id]);
+  }, [date, spot.id, focusMin]);
 
   if (!cols.length) return <p className="muted">No forecast hours for this day.</p>;
 

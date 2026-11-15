@@ -73,6 +73,12 @@ const PATHS = {
       <path d="M12 7v5l3.5 2" />
     </>
   ),
+  pin: (
+    <>
+      <path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0c0 5.2-6.5 11-6.5 11z" />
+      <circle cx="12" cy="10" r="2.3" />
+    </>
+  ),
   close: <path d="M6 6l12 12M18 6 6 18" />,
   plus: <path d="M12 5v14M5 12h14" />,
   text: (
