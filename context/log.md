@@ -2,6 +2,15 @@
 
 ## 2026-11-16
 
+* **Update** of [Releases](/operations/releases.md): 1.6.4–1.6.8 committed together, tagged `v1.6.8` and pushed.
+* **Update** of [Forecast table](/features/forecast-table.md): swell waves face left when the swell comes from a poor direction for the spot.
+* **Update** of [Forecast table](/features/forecast-table.md): swell colours by energy (blue, red, purple; grey outside the window).
+* **Update** of [Forecast table](/features/forecast-table.md): the swells as small waves in the Swell row (main in front, 2nd / 3rd violet behind); the Wave row's figure removed; [pending: threshold tuning](/decisions/pending/threshold-tuning.md) display values.
+* **Update** of [Forecast table](/features/forecast-table.md) (2nd / 3rd swell as violet arrows in the folded Swell row; the mirrored waves in the Wave row were tried and removed again), [Releases](/operations/releases.md) (1.6.8).
+* **Update** of [Spot guide](/features/spot-guide.md) (photo viewer arrows, keys, swipe), [Releases](/operations/releases.md) (1.6.7).
+* **Update** of [Explore](/features/explore.md) and [Day recommendation](/engine/day-recommendation.md) (explanation line kinds: journal icon, minus), [Releases](/operations/releases.md) (1.6.6).
+* **Update** of [Explore](/features/explore.md) (desktop: no page scroll, only the list scrolls), [UI shell](/architecture/ui-shell.md), [Releases](/operations/releases.md) (1.6.5).
+* **Update** of [Journal](/features/journal.md) (title as a trip dropdown with edit/delete; chips removed), [Releases](/operations/releases.md) (1.6.4).
 * **Update** of [Releases](/operations/releases.md): 1.6.2 and 1.6.3 committed together, tagged `v1.6.3` and pushed.
 * **Update** of [Journal](/features/journal.md) (title from the trip filter, + button, no search, one filter row), [Session logging](/features/session-logging.md) (`?trip=` pre-fill), [Releases](/operations/releases.md) (1.6.3).
 * **Update** of [Explore](/features/explore.md), [Spot view](/features/spot-view.md), [Day recommendation](/engine/day-recommendation.md), [How sure a rating is](/engine/confidence.md), [UI shell](/architecture/ui-shell.md) (`PickDetails`), [Releases](/operations/releases.md) (1.6.2): no suitability badge, peak and even day as bullets, no "No logged sessions" line.

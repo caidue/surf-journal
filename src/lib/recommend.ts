@@ -314,25 +314,33 @@ export function recommendSpotDay(
 /* The suitability reasons are shown separately (ui.tsx → SuitReasons). */
 /* ------------------------------------------------------------------ */
 
+/** One explanation line; `kind` picks its marker: your sessions (journal icon), against (−), other (›). */
+export interface ExplainLine {
+  text: string;
+  kind: 'history' | 'against' | 'info';
+}
+
 /** @param forLevel set when rating for another level ("Advanced"): your sessions are left out. */
-export function explain(r: HourRec, fmtSessionDate: (s: Session) => string, forLevel?: string): string[] {
-  const out: string[] = [];
+export function explain(r: HourRec, fmtSessionDate: (s: Session) => string, forLevel?: string): ExplainLine[] {
+  const out: ExplainLine[] = [];
+  const push = (text: string, kind: ExplainLine['kind'] = 'info') => out.push({ text, kind });
   const rated = r.pred.neighbours.filter((n) => n.y != null && !n.session.excluded);
   const used = rated.filter((n) => n.k >= 0.3 && n.w > 0.05);
   if (forLevel) {
-    out.push(`Rated for a typical ${forLevel} surfer from the spot guide; your own sessions are left out.`);
+    push(`Rated for a typical ${forLevel} surfer from the spot guide; your own sessions are left out.`);
   } else if (used.length) {
     const avg = used.reduce((a, n) => a + n.y! * n.w, 0) / used.reduce((a, n) => a + n.w, 0);
-    out.push(`${used.length} past session${used.length > 1 ? 's' : ''} here in similar conditions → you rated them ${avg.toFixed(1)}/10 fun on average.`);
+    push(`${used.length} past session${used.length > 1 ? 's' : ''} here in similar conditions → you rated them ${avg.toFixed(1)}/10 fun on average.`, 'history');
     const c = used[0];
-    out.push(
-      `Closest match: ${fmtSessionDate(c.session)} (${Math.round(c.k * 100)}% similar) → ${c.y!.toFixed(1)}/10.` +
-        (c.differs ? ` Biggest difference: ${c.differs}.` : ''),
+    push(
+      `Closest match: ${fmtSessionDate(c.session)} (${Math.round(c.k * 100)}% similar) → ${c.y!.toFixed(1)}/10.` + (c.differs ? ` Biggest difference: ${c.differs}.` : ''),
+      'history',
     );
   } else if (rated.length) {
     const c = rated[0];
-    out.push(
+    push(
       `Your closest session here (${fmtSessionDate(c.session)}, ${Math.round(c.k * 100)}% similar${c.differs ? `, differs mainly in ${c.differs}` : ''}) is too different to count much: the score is mostly the spot guide and your surfing profile.`,
+      'history',
     );
   }
   // No sessions here yet: nothing to say (the score then comes from the spot guide and your profile).
@@ -340,14 +348,14 @@ export function explain(r: HourRec, fmtSessionDate: (s: Session) => string, forL
   const conf = { high: 0, medium: 1, low: 2 } as const;
   const word = { high: 'sources agree', medium: 'some support', low: 'sources disagree' } as const;
   for (const f of [...(r.quality.rules ?? [])].filter((x) => x.rule.apply?.type !== 'levelWhen').sort((a, b) => conf[a.rule.confidence] - conf[b.rule.confidence]).slice(0, 2))
-    out.push(`Local knowledge (${word[f.rule.confidence]}): ${f.effect}.`);
+    push(`Local knowledge (${word[f.rule.confidence]}): ${f.effect}.`);
   const f = r.quality.factors;
   const weak: string[] = [];
   if (f.size < 0.4) weak.push('size outside the range this spot likes');
   if (f.period < 0.6) weak.push('short-period swell (peak period under 8 s)');
   if (f.wind < 0.5) weak.push('wind is hurting it');
   if (f.tide < 0.7) weak.push('tide not ideal');
-  if (weak.length) out.push(`Held back by: ${weak.join(', ')}.`);
+  if (weak.length) push(`Held back by: ${weak.join(', ')}.`, 'against');
   return out;
 }
 

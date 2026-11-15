@@ -328,7 +328,14 @@ export function PickDetails({ rec, hour, who, forLevel, timing, dayWord }: { rec
           )}
           {even && <li>Other times {dayWord} are about as good (within half a point).</li>}
           {lines.map((l) => (
-            <li key={l}>{l}</li>
+            <li key={l.text} className={`x-${l.kind}`}>
+              {l.kind === 'history' && (
+                <span className="x-icon" aria-hidden>
+                  <Icon name="journal" size={13} />
+                </span>
+              )}
+              {l.text}
+            </li>
           ))}
         </ul>
       )}

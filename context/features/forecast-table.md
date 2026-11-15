@@ -9,7 +9,7 @@ sources:
     id: "report"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T13:20:00+00:00"
+  at: "2026-11-16T22:30:00+00:00"
 ---
 # Hourly forecast table
 
@@ -21,8 +21,8 @@ Columns: daylight hours (one before sunrise to sunset), 50 px each, scrolled to 
 | Withheld hours | "?" in Rating with the reason on hover (✕ stays when the spot isn't for you anyway) |
 | Wind | mean of four models over the sea: arrow, average speed over the hour and, only when they are at least 15 km/h stronger, the gusts in small grey below (km/h, kn or mph; background by wind kind) (explained in the tooltip and legend; surf-forecast shows no gusts, Surfline lists them next to the wind); colour by kind; tooltip "15 km/h on average, gusts up to 23 km/h · cross-shore, from NE …" plus every model; "?" when they disagree by ≥ 45° |
 | **Rating** ("for me", or "for advanced" etc. under Rate for on Explore) | the one rating row: predicted fun for you (your profile and sessions here) or for a typical surfer of the chosen level (your sessions left out); ✕ when unsuitable. The separate Spot rating row was removed (2026-11-16): the tooltip gives the status, best peak and reasons, then how good the waves are for anyone ("Waves fair–good (6.4/10, 7.5 without the wind)", the [spot rating](/engine/spot-rating.md)) |
-| **Wave** (m or ft) | one value per hour: the middle of the ±20 % estimate of the face height (e.g. 2.4; whole feet with ft), like surf-forecast's single "Height" number, above a slim breaking-wave figure (a back rising to a pointed peak with a small lip, then the face; 34 px wide, as tall as the surf: full height at 3 m, at least 6 px) coloured light blue → sky blue → blue → green (2.6 m+) (`waveColor`, `WaveFigure`; our own shape); the range and body words are in the tooltip |
-| Swell (▸ expandable) | strongest train: height, peak period, arrow; expands into Swell 1–3 by energy, Wind sea and Total sea (Hs · Tp, Te in the tooltip). Trains outside the swell window are greyed out |
+| **Wave** (m or ft) | one value per hour: the middle of the ±20 % estimate of the face height at the spot (e.g. 2.4; whole feet with ft), like surf-forecast's single "Height" number; no figure (the wave figures moved to the Swell row, 2026-11-16); the range and body words are in the tooltip |
+| Swell (▸ expandable) | strongest train: height, peak period, arrow; expands into Swell 1–3 by energy, Wind sea and Total sea (Hs · Tp, Te in the tooltip). Trains outside the swell window are greyed out. Swells are coloured by energy, 1st **blue** (`#2563eb`), 2nd **red** (`#dc2626`), 3rd **purple** (`#7c3aed`), grey when outside the spot's swell window (arrows and waves, also in the expanded Swell 1–3 rows; the wind sea stays in the text colour). Folded, the cell also shows the 2nd and 3rd swell (≥ 0.2 m) as fainter arrows behind the main arrow (60 % / 50 % opaque), with their height, period, direction and energy in the tooltip. Under the numbers each hour shows the swells as small surf waves on one baseline (`SwellWave`, as tall as the train's height, full at 1.6 m): the main swell in front, the 2nd and 3rd (folded only) as faint as their arrows and set a little to the left behind it, like the next waves of a set. A wave **faces left (mirrored)** when its swell comes from a poor direction for the spot, less than half of it getting in (`exposure` < 0.5, `POOR_EXPOSURE`), as surf-forecast does; the tooltip then says "poor direction for this spot" (or "outside the swell window" at 0) |
 | Energy (kJ) | strongest train; tooltip: strongest and total |
 | Tide | curve with H/L times across the full width: each hourly value sits in the middle of its column, and the curve is extended to both edges with the level half an hour before the first and after the last hour |
 

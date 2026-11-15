@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Session, Settings, Spot, Trip } from '../types';
 import { db, deleteTrip, saveTrip } from '../db';
 import { useTrips } from '../hooks';
@@ -112,9 +112,27 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
 
   return (
     <div className="page">
-      {/* The title is what the trip filter shows; "+" logs a session (into the selected trip). */}
+      {/* The title is the trip filter: a dropdown with All sessions, each trip (edit / delete),
+          Not in a trip and New trip. "+" logs a session (into the selected trip). */}
       <div className="page-head">
-        <h1>{trip ? trip.name : tripFilter === 'none' ? 'Not in a trip' : 'All sessions'}</h1>
+        <TripMenu
+          title={trip ? trip.name : tripFilter === 'none' ? 'Not in a trip' : 'All sessions'}
+          trips={trips}
+          selected={tripFilter}
+          total={sessions.length}
+          count={count}
+          noTrip={noTrip}
+          onSelect={setTripSel}
+          onNew={() => setEditing('new')}
+          onEdit={(t) => setEditing(t)}
+          onDelete={(t) => {
+            const n = count(t.id);
+            if (window.confirm(`Delete the trip “${t.name}”? Its ${n} session${n === 1 ? '' : 's'} stay in your journal.`)) {
+              deleteTrip(t.id);
+              if (tripFilter === t.id) setTripSel('');
+            }
+          }}
+        />
         <button
           className="btn primary icon-btn"
           onClick={() => go(trip ? `log?trip=${encodeURIComponent(trip.id)}` : 'log')}
@@ -124,25 +142,12 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
           <Icon name="plus" size={22} />
         </button>
       </div>
-
-      <div className="trip-bar" role="radiogroup" aria-label="Show sessions">
-        <button type="button" role="radio" aria-checked={tripFilter === ''} className={`chip${tripFilter === '' ? ' on' : ''}`} onClick={() => setTripSel('')}>
-          All sessions <span className="n">{sessions.length}</span>
-        </button>
-        {trips.map((t) => (
-          <button key={t.id} type="button" role="radio" aria-checked={tripFilter === t.id} className={`chip${tripFilter === t.id ? ' on' : ''}`} onClick={() => setTripSel(t.id)}>
-            <Icon name="folder" size={14} /> {t.name} <span className="n">{count(t.id)}</span>
-          </button>
-        ))}
-        {noTrip > 0 && (
-          <button type="button" role="radio" aria-checked={tripFilter === 'none'} className={`chip${tripFilter === 'none' ? ' on' : ''}`} onClick={() => setTripSel('none')}>
-            Not in a trip <span className="n">{noTrip}</span>
-          </button>
-        )}
-        <button type="button" className="chip add" onClick={() => setEditing('new')} aria-expanded={editing === 'new'}>
-          <Icon name="plus" size={14} /> New trip
-        </button>
-      </div>
+      {trip && editing === null && (
+        <p className="trip-sub small muted">
+          {[tripSpan(trip, scope), `${scope.length} session${scope.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
+          {trip.from && trip.to ? ' · sessions on these days join automatically' : ''}
+        </p>
+      )}
 
       {editing && (
         <TripForm
@@ -152,33 +157,6 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
             if (saved) setTripSel(saved.id);
           }}
         />
-      )}
-
-      {trip && editing === null && (
-        <div className="trip-head">
-          <div>
-            <div className="small muted">
-              {[tripSpan(trip, scope), `${scope.length} session${scope.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
-              {trip.from && trip.to ? ' · sessions on these days join automatically' : ''}
-            </div>
-          </div>
-          <div className="row gap">
-            <button className="btn small" onClick={() => setEditing(trip)}>
-              Edit trip
-            </button>
-            <button
-              className="btn small danger"
-              onClick={() => {
-                if (window.confirm(`Delete the trip “${trip.name}”? Its ${scope.length} session${scope.length === 1 ? '' : 's'} stay in your journal.`)) {
-                  deleteTrip(trip.id);
-                  setTripSel('');
-                }
-              }}
-            >
-              Delete trip
-            </button>
-          </div>
-        </div>
       )}
 
       <div className="stats">
@@ -340,5 +318,100 @@ function TripForm({ trip, onDone }: { trip: Trip | null; onDone: (saved: Trip | 
         </div>
       </form>
     </Card>
+  );
+}
+
+/**
+ * The journal title as a dropdown: All sessions, each trip (with its count, edit and delete),
+ * Not in a trip (when there are trips) and New trip. Closes on a choice, a tap outside or Esc.
+ */
+function TripMenu({
+  title,
+  trips,
+  selected,
+  total,
+  count,
+  noTrip,
+  onSelect,
+  onNew,
+  onEdit,
+  onDelete,
+}: {
+  title: string;
+  trips: Trip[];
+  selected: string;
+  total: number;
+  count: (id: string) => number;
+  noTrip: number;
+  onSelect: (id: string) => void;
+  onNew: () => void;
+  onEdit: (t: Trip) => void;
+  onDelete: (t: Trip) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: Event) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+  const act = (f: () => void) => {
+    setOpen(false);
+    f();
+  };
+  return (
+    <div className="trip-menu" ref={ref}>
+      <h1>
+        <button type="button" className="trip-title" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <span className="trip-title-text">{title}</span>
+          <svg className="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+      </h1>
+      {open && (
+        <div className="trip-pop" role="menu" aria-label="Show sessions">
+          <div className={`trip-item${selected === '' ? ' on' : ''}`}>
+            <button type="button" role="menuitemradio" aria-checked={selected === ''} className="trip-pick" onClick={() => act(() => onSelect(''))}>
+              <span>All sessions</span>
+              <span className="n">{total}</span>
+            </button>
+          </div>
+          {trips.length > 0 && <div className="trip-pop-sep">Trips</div>}
+          {trips.map((t) => (
+            <div key={t.id} className={`trip-item${selected === t.id ? ' on' : ''}`}>
+              <button type="button" role="menuitemradio" aria-checked={selected === t.id} className="trip-pick" onClick={() => act(() => onSelect(t.id))}>
+                <Icon name="folder" size={15} />
+                <span className="trip-name">{t.name}</span>
+                <span className="n">{count(t.id)}</span>
+              </button>
+              <button type="button" className="trip-act" onClick={() => act(() => onEdit(t))} aria-label={`Edit ${t.name}`} title="Edit trip">
+                <Icon name="edit" size={16} />
+              </button>
+              <button type="button" className="trip-act danger" onClick={() => act(() => onDelete(t))} aria-label={`Delete ${t.name}`} title="Delete trip">
+                <Icon name="trash" size={16} />
+              </button>
+            </div>
+          ))}
+          {noTrip > 0 && (
+            <div className={`trip-item${selected === 'none' ? ' on' : ''}`}>
+              <button type="button" role="menuitemradio" aria-checked={selected === 'none'} className="trip-pick" onClick={() => act(() => onSelect('none'))}>
+                <span className="muted">Not in a trip</span>
+                <span className="n">{noTrip}</span>
+              </button>
+            </div>
+          )}
+          <button type="button" className="trip-new" onClick={() => act(onNew)}>
+            <Icon name="plus" size={16} /> New trip
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

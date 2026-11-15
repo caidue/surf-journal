@@ -355,7 +355,8 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
             area={region?.bbox ?? null}
             selectedId={selected}
             onSelect={openSheet}
-            height={fullMap ? `calc(100dvh - ${Math.round(mapTop)}px - 2.25rem - var(--switch-h) - env(safe-area-inset-bottom))` : 'min(62vh, 560px)'}
+            // Desktop: the map fills its column (the page fits the window; only the list scrolls).
+            height={fullMap ? `calc(100dvh - ${Math.round(mapTop)}px - 2.25rem - var(--switch-h) - env(safe-area-inset-bottom))` : phone ? 'min(62vh, 560px)' : '100%'}
           />
           <div className="map-foot">
             <span className="muted small">
@@ -499,6 +500,9 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
               </p>
             </details>
           </section>
+          <p className="explore-foot muted tiny">
+            Data stays in your browser · Weather &amp; marine data by <a href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0) · Map © OpenStreetMap contributors, OpenFreeMap
+          </p>
         </div>
       </div>
 

@@ -566,7 +566,7 @@ describe('similarity & prediction', () => {
     const friend = recommendSpotDay(spot, hours, days, mine, settings, profileForStage(6), '2026-03-01', '2026-03-01', null, { history: false });
     expect(friend.best!.pred.sumW).toBe(0);
     expect(friend.best!.score).toBeCloseTo(friend.best!.rule, 5);
-    expect(explain(friend.best!, (s) => s.date, 'Advanced')[0]).toMatch(/typical Advanced surfer.*your own sessions are left out/);
+    expect(explain(friend.best!, (s) => s.date, 'Advanced')[0].text).toMatch(/typical Advanced surfer.*your own sessions are left out/);
   });
 
   it('tide insight: average rating per tide stage, with your average at the spot as reference', () => {

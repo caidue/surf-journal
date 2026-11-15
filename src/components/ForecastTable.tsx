@@ -153,22 +153,55 @@ export default function ForecastTable({
 
   const night = (c: (typeof cols)[number]) => (c.daylight ? '' : ' night');
 
-  /** One train cell: height, peak period, arrow; greyed out when the spot's swell window blocks it. */
-  const trainCell = (t: TrainInfo | null | undefined, key: string, extraClass = '') => {
+  /**
+   * One train cell: height, peak period, arrow; greyed out when the spot's swell window blocks it.
+   * `rank` 0–2 colours a swell (blue, red, purple); null = the wind sea (text colour).
+   */
+  const trainCell = (t: TrainInfo | null | undefined, key: string, extraClass = '', others: TrainInfo[] = [], figures = false, rank: number | null = 0) => {
     if (!t) return <td key={key} className={`fc-swell empty${extraClass}`} />;
     const blocked = exposure(spot, t.dir) === 0;
+    const colorOf = (x: TrainInfo, r: number | null) => (exposure(spot, x.dir) === 0 ? BLOCKED_SWELL : r == null ? 'currentColor' : SWELL_COLORS[r]);
+    // Like surf-forecast: a swell from a poor direction for this spot (less than half of it gets
+    // in, see `exposure`) is drawn as a wave facing the other way.
+    const poor = (x: TrainInfo) => exposure(spot, x.dir) < POOR_EXPOSURE;
+    const dirNote = (x: TrainInfo) => (exposure(spot, x.dir) === 0 ? ' · outside the swell window' : poor(x) ? ' · poor direction for this spot' : '');
+    const line = (x: TrainInfo) => `${fmtDir(x.dir)} · ${hgt(x.h)} ${ft ? 'ft' : 'm'} @ ${Math.round(x.t)} s peak · ${Math.round(x.kj)} kJ`;
     return (
       <td
         key={key}
-        className={`fc-swell${blocked ? ' blocked' : ''}${extraClass}`}
-        title={`${fmtDir(t.dir)} · ${hgt(t.h)} ${ft ? 'ft' : 'm'} @ ${Math.round(t.t)} s peak · ${Math.round(t.kj)} kJ${blocked ? ' · outside this spot’s swell window' : ''}`}
+        className={`fc-swell${blocked ? ' blocked' : ''}${figures ? ' with-waves' : ''}${extraClass}`}
+        title={
+          `${line(t)}${dirNote(t)}` + others.map((o, k) => `\n${k === 0 ? '2nd swell (red)' : '3rd swell (purple)'}: ${line(o)}${dirNote(o)}`).join('')
+        }
       >
         <div>{hgt(t.h)}</div>
         <div className="muted">{Math.round(t.t)}s</div>
-        <DirArrow from={t.dir} size={13} />
+        {/* The secondary (red) and tertiary (purple) swell as fainter arrows behind the main (blue) one. */}
+        <span className="fc-dirs">
+          {others.map((o, k) => (
+            <span key={k} className={`fc-dir-more n${k + 2}`}>
+              <DirArrow from={o.dir} size={17} color={colorOf(o, k + 1)} />
+            </span>
+          ))}
+          <DirArrow from={t.dir} size={others.length ? 15 : 13} color={colorOf(t, rank)} />
+        </span>
+        {figures && (
+          // The swells as surf waves on one baseline, sized by height, coloured like their arrows:
+          // the main swell (blue) in front, the 2nd (red) and 3rd (purple) fainter and set a little
+          // to the left behind it, like the next waves of a set.
+          <span className="fc-swell-waves" aria-hidden>
+            {others.map((o, k) => (
+              <SwellWave key={k} h={o.h} color={colorOf(o, k + 1)} className={`n${k + 2}${poor(o) ? ' mirrored' : ''}`} />
+            ))}
+            <SwellWave h={t.h} color={colorOf(t, rank)} className={poor(t) ? 'mirrored' : ''} />
+          </span>
+        )}
       </td>
     );
   };
+  /** Swell trains after the strongest worth showing in the collapsed row: at least 0.2 m, at most two. */
+  const moreSwell = (i: number) => trains[i].swell.slice(trains[i].swell[0] ? 1 : 0, 3).filter((t) => t.h >= 0.2);
+
 
   return (
     <div className="fc-wrap">
@@ -241,7 +274,6 @@ export default function ForecastTable({
                 return (
                   <td key={c.time} className={`fc-surf${night(c)}`} title={hb == null ? undefined : `${fmtSurfRange(hb, settings.heightUnit)} · ${bodyRange(hb * 0.8, hb * 1.2)}`}>
                     <span className="fc-val">{val}</span>
-                    {hb != null && <WaveFigure h={hb} />}
                   </td>
                 );
               })}
@@ -253,7 +285,7 @@ export default function ForecastTable({
                 </button>
                 <small>{ft ? 'ft' : 'm'} · s peak</small>
               </th>
-              {cols.map((c, i) => trainCell(trains[i].swell[0] ?? trains[i].wind, c.time, night(c)))}
+              {cols.map((c, i) => trainCell(trains[i].swell[0] ?? trains[i].wind, c.time, night(c), open ? [] : moreSwell(i), true, trains[i].swell[0] ? 0 : null))}
             </tr>
             {open && (
               <>
@@ -263,7 +295,7 @@ export default function ForecastTable({
                       Swell {k + 1}
                       <small>{k === 0 ? 'strongest' : 'by energy'}</small>
                     </th>
-                    {cols.map((c, i) => trainCell(trains[i].swell[k], c.time, night(c)))}
+                    {cols.map((c, i) => trainCell(trains[i].swell[k], c.time, night(c), [], false, k))}
                   </tr>
                 ))}
                 {anyWind && (
@@ -272,7 +304,7 @@ export default function ForecastTable({
                       Wind sea
                       <small>local chop</small>
                     </th>
-                    {cols.map((c, i) => trainCell(trains[i].wind, c.time, night(c)))}
+                    {cols.map((c, i) => trainCell(trains[i].wind, c.time, night(c), [], false, null))}
                   </tr>
                 )}
                 <tr className="fc-train">
@@ -385,7 +417,7 @@ export default function ForecastTable({
       {legendOpen && (
       <div className="fc-legend muted tiny">
         <span>{forLevel ? `Rating = predicted fun for a typical ${forLevel} surfer (your sessions left out)` : `Rating = predicted fun for you, from your surfing profile${rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}`}; hover a score for how good the waves are for anyone (Poor … Epic) and what the wind costs</span>
-        <span>Wave = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words); the wave figure grows with it, from light blue (small) to blue to green (2.6 m+) · Swell = strongest train offshore, peak period (as surf sites show it){estimated ? ' · some periods estimated from mean periods' : ''}</span>
+        <span>Wave = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words); Swell = strongest train offshore, peak period (as surf sites show it); a small wave per swell, as tall as its height; swells are coloured by energy, 1st blue, 2nd red, 3rd purple (grey outside the spot's swell window); a wave facing left = the swell comes from a poor direction for this spot (less than half of it gets in), as on surf-forecast; while the swell rows are folded, the 2nd and 3rd show as fainter arrows and waves behind the main ones{estimated ? ' · some periods estimated from mean periods' : ''}</span>
         <span>Energy = strongest train, kJ per metre of crest; hover for the total</span>
         <span>{gridMates.length ? `Same swell and energy (same wave-model cell) at ${gridMates.join(', ')}` : 'No other spot shares this wave-model cell'}</span>
         <span>Wind = average speed over the hour; strong gusts (bursts at least 15 km/h above it) in grey below, all gusts on hover; over the sea, mean of four models (ECMWF, ICON, ARPEGE, GFS), hover for each · ? = the models disagree on the direction</span>
@@ -404,33 +436,19 @@ export default function ForecastTable({
   );
 }
 
-/** Colour of a surf height: light blue (small) → sky blue → blue → green (2.6 m and up). */
-const WAVE_STOPS: [number, [number, number, number]][] = [
-  [0, [186, 230, 253]],
-  [1.0, [56, 189, 248]],
-  [1.8, [37, 99, 235]],
-  [2.6, [22, 163, 74]],
-];
-export function waveColor(h: number): string {
-  const x = Math.max(0, h);
-  for (let i = 1; i < WAVE_STOPS.length; i++) {
-    const [h1, c1] = WAVE_STOPS[i];
-    if (x <= h1) {
-      const [h0, c0] = WAVE_STOPS[i - 1];
-      const t = (x - h0) / (h1 - h0);
-      return `rgb(${c0.map((v, k) => Math.round(v + (c1[k] - v) * t)).join(',')})`;
-    }
-  }
-  return `rgb(${WAVE_STOPS[WAVE_STOPS.length - 1][1].join(',')})`;
-}
+/** Swell colours by energy (arrows and waves): 1st blue, 2nd red, 3rd purple; grey outside the window. */
+const SWELL_COLORS = ['#2563eb', '#dc2626', '#7c3aed'];
+const BLOCKED_SWELL = '#94a3b8';
+/** Below this share of a swell reaching the spot (`exposure`), its wave is drawn mirrored. */
+const POOR_EXPOSURE = 0.5;
 
-/** A small breaking wave, as tall as the surf (full height at 3 m), coloured by size. */
-function WaveFigure({ h }: { h: number }) {
-  const px = Math.max(6, Math.min(1, h / 3) * 40);
+/** A small breaking wave for one swell train, as tall as its height (full at 1.6 m). */
+function SwellWave({ h, color, className = '' }: { h: number; color: string; className?: string }) {
+  const px = Math.max(5, Math.min(1, h / 1.6) * 28);
   // A slim back rising to a pointed peak, a small lip, then the face down to the right.
   return (
-    <svg className="fc-wave" width={34} height={px} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-      <path d="M0 100 C22 94 38 58 58 26 C66 12 74 4 84 2 L91 11 C85 11 81 15 79 22 C83 50 92 80 100 100 Z" fill={waveColor(h)} />
+    <svg className={`fc-wave ${className}`} width={30} height={px} viewBox="0 0 100 100" preserveAspectRatio="none">
+      <path d="M0 100 C22 94 38 58 58 26 C66 12 74 4 84 2 L91 11 C85 11 81 15 79 22 C83 50 92 80 100 100 Z" fill={color} />
     </svg>
   );
 }

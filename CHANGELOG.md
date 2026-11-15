@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.6.8 — 2026-11-16
+
+- **Forecast: swells at a glance.** The Swell row draws each swell as a small surf wave as tall as its height; swells are coloured by energy (1st blue, 2nd red, 3rd purple, grey outside the spot's swell window), and with the swell rows folded the 2nd and 3rd show as fainter arrows and waves behind the main ones. A wave facing left means that swell comes from a poor direction for the spot, as on surf-forecast. Hover the swell cell for their height, period and direction.
+- The Wave row is just the number now, without the wave figure.
+
+## 1.6.7 — 2026-11-16
+
+- **Spot photos:** an open photo has arrows on the left and right to go to the previous or next photo (only where there is one), plus ←/→ keys on desktop and swiping on phones, and "2 / 5" next to the credit.
+
+## 1.6.6 — 2026-11-16
+
+- Spot cards: "Held back by …" is marked with a minus like the other points against, and lines about your past sessions with a small journal icon instead of a bullet.
+
+## 1.6.5 — 2026-11-16
+
+- **Explore on desktop fits the window:** the page no longer scrolls; the map fills the left side and only the spot list on the right scrolls. The data and map credits sit at the end of the list.
+
+## 1.6.4 — 2026-11-16
+
+- **Journal:** the title is now a dropdown to switch between All sessions, your trips and the sessions not in a trip, with edit and delete buttons for each trip and "New trip" at the bottom. The row of trip chips and the Edit / Delete buttons under the title are gone.
+
 ## 1.6.3 — 2026-11-16
 
 - **Journal:** the title shows the trip filter ("All sessions" or the trip's name); logging is a round **+** button that starts the session in the selected trip. The text search is gone, and the spot filter and "hide not relevant" share one row.

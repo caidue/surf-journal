@@ -882,6 +882,64 @@ label.field,
 .list-col {
   min-width: 0;
 }
+.explore-foot {
+  display: none;
+}
+/* Desktop Explore: the page fits the window and doesn't scroll; the map fills its column and only
+   the list on the right scrolls (to its ends, no bounce). The page footer moves to the list's end. */
+@media (min-width: 900px) {
+  html:has(.page.explore),
+  body:has(.page.explore) {
+    height: 100%;
+    overflow: hidden;
+  }
+  .app:has(.page.explore) {
+    height: 100dvh;
+    min-height: 0;
+  }
+  .app:has(.page.explore) main {
+    display: flex;
+    min-height: 0;
+  }
+  .app:has(.page.explore) .foot {
+    display: none;
+  }
+  .page.explore {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: var(--sp-4);
+  }
+  .page.explore .explore-grid {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+  }
+  .page.explore .map-col {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .page.explore .map-col .map {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .page.explore .list-col {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: var(--sp-2);
+    margin-right: calc(-1 * var(--sp-2));
+  }
+  .explore-foot {
+    display: block;
+    text-align: center;
+    margin: var(--sp-5) 0 var(--sp-2);
+  }
+}
 .map {
   width: 100%;
   border-radius: var(--r-md);
@@ -1043,6 +1101,23 @@ label.field,
 }
 .explain li::before {
   content: '›';
+}
+/* "Held back by …" counts against the spot: a minus like the reasons; lines about your past
+   sessions get a small journal icon instead of the bullet. */
+.explain li.x-against::before {
+  content: '−';
+}
+.explain li.x-history::before {
+  content: none;
+}
+.explain .x-icon {
+  position: absolute;
+  left: 0;
+  top: 0.2em;
+  width: 1.1em;
+  display: flex;
+  justify-content: center;
+  color: var(--ink-2);
 }
 .spot-list {
   display: grid;
@@ -1435,47 +1510,148 @@ body.full-map .foot {
   color: var(--muted);
   font-size: var(--fs-xs);
 }
-/* Trips: a row of folder chips above the journal (All sessions · each trip · Not in a trip · New trip). */
-.trip-bar {
-  display: flex;
-  gap: var(--sp-2);
-  overflow-x: auto;
-  overscroll-behavior-x: none;
-  scrollbar-width: none;
-  margin: 0 0 var(--sp-3);
-  padding-bottom: 2px;
+/* Journal title as the trip filter: a dropdown with All sessions, trips (edit / delete), Not in
+   a trip and New trip. */
+.trip-menu {
+  position: relative;
+  min-width: 0;
 }
-.trip-bar::-webkit-scrollbar {
-  display: none;
+.trip-menu h1 {
+  margin: 0;
 }
-.trip-bar .chip {
-  flex: none;
+.trip-title {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+/* Long trip names wrap rather than being cut off. */
+.trip-title-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.trip-title .chev {
+  flex: none;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.trip-title[aria-expanded='true'] .chev {
+  transform: rotate(180deg);
+}
+.trip-pop {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  width: min(320px, calc(100vw - 2 * var(--gutter)));
+  max-height: 70vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+}
+.trip-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--r-sm);
+}
+.trip-item.on {
+  background: var(--accent-soft);
+}
+.trip-item:not(.on):hover {
+  background: var(--panel-2);
+}
+.trip-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--fs-md);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.trip-pick .icon {
+  flex: none;
+  color: var(--accent);
+}
+.trip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.trip-bar .chip .n {
+.trip-pick .n {
+  margin-left: auto;
+  padding-left: var(--sp-2);
   font-size: var(--fs-xs);
-  color: var(--muted);
   font-weight: 600;
+  color: var(--muted);
 }
-.trip-bar .chip.on .n {
-  color: inherit;
-  opacity: 0.8;
+.trip-act {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
 }
-.trip-bar .chip.add {
-  border-style: dashed;
-  color: var(--accent);
-  background: transparent;
+.trip-act:hover {
+  background: var(--line-2);
 }
-.trip-head {
+.trip-act.danger {
+  color: #b91c1c;
+}
+.trip-pop-sep {
+  margin-top: 4px;
+  padding: 8px 10px 2px;
+  border-top: 1px solid var(--line-2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.trip-new {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2) var(--sp-3);
-  margin: 0 0 var(--sp-3);
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: 40px;
+  margin-top: 4px;
+  padding: 0 10px;
+  border: 0;
+  border-top: 1px solid var(--line-2);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+.trip-sub {
+  margin: calc(-1 * var(--sp-3)) 0 var(--sp-3);
 }
 .trip-form h3 {
   margin-top: 0;
@@ -2022,18 +2198,62 @@ td.fc-wind.unsure {
   padding: 2px 0;
   font-weight: 700;
 }
-td.fc-surf {
+/* Swell row: the swells as small surf waves on one baseline at the bottom of the cell, under the
+   numbers and arrows (main swell blue in front, 2nd red / 3rd purple, fainter, behind). */
+td.fc-swell.with-waves {
   position: relative;
-  height: 64px;
-  vertical-align: top;
-  padding-top: 3px;
+  padding-bottom: 32px;
 }
-/* The wave figure sits at the bottom of the cell, under the number. */
+.fc-swell-waves {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  height: 28px;
+}
 .fc-wave {
   position: absolute;
   left: 50%;
-  bottom: 2px;
-  transform: translateX(-50%);
+  bottom: 0;
+  --dx: 0px;
+  --flip: 1;
+  transform: translateX(calc(-50% + var(--dx))) scaleX(var(--flip));
+}
+.fc-wave.n2 {
+  opacity: 0.6;
+  --dx: -8px;
+}
+.fc-wave.n3 {
+  opacity: 0.5;
+  --dx: -15px;
+}
+/* A swell from a poor direction for the spot faces the other way (as on surf-forecast). */
+.fc-wave.mirrored {
+  --flip: -1;
+}
+/* Swell row: the 2nd (red) / 3rd (purple) swell arrows, fainter, sit behind the main (blue) arrow. */
+/* All arrows share one grid cell, centred on top of each other (the main one last, on top). */
+.fc-dirs {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+}
+.fc-dirs > * {
+  grid-area: 1 / 1;
+}
+.fc-dir-more {
+  display: block;
+  line-height: 0;
+}
+.fc-dir-more svg {
+  display: block;
+}
+.fc-dir-more.n2 {
+  opacity: 0.6;
+}
+.fc-dir-more.n3 {
+  opacity: 0.5;
 }
 .fc-score.s-stretch {
   box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.55);
@@ -2800,6 +3020,49 @@ h4.subsection {
 }
 .lb-actions {
   margin-left: auto;
+}
+.lb-pos {
+  color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+}
+/* Previous / next photo: round buttons at the sides, only where there's a photo that way. */
+.lb-nav {
+  position: fixed;
+  top: 50%;
+  z-index: 1;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.6);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.lb-nav:hover {
+  background: rgba(15, 23, 42, 0.85);
+}
+.lb-nav.prev {
+  left: max(var(--sp-3), env(safe-area-inset-left));
+}
+.lb-nav.next {
+  right: max(var(--sp-3), env(safe-area-inset-right));
+}
+@media (max-width: 600px) {
+  .lb-nav {
+    width: 40px;
+    height: 40px;
+  }
+  .lb-nav.prev {
+    left: var(--sp-2);
+  }
+  .lb-nav.next {
+    right: var(--sp-2);
+  }
 }
 
 /* settings: spots list */

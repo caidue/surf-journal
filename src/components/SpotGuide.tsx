@@ -233,7 +233,8 @@ function Photos({ spot }: { spot: Spot }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState<Shown | null>(null);
+  /** The photo open in the viewer, as its position in `shown` (arrows step through them). */
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
   /** Photos picked but not saved yet: you can describe each before adding it. */
   const [drafts, setDrafts] = useState<Draft[]>([]);
 
@@ -292,8 +293,8 @@ function Photos({ spot }: { spot: Spot }) {
       {error && <div className="alert">{error}</div>}
       {shown.length ? (
         <div className="photo-strip">
-          {shown.map((p) => (
-            <button key={p.key} className="photo" onClick={() => setOpen(p)} aria-label={p.caption ? `Photo: ${p.caption}` : 'Open photo'}>
+          {shown.map((p, i) => (
+            <button key={p.key} className="photo" onClick={() => setOpenIdx(i)} aria-label={p.caption ? `Photo: ${p.caption}` : 'Open photo'}>
               {/* CORS for Commons so the service worker can keep a normal (not opaque) copy for offline use. */}
               <img src={p.src} alt={p.caption ?? spot.name} loading="lazy" crossOrigin={p.own ? undefined : 'anonymous'} />
               {p.own && <span className="photo-badge">yours</span>}
@@ -308,7 +309,16 @@ function Photos({ spot }: { spot: Spot }) {
       ) : (
         <p className="muted small">No photos yet. Add your own: they stay on this device and are included in backups.</p>
       )}
-      {open && <Lightbox photo={open} onClose={() => setOpen(null)} onCaption={(caption) => setOpen({ ...open, caption })} />}
+      {openIdx != null && shown[openIdx] && (
+        <Lightbox
+          key={shown[openIdx].key}
+          photo={shown[openIdx]}
+          onClose={() => setOpenIdx(null)}
+          onPrev={openIdx > 0 ? () => setOpenIdx(openIdx - 1) : undefined}
+          onNext={openIdx < shown.length - 1 ? () => setOpenIdx(openIdx + 1) : undefined}
+          position={shown.length > 1 ? `${openIdx + 1} / ${shown.length}` : undefined}
+        />
+      )}
       {drafts.length > 0 && <AddPhotos drafts={drafts} onChange={setDrafts} onCancel={discardDrafts} onSave={saveDrafts} />}
     </section>
   );
@@ -356,14 +366,48 @@ function AddPhotos({ drafts, onChange, onCancel, onSave }: { drafts: Draft[]; on
   );
 }
 
-function Lightbox({ photo, onClose, onCaption }: { photo: Shown; onClose: () => void; onCaption: (caption: string | undefined) => void }) {
+/**
+ * One photo, full size. Arrows (and ←/→ keys, and a swipe on touch screens) go to the previous or
+ * next photo; each arrow shows only when there is a photo in that direction.
+ */
+function Lightbox({
+  photo,
+  onClose,
+  onPrev,
+  onNext,
+  position,
+}: {
+  photo: Shown;
+  onClose: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  /** "2 / 5" when there are several photos. */
+  position?: string;
+}) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(photo.caption ?? '');
   useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && (e.stopPropagation(), editing ? setEditing(false) : onClose());
+    const k = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        if (editing) setEditing(false);
+        else onClose();
+      } else if (!editing && e.key === 'ArrowLeft' && onPrev) onPrev();
+      else if (!editing && e.key === 'ArrowRight' && onNext) onNext();
+    };
     document.addEventListener('keydown', k, true);
     return () => document.removeEventListener('keydown', k, true);
-  }, [onClose, editing]);
+  }, [onClose, onPrev, onNext, editing]);
+  // Swipe left / right on touch screens.
+  const touchX = useRef<number | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => (touchX.current = e.touches.length === 1 ? e.touches[0].clientX : null);
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchX.current == null || editing) return;
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    touchX.current = null;
+    if (dx > 50 && onPrev) onPrev();
+    else if (dx < -50 && onNext) onNext();
+  };
   const remove = async () => {
     if (!photo.own || !confirm('Delete this photo from this device?')) return;
     await db.photos.delete(photo.own.id);
@@ -373,11 +417,40 @@ function Lightbox({ photo, onClose, onCaption }: { photo: Shown; onClose: () => 
     if (!photo.own) return;
     const caption = text.trim() || undefined;
     await db.photos.update(photo.own.id, { caption });
-    onCaption(caption);
     setEditing(false);
   };
   return createPortal(
-    <div className="lightbox" onClick={onClose} role="dialog" aria-modal="true" aria-label="Photo">
+    <div className="lightbox" onClick={onClose} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} role="dialog" aria-modal="true" aria-label="Photo">
+      {onPrev && (
+        <button
+          type="button"
+          className="lb-nav prev"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPrev();
+          }}
+          aria-label="Previous photo"
+        >
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M15 5l-7 7 7 7" />
+          </svg>
+        </button>
+      )}
+      {onNext && (
+        <button
+          type="button"
+          className="lb-nav next"
+          onClick={(e) => {
+            e.stopPropagation();
+            onNext();
+          }}
+          aria-label="Next photo"
+        >
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
       <figure onClick={(e) => e.stopPropagation()}>
         <img src={photo.src} alt={photo.caption ?? ''} crossOrigin={photo.own ? undefined : 'anonymous'} />
         <figcaption>
@@ -394,6 +467,7 @@ function Lightbox({ photo, onClose, onCaption }: { photo: Shown; onClose: () => 
               {photo.credit.text}
             </a>
           )}
+          {position && <span className="lb-pos">{position}</span>}
           <span className="row gap lb-actions">
             {photo.own && !editing && (
               <>
