@@ -1,5 +1,12 @@
 # Knowledge base log
 
+## 2026-11-17
+
+* **Update** of [Releases](/operations/releases.md): 1.6.9 committed, tagged `v1.6.9` and pushed.
+* **Update** of [Session logging](/features/session-logging.md) (Delete at the bottom, confirm window) and [UI shell](/architecture/ui-shell.md) (`ConfirmDialog`).
+* **Update** of [Forecast table](/features/forecast-table.md) (arrows side by side, waves of all swells when unfolded), [Journal](/features/journal.md) (trip form as a window), [UI shell](/architecture/ui-shell.md) (`.dialog`, header wrap).
+* **Update** of [Forecast table](/features/forecast-table.md) (Period row), [Releases](/operations/releases.md) (1.6.9).
+
 ## 2026-11-16
 
 * **Update** of [Releases](/operations/releases.md): 1.6.4–1.6.8 committed together, tagged `v1.6.8` and pushed.

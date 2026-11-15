@@ -14,7 +14,7 @@ import { bodyRange, DEFAULT_PROFILE, FEEL_OPTIONS, learnFromSession, nearestStep
 import { fmtDate, fmtDuration, fmtMin, isoToMin, todayAt, uid } from '../lib/time';
 import { fmtSurfRange, fmtWind } from '../lib/format';
 import Timeline, { type HourScore, type Range } from './Timeline';
-import { ActionBar, Card, Chips, Segmented, StepSlider } from './ui';
+import { ActionBar, Card, Chips, ConfirmDialog, Segmented, StepSlider } from './ui';
 import SpotPicker from './SpotPicker';
 
 const WETSUITS = ['Boardshorts', 'Shorty / top', '3/2', '4/3', '5/4+'].map((x) => ({ id: x, label: x }));
@@ -224,9 +224,10 @@ export default function SessionEditor({
     go('journal');
   };
 
+  // Delete sits at the very bottom of the page and asks in a small window first.
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const remove = async () => {
     if (!existing) return;
-    if (!confirm('Delete this session permanently? This cannot be undone.')) return;
     await db.sessions.delete(existing.id);
     go('journal');
   };
@@ -425,12 +426,23 @@ export default function SessionEditor({
         </Card>
       )}
 
-      <ActionBar note={!canSave && missing.length ? `To save: ${missing.join(', ')}` : pending && spot && range ? 'Conditions are added when you are back online' : undefined}>
-        {existing && (
-          <button className="btn danger" onClick={remove}>
-            Delete
+      {existing && (
+        <div className="delete-zone">
+          <button className="btn danger" onClick={() => setConfirmDelete(true)}>
+            Delete session
           </button>
-        )}
+        </div>
+      )}
+      {confirmDelete && existing && (
+        <ConfirmDialog title="Delete this session?" confirmLabel="Delete" danger onConfirm={remove} onCancel={() => setConfirmDelete(false)}>
+          <p>
+            {spot?.name ?? 'This session'}, {fmtDate(existing.date)}, {fmtMin(existing.startMin)}–{fmtMin(existing.endMin)}. It's removed from your journal and its
+            ratings no longer count for your recommendations. This can't be undone.
+          </p>
+        </ConfirmDialog>
+      )}
+
+      <ActionBar note={!canSave && missing.length ? `To save: ${missing.join(', ')}` : pending && spot && range ? 'Conditions are added when you are back online' : undefined}>
         <button className="btn" onClick={() => go('journal')}>
           Cancel
         </button>

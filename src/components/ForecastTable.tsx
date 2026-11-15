@@ -157,7 +157,7 @@ export default function ForecastTable({
    * One train cell: height, peak period, arrow; greyed out when the spot's swell window blocks it.
    * `rank` 0–2 colours a swell (blue, red, purple); null = the wind sea (text colour).
    */
-  const trainCell = (t: TrainInfo | null | undefined, key: string, extraClass = '', others: TrainInfo[] = [], figures = false, rank: number | null = 0) => {
+  const trainCell = (t: TrainInfo | null | undefined, key: string, extraClass = '', others: TrainInfo[] = [], figures = false, rank: number | null = 0, waveOthers: TrainInfo[] = others) => {
     if (!t) return <td key={key} className={`fc-swell empty${extraClass}`} />;
     const blocked = exposure(spot, t.dir) === 0;
     const colorOf = (x: TrainInfo, r: number | null) => (exposure(spot, x.dir) === 0 ? BLOCKED_SWELL : r == null ? 'currentColor' : SWELL_COLORS[r]);
@@ -171,26 +171,27 @@ export default function ForecastTable({
         key={key}
         className={`fc-swell${blocked ? ' blocked' : ''}${figures ? ' with-waves' : ''}${extraClass}`}
         title={
-          `${line(t)}${dirNote(t)}` + others.map((o, k) => `\n${k === 0 ? '2nd swell (red)' : '3rd swell (purple)'}: ${line(o)}${dirNote(o)}`).join('')
+          `${line(t)}${dirNote(t)}` + waveOthers.map((o, k) => `\n${k === 0 ? '2nd swell (red)' : '3rd swell (purple)'}: ${line(o)}${dirNote(o)}`).join('')
         }
       >
         <div>{hgt(t.h)}</div>
-        <div className="muted">{Math.round(t.t)}s</div>
-        {/* The secondary (red) and tertiary (purple) swell as fainter arrows behind the main (blue) one. */}
+        {/* The main Swell row has its own Period row below; the per-train rows keep the period here. */}
+        {!figures && <div className="muted">{Math.round(t.t)}s</div>}
+        {/* The main (blue) swell's arrow, then the 2nd (red) and 3rd (purple), fainter, next to it. */}
         <span className="fc-dirs">
+          <DirArrow from={t.dir} size={13} color={colorOf(t, rank)} />
           {others.map((o, k) => (
             <span key={k} className={`fc-dir-more n${k + 2}`}>
-              <DirArrow from={o.dir} size={17} color={colorOf(o, k + 1)} />
+              <DirArrow from={o.dir} size={13} color={colorOf(o, k + 1)} />
             </span>
           ))}
-          <DirArrow from={t.dir} size={others.length ? 15 : 13} color={colorOf(t, rank)} />
         </span>
         {figures && (
           // The swells as surf waves on one baseline, sized by height, coloured like their arrows:
           // the main swell (blue) in front, the 2nd (red) and 3rd (purple) fainter and set a little
           // to the left behind it, like the next waves of a set.
           <span className="fc-swell-waves" aria-hidden>
-            {others.map((o, k) => (
+            {waveOthers.map((o, k) => (
               <SwellWave key={k} h={o.h} color={colorOf(o, k + 1)} className={`n${k + 2}${poor(o) ? ' mirrored' : ''}`} />
             ))}
             <SwellWave h={t.h} color={colorOf(t, rank)} className={poor(t) ? 'mirrored' : ''} />
@@ -283,9 +284,24 @@ export default function ForecastTable({
                 <button className="fc-toggle" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? 'Hide the swell trains' : 'Show every swell train'}>
                   {open ? '▾' : '▸'} Swell
                 </button>
-                <small>{ft ? 'ft' : 'm'} · s peak</small>
+                <small>{ft ? 'ft' : 'm'} · direction</small>
               </th>
-              {cols.map((c, i) => trainCell(trains[i].swell[0] ?? trains[i].wind, c.time, night(c), open ? [] : moreSwell(i), true, trains[i].swell[0] ? 0 : null))}
+              {/* Folded: all swells' arrows side by side; unfolded the trains have their own rows, but the waves of all swells stay. */}
+              {cols.map((c, i) => trainCell(trains[i].swell[0] ?? trains[i].wind, c.time, night(c), open ? [] : moreSwell(i), true, trains[i].swell[0] ? 0 : null, moreSwell(i)))}
+            </tr>
+            <tr>
+              <th scope="row" title="Peak period of the main swell: the time between two waves. Longer = more power and longer rides (under 8 s weak, 10 s+ good, 13 s+ powerful).">
+                Period
+                <small>s · peak</small>
+              </th>
+              {cols.map((c, i) => {
+                const t = trains[i].swell[0] ?? trains[i].wind;
+                return (
+                  <td key={c.time} className={`fc-period${night(c)}${t && t.t >= 12 ? ' long' : t && t.t < 8 ? ' short' : ''}`} title={t ? `${Math.round(t.t)} s peak period${t.kind === 'wind' ? ' (wind sea)' : ''}` : undefined}>
+                    {t ? Math.round(t.t) : '–'}
+                  </td>
+                );
+              })}
             </tr>
             {open && (
               <>
@@ -417,7 +433,7 @@ export default function ForecastTable({
       {legendOpen && (
       <div className="fc-legend muted tiny">
         <span>{forLevel ? `Rating = predicted fun for a typical ${forLevel} surfer (your sessions left out)` : `Rating = predicted fun for you, from your surfing profile${rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}`}; hover a score for how good the waves are for anyone (Poor … Epic) and what the wind costs</span>
-        <span>Wave = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words); Swell = strongest train offshore, peak period (as surf sites show it); a small wave per swell, as tall as its height; swells are coloured by energy, 1st blue, 2nd red, 3rd purple (grey outside the spot's swell window); a wave facing left = the swell comes from a poor direction for this spot (less than half of it gets in), as on surf-forecast; while the swell rows are folded, the 2nd and 3rd show as fainter arrows and waves behind the main ones{estimated ? ' · some periods estimated from mean periods' : ''}</span>
+        <span>Wave = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words); Swell = strongest train offshore (height and direction) · Period = its peak period, as surf sites show it (bold from 12 s, grey under 8 s); a small wave per swell, as tall as its height; swells are coloured by energy, 1st blue, 2nd red, 3rd purple (grey outside the spot's swell window); a wave facing left = the swell comes from a poor direction for this spot (less than half of it gets in), as on surf-forecast; while the swell rows are folded, the 2nd and 3rd show as fainter arrows and waves behind the main ones{estimated ? ' · some periods estimated from mean periods' : ''}</span>
         <span>Energy = strongest train, kJ per metre of crest; hover for the total</span>
         <span>{gridMates.length ? `Same swell and energy (same wave-model cell) at ${gridMates.join(', ')}` : 'No other spot shares this wave-model cell'}</span>
         <span>Wind = average speed over the hour; strong gusts (bursts at least 15 km/h above it) in grey below, all gusts on hover; over the sea, mean of four models (ECMWF, ICON, ARPEGE, GFS), hover for each · ? = the models disagree on the direction</span>

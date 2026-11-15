@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { scoreColor, SUIT_COLOR, SUIT_LABEL, type Suit, type Suitability } from '../lib/rating';
 import { explain, type HourRec, type SpotRec } from '../lib/recommend';
 import { SURE_LABEL, type Sureness } from '../lib/confidence';
@@ -341,5 +342,53 @@ export function PickDetails({ rec, hour, who, forLevel, timing, dayWord }: { rec
       )}
       <SureLine sure={hour.sure} />
     </>
+  );
+}
+
+/**
+ * A small confirm / cancel window over the page (dimmed backdrop). Esc or a tap outside cancels.
+ * `danger` colours the confirm button red (e.g. deleting).
+ */
+export function ConfirmDialog({
+  title,
+  children,
+  confirmLabel,
+  danger,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  children?: ReactNode;
+  confirmLabel: string;
+  danger?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
+    document.addEventListener('keydown', esc);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', esc);
+      document.body.style.overflow = overflow;
+    };
+  }, [onCancel]);
+  return createPortal(
+    <div className="dialog-backdrop" onClick={onCancel}>
+      <div className="dialog confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" onClick={(e) => e.stopPropagation()}>
+        <h3 id="confirm-title">{title}</h3>
+        {children && <div className="confirm-body">{children}</div>}
+        <div className="row gap dialog-actions">
+          <button type="button" className="btn" onClick={onCancel} autoFocus>
+            Cancel
+          </button>
+          <button type="button" className={`btn ${danger ? 'danger-solid' : 'primary'}`} onClick={onConfirm}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }

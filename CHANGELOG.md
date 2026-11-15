@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.9 — 2026-11-17
+
+- **Forecast: a Period row** under Swell with the main swell's peak period (bold from 12 s, grey under 8 s); the Swell row shows height, direction and the swell waves.
+- The swell arrows sit side by side instead of on top of each other, and the waves of all swells stay when the swell rows are unfolded.
+- **Journal:** creating or editing a trip opens in its own window.
+- Fixed: the "Session" heading of a journal entry broke into two lines on phones.
+- **Editing a session:** Delete moved from the bottom bar to the very end of the page and asks in a confirm window first.
+
 ## 1.6.8 — 2026-11-16
 
 - **Forecast: swells at a glance.** The Swell row draws each swell as a small surf wave as tall as its height; swells are coloured by energy (1st blue, 2nd red, 3rd purple, grey outside the spot's swell window), and with the swell rows folded the 2nd and 3rd show as fainter arrows and waves behind the main ones. A wave facing left means that swell comes from a poor direction for the spot, as on surf-forecast. Hover the swell cell for their height, period and direction.

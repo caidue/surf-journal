@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Session, Settings, Spot, Trip } from '../types';
 import { db, deleteTrip, saveTrip } from '../db';
 import { useTrips } from '../hooks';
@@ -61,6 +62,15 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
   const trip = trips.find((t) => t.id === tripFilter) ?? null;
   /** The new/rename trip form: null = closed, 'new' or the trip being renamed. */
   const [editing, setEditing] = useState<'new' | Trip | null>(null);
+  const onTripDone = useCallback((saved: Trip | null) => {
+    setEditing(null);
+    if (saved) setTripSelState(saved.id);
+    try {
+      if (saved) localStorage.setItem(TRIP_KEY, saved.id);
+    } catch {
+      /* per-viewer convenience only */
+    }
+  }, []);
   const [spotFilter, setSpotFilter] = useState('');
   const [hideExcluded, setHideExcluded] = useState(false);
   const [page, setPage] = useState(0);
@@ -149,15 +159,7 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
         </p>
       )}
 
-      {editing && (
-        <TripForm
-          trip={editing === 'new' ? null : editing}
-          onDone={(saved) => {
-            setEditing(null);
-            if (saved) setTripSel(saved.id);
-          }}
-        />
-      )}
+      {editing && <TripForm trip={editing === 'new' ? null : editing} onDone={onTripDone} />}
 
       <div className="stats">
         <div>
@@ -286,10 +288,22 @@ function TripForm({ trip, onDone }: { trip: Trip | null; onDone: (saved: Trip | 
     await saveTrip(t);
     onDone(t);
   };
-  return (
-    <Card className="trip-form">
-      <form onSubmit={submit} onKeyDown={(e) => e.key === 'Escape' && onDone(null)}>
-        <h3>{trip ? 'Edit trip' : 'New trip'}</h3>
+  // Its own window over the journal: Esc or a tap outside cancels.
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onDone(null);
+    document.addEventListener('keydown', esc);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', esc);
+      document.body.style.overflow = overflow;
+    };
+  }, [onDone]);
+  return createPortal(
+    <div className="dialog-backdrop" onClick={() => onDone(null)}>
+    <div className="dialog trip-form" role="dialog" aria-modal="true" aria-labelledby="trip-form-title" onClick={(e) => e.stopPropagation()}>
+      <form onSubmit={submit}>
+        <h3 id="trip-form-title">{trip ? 'Edit trip' : 'New trip'}</h3>
         <label className="field first">
           Name
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Fuerteventura, November 2026" maxLength={60} />
@@ -308,7 +322,7 @@ function TripForm({ trip, onDone }: { trip: Trip | null; onDone: (saved: Trip | 
           Optional. With dates, your sessions on those days that aren't in another trip join it, and sessions you log on those days start in this trip.
         </p>
         {!datesOk && <p className="small warn">Set both dates (the end on or after the start), or neither.</p>}
-        <div className="row gap">
+        <div className="row gap dialog-actions">
           <button type="button" className="btn" onClick={() => onDone(null)}>
             Cancel
           </button>
@@ -317,7 +331,9 @@ function TripForm({ trip, onDone }: { trip: Trip | null; onDone: (saved: Trip | 
           </button>
         </div>
       </form>
-    </Card>
+    </div>
+    </div>,
+    document.body,
   );
 }
 

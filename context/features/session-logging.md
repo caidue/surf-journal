@@ -6,7 +6,7 @@ resource: "src/components/SessionEditor.tsx"
 tags: ["feature", "journal", "session"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T17:40:00+00:00"
+  at: "2026-11-17T10:10:00+00:00"
 ---
 # Session logging
 
@@ -15,5 +15,7 @@ generated:
 2. **"When were you at {spot} on {day}?"** The day's conditions load automatically ([Open-Meteo](/data-sources/open-meteo-marine.md)); drag across the [timeline](/features/timeline.md) to mark your time (tap = 90 min; the only hint is inside the empty chart, no help text above it). Zoom: Session / Daylight / Full day. A summary line shows time, surf range with body words, peak period, wind and tide.
 3. **How was it?** One 1–10 slider per category (Fun required; Exertion, Confidence by default; own categories in Settings).
 4. **Details:** Waves & conditions (wave size you saw on the [body scale](/domain/body-scale.md) and **How did the size feel?**, both as step sliders (`StepSlider`, ui.tsx: the chosen step above the slider, the two ends below, "Not set" with a faded thumb until touched, "clear" to unset; the size slider rests on the forecast size of your time in the water, the feel slider on Comfortable), vs forecast, waves caught), Gear (board, wetsuit), Crowd, Notes. There is no tags input any more (removed 2026-11-16); an edited session keeps the tags it has, and the journal still shows and searches them.
+
+5. **Delete session** (editing only): at the very bottom of the page, apart from the Cancel / Save bar; it opens a confirm window (`ConfirmDialog`, ui.tsx: spot, date and time, "can't be undone", Cancel / red Delete; Esc or a tap outside cancels).
 
 Saving stores the conditions snapshot (`conditionsVersion`), your skill snapshot (`skillAtTime`), and, when "How did it feel?" is new or changed, runs [profile learning](/engine/profile-learning.md). Offline: saved with conditions pending, filled in later. The timeline's score strip is "For you" with your profile at the time. No peak split per session (removed on request; [decision 0012](/decisions/0012-no-peak-split-in-sessions.md)).
