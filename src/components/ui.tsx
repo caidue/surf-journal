@@ -89,23 +89,24 @@ export function ScoreBadge({ score, size = 'md', title }: { score: number | null
   );
 }
 
-export function SuitBadge({ status }: { status: Suit }) {
+/** @param who rating for another level ("Advanced"): "Good for Advanced" instead of "Good for you". */
+export function SuitBadge({ status, who }: { status: Suit; who?: string }) {
   return (
     <span className="badge" style={{ color: SUIT_COLOR[status], borderColor: SUIT_COLOR[status] }}>
-      {SUIT_LABEL[status]}
+      {who ? SUIT_LABEL[status].replace(/for you$/, `for ${who}`) : SUIT_LABEL[status]}
     </span>
   );
 }
 
 /** Why an hour is (not) right for you: up to three reasons, worst first; size reasons link to your comfort size. */
-export function SuitReasons({ suit }: { suit: Suitability }) {
+export function SuitReasons({ suit, own = true }: { suit: Suitability; /** false when rating for another level: no link to your profile. */ own?: boolean }) {
   if (!suit.reasons.length) return null;
   return (
     <ul className="suit-reasons">
       {suit.reasons.map((r) => (
         <li key={r.text} className={r.positive ? 'plus' : `s-${r.status}`}>
           {r.text}
-          {r.kind === 'size' && !r.positive && (
+          {own && r.kind === 'size' && !r.positive && (
             <>
               {' '}
               <a href="#/surfing?step=comfort" className="small">
@@ -197,5 +198,54 @@ export function SureBadge({ sure }: { sure: Sureness }) {
     <span className={`sure ${sure.level}`} title={`${SURE_LABEL[sure.level]}: ${sure.reasons.join(', ')}.`}>
       {SURE_LABEL[sure.level]}
     </span>
+  );
+}
+
+/**
+ * A slider over named steps (e.g. Flat … Bigger) that can stay unset: until you touch it the thumb
+ * is faded and rests on `start` (default the middle), and the value reads "Not set"; "clear" unsets it.
+ */
+export function StepSlider<T extends string>({
+  options,
+  value,
+  onChange,
+  label,
+  start,
+}: {
+  options: readonly { id: T; label: string }[];
+  value: T | undefined;
+  onChange: (v: T | undefined) => void;
+  label: string;
+  start?: number;
+}) {
+  const idx = value == null ? -1 : options.findIndex((o) => o.id === value);
+  const set = idx >= 0;
+  const rest = start != null && start >= 0 && start < options.length ? start : Math.floor((options.length - 1) / 2);
+  const pick = (i: number) => onChange(options[i].id);
+  return (
+    <div className={`step-slider${set ? '' : ' unset'}`}>
+      <div className="step-slider-head">
+        <strong className="step-val">{set ? options[idx].label : 'Not set'}</strong>
+        <button type="button" className="link small" style={{ visibility: set ? 'visible' : 'hidden' }} onClick={() => onChange(undefined)} aria-label={`Clear ${label}`}>
+          clear
+        </button>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={options.length - 1}
+        step={1}
+        value={set ? idx : rest}
+        aria-label={label}
+        aria-valuetext={set ? options[idx].label : 'Not set'}
+        onPointerDown={() => !set && pick(rest)}
+        onKeyDown={() => !set && pick(rest)}
+        onChange={(e) => pick(Number(e.target.value))}
+      />
+      <div className="step-ends muted tiny" aria-hidden>
+        <span>{options[0].label}</span>
+        <span>{options[options.length - 1].label}</span>
+      </div>
+    </div>
   );
 }

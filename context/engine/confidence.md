@@ -9,7 +9,7 @@ sources:
     id: "report"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T20:30:00+00:00"
+  at: "2026-11-16T10:00:00+00:00"
 ---
 # How sure a rating is
 
@@ -26,4 +26,4 @@ Shown in the Info tab ("What the app knows"), with the spot's `dataNote` when it
 
 **No rating** (`withheld`): an advanced or expert reef or rock spot with no tide source (`tideKnown` false: tide preference "all" and no well-sourced tide rule) at a tide position below 0.25 → "No source describes this reef at low tide …". The hour scores 0 (never a best window or pick); the table shows "?" in Spot and For you (For you keeps ✕ when the spot isn't for you at any tide). Today this applies to Spew Pits.
 
-**Best picks prefer what the app knows**: ranking adds 0.4 (Reliable) or 0.2 (Less certain) to the score, so on close scores a well-known spot wins; the shown score is unchanged.
+**The Explore ranking prefers what the app knows**: ranking adds 0.4 (Reliable) or 0.2 (Less certain) to the score, so on close scores a well-known spot wins; the shown score is unchanged.

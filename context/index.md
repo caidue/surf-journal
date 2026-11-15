@@ -73,9 +73,9 @@ Algorithms: spot rating, suitability rules, skill profile and learning, predicti
 User-facing screens and flows. ([folder index](features/index.md))
 
 * [Demo sessions](features/demo-sessions.md) - Random sessions on real past conditions to try the app.
-* [Explore](features/explore.md) - Area breadcrumb, day and time filters, map and list of spots, best picks for them, similar past sessions.
-* [Hourly forecast table](features/forecast-table.md) - Surf-forecast-style hourly table: spot rating, For you, surf, swell trains, energy, wind, tide.
-* [Journal](features/journal.md) - List of logged sessions with filters, stats and relevance switches.
+* [Explore](features/explore.md) - Area breadcrumb, day and time filters, map and one ranked list of spots for you, similar past sessions.
+* [Hourly forecast table](features/forecast-table.md) - Surf-forecast-style hourly table: rating for you (or a chosen level), wave, swell trains, energy, wind, tide.
+* [Journal](features/journal.md) - List of logged sessions with trips (named folders), filters, stats and relevance switches.
 * [Onboarding: Your surfing](features/onboarding.md) - First-launch questions that build the skill profile; also the profile editor.
 * [Session logging](features/session-logging.md) - Logging a session on the day's conditions timeline, with ratings, details and how it felt.
 * [Settings](features/settings.md) - Your surfing, units, spots, how old sessions count, categories, phone/offline, data, demo, about.
@@ -127,6 +127,8 @@ Accepted decisions (numbered) and pending ones. ([folder index](decisions/index.
 * [0017: Local knowledge as sourced rules](decisions/0017-local-knowledge-rules.md) - Per-spot local rules with sources and confidence; conflicting sources never become a hard preference.
 * [0018: Rules engine with confidence-limited effects, size fit and no cliffs](decisions/0018-rules-engine.md) - Executable local rules change the rating within limits set by how well their sources agree; small waves count less for progressing surfers; no 0-score cliffs.
 * [0019: Grade how sure each rating is; withhold where guessing is dangerous](decisions/0019-rating-confidence.md) - Ratings carry Reliable / Less certain / Rough guide from local knowledge, model agreement and your sessions; no rating for undocumented expert reefs at low tide.
+* [0020: Trips as named folders of sessions](decisions/0020-trips.md) - Group journal sessions into named trips with optional dates; one trip per session.
+* [0021: Rate spots for another level](decisions/0021-rate-for-another-level.md) - A temporary Rate-for switch rates spots for a typical surfer of any level, without your sessions.
 * [Accounts, sync and a commercial data plan](decisions/pending/accounts-and-sync.md) - What a public release would need.
 * [Should several challenging causes compound?](decisions/pending/compounding-challenges.md) - Worst status wins, so two problems count like one.
 * [Ask Open-Meteo for per-train peak periods in MFWAM](decisions/pending/open-meteo-upstream.md) - Upstream improvement, not ours to build.

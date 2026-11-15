@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { ConditionsSeries, Session, Settings, Spot, UserPhoto } from './types';
+import type { ConditionsSeries, Session, Settings, Spot, Trip, UserPhoto } from './types';
 import { CONDITIONS_VERSION } from './types';
 import type { GeoResult } from './lib/geocode';
 import { RETIRED_SPOTS, SEED_SPOTS, SEED_VERSION } from './data/seedSpots';
@@ -22,6 +22,7 @@ class SurfDB extends Dexie {
   geocache!: Table<GeoCache, string>;
   settings!: Table<Settings, string>;
   photos!: Table<UserPhoto, string>;
+  trips!: Table<Trip, string>;
 
   constructor() {
     super('surf-journal');
@@ -57,6 +58,11 @@ class SurfDB extends Dexie {
             delete x.level;
           });
       });
+    // Version 4: trips (named folders of sessions), with sessions indexed by trip.
+    this.version(4).stores({
+      sessions: 'id, spotId, date, tripId',
+      trips: 'id, name',
+    });
   }
 }
 
@@ -118,12 +124,47 @@ export async function saveSettings(patch: Partial<Settings>): Promise<void> {
   await db.settings.put({ ...cur, ...patch, id: 'settings' });
 }
 
+/** The trip whose dates include this day (the most recently created one if several do). */
+export function tripForDate(trips: Trip[], date: string): Trip | undefined {
+  return trips
+    .filter((t) => t.from && t.to && t.from <= date && date <= t.to)
+    .sort((a, b) => b.createdAt - a.createdAt)[0];
+}
+
+/**
+ * Creates or updates a trip. With dates, sessions on those days that aren't in another trip join
+ * it. Returns how many sessions joined.
+ */
+export async function saveTrip(trip: Trip): Promise<number> {
+  return db.transaction('rw', [db.trips, db.sessions], async () => {
+    await db.trips.put(trip);
+    if (!trip.from || !trip.to) return 0;
+    return db.sessions
+      .where('date')
+      .between(trip.from, trip.to, true, true)
+      .filter((s) => !s.tripId)
+      .modify({ tripId: trip.id });
+  });
+}
+
+/** Deletes a trip; its sessions stay in the journal, just without a trip. */
+export async function deleteTrip(id: string): Promise<void> {
+  await db.transaction('rw', [db.trips, db.sessions], async () => {
+    await db.sessions.where('tripId').equals(id).modify((s) => {
+      delete s.tripId;
+    });
+    await db.trips.delete(id);
+  });
+}
+
 export interface Backup {
   app: 'surf-journal';
   version: 1;
   exportedAt: string;
   spots: Spot[];
   sessions: Session[];
+  /** Trips (folders of sessions); missing in older backups. */
+  trips?: Trip[];
   settings: Settings | undefined;
   /** Your spot photos as data URLs. */
   photos: (Omit<UserPhoto, 'blob'> & { dataUrl: string })[];
@@ -144,6 +185,7 @@ export async function exportAll(): Promise<Backup> {
     exportedAt: new Date().toISOString(),
     spots: await db.spots.toArray(),
     sessions: await db.sessions.toArray(),
+    trips: await db.trips.toArray(),
     settings: await db.settings.get('settings'),
     photos: await Promise.all((await db.photos.toArray()).map(async ({ blob, ...p }) => ({ ...p, dataUrl: await blobToDataUrl(blob) }))),
   };
@@ -156,9 +198,10 @@ export async function importAll(b: Backup): Promise<{ spots: number; sessions: n
   const photos = await Promise.all(
     (b.photos ?? []).map(async ({ dataUrl, ...p }) => ({ ...p, blob: await (await fetch(dataUrl)).blob() }) as UserPhoto),
   );
-  await db.transaction('rw', [db.spots, db.sessions, db.settings, db.photos], async () => {
+  await db.transaction('rw', [db.spots, db.sessions, db.settings, db.photos, db.trips], async () => {
     await db.spots.bulkPut(b.spots);
     await db.sessions.bulkPut(b.sessions);
+    if (b.trips?.length) await db.trips.bulkPut(b.trips);
     if (photos.length) await db.photos.bulkPut(photos);
     if (b.settings) await db.settings.put({ ...DEFAULT_SETTINGS, ...b.settings, id: 'settings' });
   });

@@ -30,8 +30,8 @@ function slots(h: HourConditions): { swell: TrainInfo[]; wind: TrainInfo | null 
 }
 
 /**
- * Hourly forecast table (surf-forecast style). Spot rating = how good the waves are (word ladder),
- * For you = your predicted fun with your skill profile. Surf = one face height per hour at the spot
+ * Hourly forecast table (surf-forecast style). Rating = your predicted fun with your skill profile
+ * (or a typical surfer of the Rate-for level); how good the waves are for anyone is in its tooltip. Surf = one face height per hour at the spot
  * (the middle of the ±20 % estimate, like surf-forecast's single number; hover for the range and body
  * words). Swell = the most energetic train (peak period), expandable into every train;
  * trains outside the spot's swell window are greyed out. Energy = the strongest train's kJ.
@@ -46,6 +46,7 @@ export default function ForecastTable({
   tides,
   gridMates,
   focusMin,
+  forLevel,
 }: {
   spot: Spot;
   rec: SpotRec;
@@ -57,6 +58,8 @@ export default function ForecastTable({
   gridMates: string[];
   /** A chosen time (minutes after midnight): open with it and the next hours in view. */
   focusMin?: number;
+  /** Rating for another level ("Rate for" on Explore): the For you row is named after it. */
+  forLevel?: string;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [open, setOpenState] = useState(() => {
@@ -181,57 +184,45 @@ export default function ForecastTable({
                 return (
                   <td key={c.time} className={`${c.daylight ? '' : 'night'}${h === nowH ? ' now' : ''}`}>
                     {String(h).padStart(2, '0')}
-                    {h === nowH && <span className="now-tag">now</span>}
                   </td>
                 );
               })}
             </tr>
             <tr>
-              <th scope="row" title="How good the waves are at this spot, whoever you are (0–10): size, period, wind and tide. Hover a score to see what the wind costs.">
-                Spot
-                <small>rating</small>
-              </th>
-              {cols.map((c) => {
-                const q = c.quality.q;
-                const pot = c.quality.potential;
-                if (c.sure.withheld)
-                  return (
-                    <td key={c.time} className={`fc-rating${night(c)}`} title={c.sure.withheld}>
-                      <span className="fc-score withheld">?</span>
-                    </td>
-                  );
-                return (
-                  <td key={c.time} className={`fc-rating${night(c)}`} title={`${scoreLabel(q)} · ${q.toFixed(1)}/10${pot - q > 0.3 ? ` · ${pot.toFixed(1)} without the wind` : ''}`}>
-                    {/* The same score pill as the For you row. */}
-                    <span className="fc-score" style={{ background: scoreColor(q), color: '#fff' }}>
-                      {q.toFixed(q >= 9.95 ? 0 : 1)}
-                    </span>
-                  </td>
-                );
-              })}
-            </tr>
-            <tr>
-              <th scope="row" title="Predicted fun for you (0–10), from the spot rating, your surfing profile and your past sessions here">
-                For you
+              {/* One rating row: predicted fun for you, or for the level chosen under Rate for. How
+                  good the waves are for anyone (and what the wind costs) is in each cell's tooltip. */}
+              <th
+                scope="row"
+                title={
+                  forLevel
+                    ? `Predicted fun for a typical ${forLevel} surfer (0–10), from the spot's conditions; your sessions are left out`
+                    : 'Predicted fun for you (0–10), from the spot\'s conditions, your surfing profile and your past sessions here'
+                }
+              >
+                Rating
+                <small>for {forLevel ? forLevel.toLowerCase() : 'me'}</small>
               </th>
               {cols.map((c) => {
                 const bad = c.suit.status === 'unsuitable';
                 const why = reasonsText(c.suit);
+                const q = c.quality.q;
+                const pot = c.quality.potential;
+                const spotWord = `Waves ${scoreLabel(q).toLowerCase()} (${q.toFixed(1)}/10${pot - q > 0.3 ? `, ${pot.toFixed(1)} without the wind` : ''})`;
                 // "Not for you" stays certain at any tide; only an otherwise possible hour turns into "?".
                 if (c.sure.withheld && !bad)
                   return (
-                    <td key={c.time} className={night(c).trim()}>
+                    <td key={c.time} className={`fc-rating${night(c)}`}>
                       <span className="fc-score withheld" title={c.sure.withheld}>
                         ?
                       </span>
                     </td>
                   );
                 return (
-                  <td key={c.time} className={night(c).trim()}>
+                  <td key={c.time} className={`fc-rating${night(c)}`}>
                     <span
                       className={`fc-score s-${c.suit.status}`}
                       style={{ background: bad ? '#e2e8f0' : scoreColor(c.score), color: bad ? '#64748b' : '#fff' }}
-                      title={`${SUIT_LABEL[c.suit.status]}${c.peak ? ` · best peak: ${c.peak.name}` : ''}${why ? ` – ${why}` : ''}`}
+                      title={`${forLevel ? SUIT_LABEL[c.suit.status].replace(/for you$/, `for ${forLevel}`) : SUIT_LABEL[c.suit.status]}${c.peak ? ` · best peak: ${c.peak.name}` : ''}${why ? ` – ${why}` : ''} · ${spotWord}`}
                     >
                       {bad ? '✕' : c.score.toFixed(c.score >= 9.95 ? 0 : 1)}
                     </span>
@@ -393,7 +384,7 @@ export default function ForecastTable({
       </button>
       {legendOpen && (
       <div className="fc-legend muted tiny">
-        <span>Spot = how good the waves are (Poor, Poor–Fair, Fair, Fair–Good, Good, Epic above 9) · For you = predicted fun with your surfing profile{rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}</span>
+        <span>{forLevel ? `Rating = predicted fun for a typical ${forLevel} surfer (your sessions left out)` : `Rating = predicted fun for you, from your surfing profile${rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}`}; hover a score for how good the waves are for anyone (Poor … Epic) and what the wind costs</span>
         <span>Wave = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words); the wave figure grows with it, from light blue (small) to blue to green (2.6 m+) · Swell = strongest train offshore, peak period (as surf sites show it){estimated ? ' · some periods estimated from mean periods' : ''}</span>
         <span>Energy = strongest train, kJ per metre of crest; hover for the total</span>
         <span>{gridMates.length ? `Same swell and energy (same wave-model cell) at ${gridMates.join(', ')}` : 'No other spot shares this wave-model cell'}</span>

@@ -6,7 +6,7 @@ resource: "src/"
 tags: ["architecture", "code"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T20:30:00+00:00"
+  at: "2026-11-16T11:30:00+00:00"
 ---
 # Code map
 
@@ -14,7 +14,7 @@ generated:
 * `src/main.tsx`: `initDb()` (seed spots, migrations), prune cache, `initPwa()`, render.
 * `src/App.tsx`: hash routes (`explore`, `log`, `session/:id`, `journal`, `settings`, `surfing`, `spot/:id`, `spot-edit/:id`, `spot-new`), top nav, first-run [onboarding](/features/onboarding.md), toasts (update ready, sessions synced, profile changed with Undo).
 * `src/hooks.ts`: `useSettings`, `useStoredSettings` (undefined while loading), `useSpots`, `useSessions`, `useRoute`, `useConditions` (per-cell fetch), `useElementWidth`, `useMediaQuery`.
-* `src/db.ts`: Dexie schema, upgrade, `refreshSeedSpots`, defaults, backup export/import. See [Storage](/architecture/storage.md).
+* `src/db.ts`: Dexie schema, upgrade, `refreshSeedSpots`, defaults, trips (`saveTrip`, `deleteTrip`, `tripForDate`), backup export/import. See [Storage](/architecture/storage.md).
 * `src/types.ts`: the data model. See [Data model](/architecture/data-model.md).
 
 ## Engine (`src/lib/`)

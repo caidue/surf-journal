@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { Session, Settings, Spot } from '../types';
+import type { Session, Settings, SkillProfile, Spot, Stage } from '../types';
 import { saveSettings } from '../db';
-import { useConditions, useMediaQuery } from '../hooks';
+import { setRateFor, useConditions, useMediaQuery, useRating } from '../hooks';
 import { bboxAround, bboxOf, inBBox, type BBox } from '../lib/geo';
 import { geocode, parseRegionQuery, PART_LABEL, subBox } from '../lib/geocode';
-import { buildHistory, confidence, explain, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec } from '../lib/recommend';
+import { buildHistory, explain, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec } from '../lib/recommend';
 import { scoreColor } from '../lib/rating';
-import { bodyRange, bodyWord, levelName, stageBand } from '../lib/skill';
+import { bodyRange, bodyWord, levelName, stageBand, STAGES } from '../lib/skill';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
 import { fmtFeature, fmtSurfRange, fmtWind } from '../lib/format';
 import { tideLabel, windKind, WIND_LABEL, type Derived } from '../lib/conditions';
@@ -21,8 +21,6 @@ interface Region {
   label: string;
   bbox: BBox;
 }
-
-const PICKS_KEY = 'surf-journal.picksOpen';
 
 /** "North of Fuerteventura" → ["Fuerteventura", "North"]; other labels stay one crumb. */
 function crumbsOf(label: string): string[] {
@@ -168,38 +166,23 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
   // Load all three days at once: switching days is instant and they're all kept for offline use.
   const { bySpot, loading, error, offline, savedAt, reload } = useConditions(regionSpots, today, addDays(today, 2));
 
+  // Rated for you, or for a typical surfer of another level ("Rate for", e.g. a friend).
+  const rating = useRating(settings);
+  const who = rating.forLevel ?? 'you';
   const recs: SpotRec[] = useMemo(() => {
     const out: SpotRec[] = [];
     for (const spot of regionSpots) {
       const s = bySpot.get(spot.id);
       if (!s) continue;
       const nowMin = dayOffset === 0 ? nowMinutesAt(s.utcOffsetSeconds) : null;
-      out.push(recommendSpotDay(spot, s.hours, s.days, sessions, settings, settings.profile, date, today, nowMin));
+      out.push(recommendSpotDay(spot, s.hours, s.days, sessions, settings, rating.profile, date, today, nowMin, { history: rating.history }));
     }
     return out.sort((a, b) => (b.best?.score ?? -1) - (a.best?.score ?? -1));
-  }, [regionSpots, bySpot, sessions, settings, date, today, dayOffset]);
+  }, [regionSpots, bySpot, sessions, settings, date, today, dayOffset, rating]);
 
-  const recBySpot = useMemo(() => new Map(recs.map((r) => [r.spot.id, r])), [recs]);
-  const top = recs.find((r) => r.best && r.best.score > 0.5) ?? null;
 
-  // Best picks follow the Day and Time filters: the top three spots for the day (best time window),
-  // right now (this hour, today only) or at the chosen hour of the selected day.
-  // The whole Best picks section can be collapsed; remembered on this device (open the first time).
-  const [picksOpen, setPicksOpenState] = useState(() => {
-    try {
-      return localStorage.getItem(PICKS_KEY) !== '0';
-    } catch {
-      return true;
-    }
-  });
-  const setPicksOpen = (open: boolean) => {
-    setPicksOpenState(open);
-    try {
-      localStorage.setItem(PICKS_KEY, open ? '1' : '0');
-    } catch {
-      /* per-viewer convenience only */
-    }
-  };
+  // Every spot is ranked for you by the Day and Time filters: its best time window of the day, this
+  // hour (Now, today only) or the chosen hour of the selected day.
   // Daylight hours of the selected day (today: from the current hour on), as minutes after midnight.
   const pickHours = useMemo(() => {
     const nowH = recs[0]?.now ? isoToMin(recs[0].now.time) ?? 0 : 0;
@@ -212,23 +195,17 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
   const mode: 'day' | 'now' | 'time' =
     timeSel === 'now' ? (dayOffset === 0 && !dayOverEarly ? 'now' : 'day') : timeSel != null && pickHours.includes(timeSel) ? 'time' : 'day';
   const time = mode === 'time' ? (timeSel as number) : null;
-  const picks = useMemo(() => {
-    const ranked: { rec: SpotRec; hour: HourRec }[] =
-      mode === 'now'
-        ? recs.filter((r) => r.now?.daylight).map((r) => ({ rec: r, hour: r.now! }))
-        : mode === 'time'
-          ? recs.flatMap((r) => {
-              const hour = r.hours.find((h) => h.daylight && isoToMin(h.time) === time);
-              return hour ? [{ rec: r, hour }] : [];
-            })
-          : recs.filter((r) => r.best).map((r) => ({ rec: r, hour: r.best! }));
+  const ranked = useMemo(() => {
+    const hourOf = (r: SpotRec): HourRec | null =>
+      mode === 'now' ? (r.now?.daylight ? r.now : null) : mode === 'time' ? r.hours.find((h) => h.daylight && isoToMin(h.time) === time) ?? null : r.best;
     // On close scores, a spot the app knows well beats one rated by the general model only.
     const sureBonus = { high: 0.4, medium: 0.2, low: 0 } as const;
-    return ranked
-      .filter((x) => x.hour.score > 0.5)
-      .sort((a, b) => b.hour.score + sureBonus[b.hour.sure.level] - (a.hour.score + sureBonus[a.hour.sure.level]))
-      .slice(0, 3);
+    // Spots that aren't for you (or have no rating) go after the rest; no hour at all goes last.
+    const rank = (x: { hour: HourRec | null }) =>
+      !x.hour ? -2 : x.hour.suit.status === 'unsuitable' || x.hour.sure.withheld ? -1 + x.hour.quality.q / 100 : x.hour.score + sureBonus[x.hour.sure.level];
+    return recs.map((rec) => ({ rec, hour: hourOf(rec) })).sort((a, b) => rank(b) - rank(a));
   }, [recs, mode, time]);
+  const anyGood = ranked.some((x) => x.hour && x.hour.score > 0.5);
   const darkNow = mode === 'now' && recs.length > 0 && !recs.some((r) => r.now?.daylight);
   const dayOver = dayOverEarly;
 
@@ -264,28 +241,32 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
   }, [recs, sessions, settings, today]);
   const dayWord = dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : 'that day';
 
+  // Markers show the same score for you as the list: for the day, now or the chosen hour.
+  const hourBySpot = useMemo(() => new Map(ranked.map((x) => [x.rec.spot.id, x.hour])), [ranked]);
   const markers: MapMarker[] = spots.map((s) => {
-    const r = recBySpot.get(s.id);
-    const inRegion = regionSpots.includes(s);
-    const best = r?.best;
-    const day = r?.hours.filter((h) => h.daylight) ?? [];
-    const unsuitable = day.length > 0 && day.every((h) => h.suit.status === 'unsuitable');
+    const inRegion = hourBySpot.has(s.id);
+    const hour = hourBySpot.get(s.id) ?? null;
+    const unsuitable = hour?.suit.status === 'unsuitable';
+    const withheld = !!hour?.sure.withheld;
     return {
       id: s.id,
       lat: s.lat,
       lon: s.lon,
-      color: !inRegion ? '#cbd5e1' : unsuitable ? '#94a3b8' : scoreColor(best?.score ?? null),
-      label: !inRegion || !best ? '·' : unsuitable ? '✕' : Math.round(best.score).toString(),
-      title: `${s.name}${best ? ` – best ${best.score.toFixed(1)}/10` : ''}${unsuitable ? ' (not for you)' : ''}`,
-      muted: !inRegion || !!unsuitable,
+      color: !inRegion ? '#cbd5e1' : unsuitable || withheld ? '#94a3b8' : scoreColor(hour?.score ?? null),
+      label: !inRegion || !hour ? '·' : unsuitable ? '✕' : withheld ? '?' : Math.round(hour.score).toString(),
+      title: `${s.name}${hour && !unsuitable && !withheld ? ` – ${hour.score.toFixed(1)}/10 for ${who}` : ''}${unsuitable ? ` (not for ${who})` : ''}${withheld ? ' (no rating)' : ''}`,
+      muted: !inRegion || unsuitable,
     };
   });
 
   const dayOptions = [0, 1, 2].map((o) => ({ id: String(o), label: o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : fmtDate(addDays(today, o), { weekday: phone ? 'short' : 'long' }) }));
+  const forWhen = `${mode === 'now' ? 'right now' : dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : dayOptions[dayOffset].label}${mode === 'time' && time != null ? ` at ${fmtMin(time)}` : ''}`;
 
   return (
     <div className={`page explore view-${view}`}>
       <div className="explore-controls">
+        {/* One panel for everything the list depends on: area and level, then day and time. */}
+        <div className="filter-panel">
         <div className="explore-top">
           <button
             type="button"
@@ -308,16 +289,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
               <path d="M6 9l6 6 6-6" />
             </svg>
           </button>
-          {settings.profile && (
-            <button
-              className={`tb-you level-badge band-${stageBand(settings.profile.stage).toLowerCase()}`}
-              onClick={() => go('settings')}
-              aria-label={`Your level: ${levelName(settings.profile.stage)}. Change it in Settings`}
-              title={`Your level: ${levelName(settings.profile.stage)} (stage ${settings.profile.stage} of 8), comfortable to ${bodyWord(settings.profile.comfort)}. Tap to see or change it in Settings → Your surfing.`}
-            >
-              {levelName(settings.profile.stage)}
-            </button>
-          )}
+          {settings.profile && <LevelMenu mine={settings.profile} rateFor={rating.stage} go={go} />}
         </div>
         {locOpen && (
           <form
@@ -348,14 +320,14 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
           </form>
         )}
         <div className="toolbar">
-          <div className="tb-item">
-            <span className="tb-label">Day</span>
+          <div className="tb-item tb-day">
+            <span className="visually-hidden">Day</span>
             <Segmented options={dayOptions} value={String(dayOffset)} onChange={(v) => setDayOffset(Number(v))} />
           </div>
-          <div className="tb-item tb-time">
-            <span className="tb-label">Time</span>
+          <label className={`segmented tb-time${mode === 'day' ? '' : ' set'}`}>
+            <Icon name="clock" size={15} />
             <select
-              className={`time-filter${mode === 'day' ? ' unset' : ''}`}
+              className="time-filter"
               aria-label="Time"
               value={mode === 'now' ? 'now' : mode === 'time' ? String(time) : ''}
               onChange={(e) => setTimeSel(e.target.value === '' ? null : e.target.value === 'now' ? 'now' : Number(e.target.value))}
@@ -368,7 +340,8 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                 </option>
               ))}
             </select>
-          </div>
+          </label>
+        </div>
         </div>
         {searchError && <div className="alert">{searchError}</div>}
         <ConditionsStatus error={error} offline={offline} savedAt={savedAt} onRetry={reload} />
@@ -393,91 +366,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
         </div>
 
         <div className="list-col">
-          {recs.length > 0 && (top || mode !== 'day') && (
-            <Card className={`best-pick${picksOpen ? '' : ' collapsed'}`}>
-              <div className="section-head">
-                <button type="button" className="picks-toggle" aria-expanded={picksOpen} aria-controls="best-picks-body" onClick={() => setPicksOpen(!picksOpen)}>
-                  <svg className="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                  <span className="eyebrow">
-                    Best picks for you {mode === 'now' ? 'right now' : dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : dayOptions[dayOffset].label}
-                    {mode === 'time' && time != null ? ` at ${fmtMin(time)}` : ''}
-                  </span>
-                </button>
-              </div>
-              {picksOpen && (
-              <div id="best-picks-body">
-              {picks.length === 0 ? (
-                <p className="muted small">
-                  {darkNow
-                    ? "It's dark at the spots right now. Set the time to Any time for today's best windows, or look at tomorrow."
-                    : mode === 'time'
-                      ? `Nothing really works for you at ${fmtMin(time ?? 0)}. Try another time, or Any time for the best of the day.`
-                      : 'Nothing really works for you right now. Set the time to Any time to see the best times later today.'}
-                </p>
-              ) : (
-                <ol className="pick-list">
-                  {picks.map(({ rec, hour }) => (
-                    <li
-                      key={rec.spot.id}
-                      onClick={(e) => {
-                        if (!(e.target as Element).closest('a, button')) openSheet(rec.spot.id);
-                      }}
-                    >
-                      <SpotHead spot={rec.spot} score={hour.score} scoreTitle="Predicted fun for you (0–10)" onOpen={() => openSheet(rec.spot.id)} />
-                      <div className="cond-line go-line">
-                        {mode === 'now' ? (
-                          <span className="muted small">Now</span>
-                        ) : mode === 'time' ? (
-                          <>
-                            <span className="muted small">At</span>
-                            <strong>{fmtMin(time ?? 0)}</strong>
-                          </>
-                        ) : (
-                          rec.bestWindow && (
-                            <>
-                              <span className="muted small">Go</span>
-                              <strong>
-                                {fmtMin(rec.bestWindow[0])}–{fmtMin(rec.bestWindow[1])}
-                              </strong>
-                            </>
-                          )
-                        )}
-                        <span title={hour.derived.hb != null ? bodyRange(hour.derived.hb * 0.8, hour.derived.hb * 1.2) : undefined}>
-                          <strong>{fmtSurfRange(hour.derived.hb, settings.heightUnit)}</strong>
-                          {hour.derived.tDom ? ` · ${Math.round(hour.derived.tDom)} s` : ''}
-                        </span>
-                        <span>
-                          {WIND_LABEL[windKind(hour.derived) ?? 'glassy']} {fmtWind(hour.derived.windSpeed, settings.windUnit)}
-                        </span>
-                        <span>tide {tideLabel(hour.derived.tideNorm, hour.derived.tideTrend)}</span>
-                      </div>
-                      {hour.peak && (
-                        <div className="peak-pick">
-                          Best for you: <strong>{hour.peak.name}</strong>
-                        </div>
-                      )}
-                      {mode === 'day' && <TimingNotes rec={rec} />}
-                      <ul className="explain">
-                          {explain(hour, (s) => fmtDate(s.date)).map((l) => (
-                            <li key={l}>{l}</li>
-                          ))}
-                      </ul>
-                      <div className="row gap wrap">
-                        <SuitBadge status={hour.suit.status} />
-                        <SureBadge sure={hour.sure} />
-                      </div>
-                      <SuitReasons suit={hour.suit} />
-                    </li>
-                  ))}
-                </ol>
-              )}
-              </div>
-              )}
-            </Card>
-          )}
-          {!loading && regionSpots.length > 0 && !top && recs.length > 0 && (
+          {!loading && regionSpots.length > 0 && recs.length > 0 && !anyGood && (
             <Card>
               {dayOver ? (
                 <>
@@ -488,10 +377,15 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                     </button>
                   </p>
                 </>
+              ) : darkNow ? (
+                <>
+                  <strong>It's dark at the spots right now.</strong>
+                  <p className="muted small">Set the time to Any time for today's best windows, or look at tomorrow.</p>
+                </>
               ) : (
                 <>
-                  <strong>Nothing really works for you {dayOffset === 0 ? 'today' : 'that day'}.</strong>
-                  <p className="muted small">Check the spots below for details, or try another day.</p>
+                  <strong>Nothing really works for {who} {forWhen}.</strong>
+                  <p className="muted small">{mode === 'day' ? 'Check the spots below for details, or try another day.' : 'Try another time, or Any time for the best of the day.'}</p>
                 </>
               )}
             </Card>
@@ -503,50 +397,86 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
             </Empty>
           )}
 
+          {regionSpots.length > 0 && (
+            <div className="list-head">
+              {regionSpots.length} spot{regionSpots.length === 1 ? '' : 's'}
+              {recs.length ? ` · best for ${who} ${forWhen} first` : ''}
+            </div>
+          )}
           <div className="spot-list">
-            {(recs.length ? recs.map((r) => r.spot) : regionSpots).map((spot) => {
-              const r = recBySpot.get(spot.id);
-              const atTime = mode === 'time' ? r?.hours.find((h) => isoToMin(h.time) === time) : undefined;
-              const show = atTime ?? r?.now ?? r?.best;
+            {(recs.length ? ranked : regionSpots.map((spot) => ({ rec: null, hour: null, spot }))).map((x) => {
+              const rec = x.rec;
+              const spot = rec ? rec.spot : (x as { spot: Spot }).spot;
+              const hour = x.hour;
               return (
                 <Card
                   key={spot.id}
                   id={`spot-${spot.id}`}
-                  className={`spot-item${selected === spot.id ? ' selected' : ''}`}
+                  className={`spot-item${selected === spot.id ? ' selected' : ''}${hour && hour.score <= 0.5 ? ' dim' : ''}`}
                   onClick={(e: React.MouseEvent) => {
                     if (!(e.target as Element).closest('a, button')) openSheet(spot.id);
                   }}
                 >
-                  <SpotHead spot={spot} score={r?.best?.score} scoreTitle="Best predicted score for you this day" onOpen={() => openSheet(spot.id)} />
-                  <p className="desc">{spot.description}</p>
-                  {show ? (
-                    <div className="cond-line">
-                      <span className="muted small">{!atTime && r?.now && dayOffset === 0 ? 'Now' : `At ${fmtMin(isoToMin(show.time) ?? 0)}`}:</span>
-                      <span title={show.derived.hb != null ? bodyRange(show.derived.hb * 0.8, show.derived.hb * 1.2) : undefined}>
-                        <strong>{fmtSurfRange(show.derived.hb, settings.heightUnit)}</strong> {show.derived.tDom ? `${Math.round(show.derived.tDom)} s` : ''}{' '}
-                        <DirArrow from={show.derived.dirDom} />
-                      </span>
-                      <span>
-                        {WIND_LABEL[windKind(show.derived) ?? 'glassy']} {fmtWind(show.derived.windSpeed, settings.windUnit)} <DirArrow from={show.derived.windDir} />
-                      </span>
-                      <span>tide {tideLabel(show.derived.tideNorm, show.derived.tideTrend)}</span>
-                    </div>
-                  ) : (
-                    <div className="muted small">{loading ? 'Loading conditions…' : 'No conditions available'}</div>
-                  )}
-                  {r?.best && (
-                    <div className="row gap wrap">
-                      <SuitBadge status={r.best.suit.status} />
-                      {r.best.peak && <span className="small">best for you: {r.best.peak.name}</span>}
-                      {r.bestWindow && r.best.score > 0.5 && (
-                        <span className="small">
-                          best {fmtMin(r.bestWindow[0])}–{fmtMin(r.bestWindow[1])}
+                  <SpotHead
+                    spot={spot}
+                    score={hour && !hour.sure.withheld ? hour.score : null}
+                    scoreTitle={hour?.sure.withheld ? 'No rating: ' + hour.sure.withheld : `Predicted fun for ${who} (0–10)`}
+                    onOpen={() => openSheet(spot.id)}
+                  />
+                  {rec && hour ? (
+                    <>
+                      <div className="cond-line go-line">
+                        {mode === 'now' ? (
+                          <span className="muted small">Now</span>
+                        ) : mode === 'time' ? (
+                          <>
+                            <span className="muted small">At</span>
+                            <strong>{fmtMin(time ?? 0)}</strong>
+                          </>
+                        ) : rec.bestWindow && hour.score > 0.5 ? (
+                          <>
+                            <span className="muted small">Go</span>
+                            <strong>
+                              {fmtMin(rec.bestWindow[0])}–{fmtMin(rec.bestWindow[1])}
+                            </strong>
+                          </>
+                        ) : (
+                          <>
+                            <span className="muted small">Best at</span>
+                            <strong>{fmtMin(isoToMin(hour.time) ?? 0)}</strong>
+                          </>
+                        )}
+                        <span title={hour.derived.hb != null ? bodyRange(hour.derived.hb * 0.8, hour.derived.hb * 1.2) : undefined}>
+                          <strong>{fmtSurfRange(hour.derived.hb, settings.heightUnit)}</strong>
+                          {hour.derived.tDom ? ` · ${Math.round(hour.derived.tDom)} s` : ''} <DirArrow from={hour.derived.dirDom} />
                         </span>
+                        <span>
+                          {WIND_LABEL[windKind(hour.derived) ?? 'glassy']} {fmtWind(hour.derived.windSpeed, settings.windUnit)} <DirArrow from={hour.derived.windDir} />
+                        </span>
+                        <span>tide {tideLabel(hour.derived.tideNorm, hour.derived.tideTrend)}</span>
+                      </div>
+                      {/* Badges right under the conditions they describe, then the lists (same order as
+                          the spot's recommendation card): peak, timing notes, reasons, explanation. */}
+                      <div className="row gap wrap pick-badges">
+                        <SuitBadge status={hour.suit.status} who={rating.forLevel} />
+                        <SureBadge sure={hour.sure} />
+                      </div>
+                      {hour.peak && (
+                        <div className="peak-pick">
+                          Best for {who}: <strong>{hour.peak.name}</strong>
+                        </div>
                       )}
-                      <span className="muted small">
-                        guide {r.best.rule.toFixed(1)}
-                        {r.best.pred.sumW > 0.05 ? ` · your history ${confidence(r.best.pred)}` : ''}
-                      </span>
+                      {mode === 'day' && <TimingNotes rec={rec} />}
+                      <SuitReasons suit={hour.suit} own={!rating.forLevel} />
+                      <ul className="explain">
+                        {explain(hour, (s) => fmtDate(s.date), rating.forLevel).map((l) => (
+                          <li key={l}>{l}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : (
+                    <div className="muted small cond-line">
+                      {loading || (!rec && !error) ? 'Loading conditions…' : !rec ? 'No conditions available' : mode === 'now' ? "It's dark at the spot right now." : 'No daylight hours left on this day.'}
                     </div>
                   )}
                 </Card>
@@ -672,6 +602,108 @@ function SpotHead({ spot, score, scoreTitle, onOpen }: { spot: Spot; score: numb
         </div>
       </div>
       <ScoreBadge score={score} title={scoreTitle} />
+    </div>
+  );
+}
+
+/**
+ * The level chip on Explore. Shows your level; tap it for the "Rate for" menu: you, or any level
+ * (a typical surfer of that level, e.g. a friend), plus a link to your surfing profile. While
+ * rating for another level the chip turns accent-coloured, reads "Rating for: Advanced" and gets
+ * an × to go back to you. Not saved: reopening the app rates for you again.
+ */
+function LevelMenu({ mine, rateFor, go }: { mine: SkillProfile; rateFor: Stage | null; go: (p: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: Event) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+  const pick = (s: Stage | null) => {
+    setRateFor(s);
+    setOpen(false);
+  };
+  const other = rateFor != null;
+  return (
+    <div className="level-menu" ref={ref}>
+      <div className={`level-chip-row${other ? ' other' : ''}`}>
+        <button
+          type="button"
+          className={`tb-you level-badge band-${stageBand(other ? rateFor : mine.stage).toLowerCase()}${other ? ' rating-other' : ''}`}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          title={
+            other
+              ? `Spots are rated for a typical ${levelName(rateFor)} surfer, without your sessions. Tap to change.`
+              : `Your level: ${levelName(mine.stage)} (stage ${mine.stage} of 8), comfortable to ${bodyWord(mine.comfort)}. Tap to rate spots for another level.`
+          }
+        >
+          {other ? (
+            <>
+              <span className="for">
+                <span className="long">Rating for</span>
+                <span className="short">For</span>
+              </span>{' '}
+              {levelName(rateFor)}
+            </>
+          ) : (
+            levelName(mine.stage)
+          )}
+        </button>
+        {other && (
+          <button type="button" className="rating-reset" onClick={() => setRateFor(null)} aria-label="Rate for you again" title="Rate for you again">
+            <Icon name="close" size={14} />
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="level-pop" role="menu" aria-label="Rate spots for">
+          <div className="level-pop-head">Rate spots for</div>
+          <button type="button" role="menuitemradio" aria-checked={!other} className={!other ? 'on' : ''} onClick={() => pick(null)}>
+            <span>
+              <strong>Me</strong> · {levelName(mine.stage)}
+            </span>
+            <span className="muted tiny">your profile and sessions</span>
+          </button>
+          <div className="level-pop-sep">Someone else</div>
+          {STAGES.map((s) => (
+            <button
+              key={s.stage}
+              type="button"
+              role="menuitemradio"
+              aria-checked={rateFor === s.stage}
+              className={rateFor === s.stage ? 'on' : ''}
+              onClick={() => pick(s.stage)}
+              title={`${s.title}. Comfortable to ${bodyWord(s.comfort)}.`}
+            >
+              <span>
+                <span className={`band-dot band-${stageBand(s.stage).toLowerCase()}`} aria-hidden /> {s.level}
+              </span>
+              <span className="muted tiny">
+                {s.short} · to {bodyWord(s.comfort)}
+              </span>
+            </button>
+          ))}
+          <button
+            type="button"
+            className="level-pop-link"
+            onClick={() => {
+              setOpen(false);
+              go('settings');
+            }}
+          >
+            Edit your surfing profile →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

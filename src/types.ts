@@ -305,8 +305,24 @@ export interface Session {
   notes: string;
   /** "Not relevant anymore": kept in the journal, ignored for predictions. */
   excluded: boolean;
+  /** The trip (folder) this session belongs to, if any. */
+  tripId?: string;
   skillAtTime: SkillSnapshot;
   demo?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * A trip: a named folder of sessions (a vacation or a time period). Sessions join it by hand, or
+ * automatically when the trip has dates and the session falls in them and isn't in another trip.
+ */
+export interface Trip {
+  id: string;
+  name: string;
+  /** Optional dates (YYYY-MM-DD, inclusive): new sessions on these days default to this trip. */
+  from?: string;
+  to?: string;
   createdAt: number;
   updatedAt: number;
 }

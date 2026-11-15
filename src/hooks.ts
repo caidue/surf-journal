@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, DEFAULT_SETTINGS } from './db';
-import type { ConditionsSeries, Session, Settings, Spot } from './types';
+import type { ConditionsSeries, Session, Settings, SkillProfile, Spot, Stage, Trip } from './types';
+import { levelName, profileForStage } from './lib/skill';
 import { cellKey, fetchSeries, isOfflineError } from './lib/openMeteo';
 import { samplePoint } from './lib/geo';
 
@@ -20,6 +21,11 @@ export function useSpots(): Spot[] | undefined {
 
 export function useSessions(): Session[] | undefined {
   return useLiveQuery(() => db.sessions.toArray(), []);
+}
+
+/** Your trips (folders of sessions), newest first. */
+export function useTrips(): Trip[] {
+  return useLiveQuery(() => db.trips.toArray().then((t) => t.sort((a, b) => b.createdAt - a.createdAt)), []) ?? [];
 }
 
 /** Minimal hash router: "#/spot/abc" -> ["spot", "abc"]. */
@@ -121,4 +127,40 @@ export function useMediaQuery(query: string): boolean {
     return () => mq.removeEventListener('change', on);
   }, [query]);
   return match;
+}
+
+/* ------------------------------------------------------------------ */
+/* "Rate for": rate spots for another level than yours (a friend).      */
+/* Kept in memory only, so it resets when the app is reopened.          */
+/* ------------------------------------------------------------------ */
+
+let rateForStage: Stage | null = null;
+const rateForListeners = new Set<() => void>();
+
+export function setRateFor(stage: Stage | null): void {
+  rateForStage = stage;
+  rateForListeners.forEach((f) => f());
+}
+
+/** The level spots are rated for: null = you (your profile and sessions), else a stage. */
+export function useRateFor(): Stage | null {
+  return useSyncExternalStore(
+    (f) => {
+      rateForListeners.add(f);
+      return () => rateForListeners.delete(f);
+    },
+    () => rateForStage,
+  );
+}
+
+/**
+ * The profile and options to rate with: yours, or a typical surfer of the chosen level
+ * (profileForStage) without your session history. `forLevel` names that level for the texts.
+ */
+export function useRating(settings: Settings): { profile: SkillProfile | null; history: boolean; forLevel?: string; stage: Stage | null } {
+  const stage = useRateFor();
+  return useMemo(
+    () => (stage == null ? { profile: settings.profile, history: true, stage } : { profile: profileForStage(stage), history: false, forLevel: levelName(stage), stage }),
+    [stage, settings.profile],
+  );
 }

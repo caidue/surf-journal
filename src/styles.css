@@ -83,6 +83,12 @@
 * {
   box-sizing: border-box;
 }
+/* No rubber-band bounce of the whole page (iOS Safari 16+, Chrome, Firefox): scrolling stops at the
+   top and bottom, so the sticky top bar never moves. Vertical only, so sideways back-swipes stay. */
+html,
+body {
+  overscroll-behavior-y: none;
+}
 body {
   margin: 0;
   background: var(--bg);
@@ -600,7 +606,18 @@ label.field,
 .explore-controls {
   margin-bottom: var(--sp-4);
 }
-/* Area as a breadcrumb (tap to change it) with the level badge on the right: one narrow row. */
+/* The filter panel: area and level on top, day and time below, in one card with one control style. */
+.filter-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-1);
+  padding: var(--sp-2) var(--sp-3) var(--sp-3);
+}
+.filter-panel .searchbar {
+  margin: var(--sp-1) 0 var(--sp-2);
+}
+/* Area as a breadcrumb (tap to change it) with the level on the right: one narrow row. */
 .explore-top {
   display: flex;
   align-items: center;
@@ -608,6 +625,8 @@ label.field,
   gap: var(--sp-3);
   min-height: 32px;
   margin-bottom: var(--sp-2);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--line-2);
 }
 .crumbs {
   display: inline-flex;
@@ -653,9 +672,138 @@ label.field,
 .crumbs[aria-expanded='true'] .chev {
   transform: rotate(180deg);
 }
+/* The level as a soft chip in its band's colour, the same height as the breadcrumb's text line. */
 .explore-top .tb-you.level-badge {
-  padding: 2px 12px;
+  padding: 3px 10px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--band);
+  background: color-mix(in srgb, var(--band) 10%, var(--panel));
+  border-color: color-mix(in srgb, var(--band) 35%, var(--panel));
 }
+.explore-top .tb-you.level-badge:hover {
+  filter: none;
+  border-color: var(--band);
+}
+/* "Rate for": the level chip opens a menu; rating for another level turns it accent-coloured. */
+.level-menu {
+  position: relative;
+  flex: none;
+}
+.level-chip-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.explore-top .tb-you.level-badge.rating-other {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.tb-you.rating-other .for {
+  font-weight: 500;
+  opacity: 0.85;
+}
+/* Phones: "For Advanced" leaves the breadcrumb room; wider screens say "Rating for Advanced". */
+.tb-you.rating-other .for .short {
+  display: none;
+}
+@media (max-width: 480px) {
+  .tb-you.rating-other .for .long {
+    display: none;
+  }
+  .tb-you.rating-other .for .short {
+    display: inline;
+  }
+}
+.rating-reset {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.rating-reset:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.level-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  width: 264px;
+  max-height: 70vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+}
+.level-pop button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.level-pop button:hover {
+  background: var(--panel-2);
+}
+.level-pop button.on {
+  background: var(--accent-soft);
+}
+.level-pop-head,
+.level-pop-sep {
+  padding: 6px 10px 2px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.level-pop-sep {
+  margin-top: 4px;
+  border-top: 1px solid var(--line-2);
+  padding-top: 8px;
+}
+.level-pop button.level-pop-link {
+  margin-top: 4px;
+  border-top: 1px solid var(--line-2);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  padding-top: 8px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.band-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--band);
+  vertical-align: 1px;
+}
+.band-dot.band-beginner { --band: #15803d; }
+.band-dot.band-intermediate { --band: #0b6e99; }
+.band-dot.band-advanced { --band: #b45309; }
+.band-dot.band-expert { --band: #b91c1c; }
 .searchbar {
   display: flex;
   gap: var(--sp-2);
@@ -667,7 +815,7 @@ label.field,
 .toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-3) var(--sp-6);
+  gap: var(--sp-2);
 }
 .tb-item {
   display: flex;
@@ -678,12 +826,47 @@ label.field,
   font-size: var(--fs-sm);
   color: var(--muted);
 }
-/* Time filter next to the day: "Any time" until you pick now or an hour. */
-.tb-time select.time-filter {
-  width: auto;
-  min-height: var(--tap-sm); /* keeps 16 px text: no zoom-on-focus in iOS Safari */
+/* Time filter: a segmented-style track like the day, with a clock; "on" (white) once a time is set. */
+.tb-time {
+  position: relative;
+  min-width: 132px;
+  align-items: center;
+  flex-wrap: nowrap;
+  color: var(--ink-2);
+  cursor: pointer;
 }
-.tb-time select.time-filter.unset {
+.tb-time > .icon {
+  position: absolute;
+  left: 11px;
+  pointer-events: none;
+}
+.tb-time select.time-filter {
+  width: 100%;
+  min-height: calc(var(--tap-sm) - 2px);
+  border: 0;
+  border-radius: 6px;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0 24px 0 28px;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.tb-time.set select.time-filter {
+  background-color: #fff;
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+}
+.tb-time.set > .icon {
+  color: var(--accent);
+  z-index: 1;
+}
+/* Above the ranked list: how many spots and what they're ranked for. */
+.list-head {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 .explore-grid {
@@ -737,68 +920,6 @@ label.field,
   width: 38px;
   height: 38px;
 }
-/* Best pick: the same card as the spot list, marked by an accent edge and its label. */
-.best-pick {
-  border-color: #7dd3fc;
-  box-shadow: inset 4px 0 0 var(--accent), var(--shadow-1);
-}
-.best-pick .eyebrow {
-  margin-bottom: 0;
-}
-.best-pick .section-head {
-  margin-bottom: var(--sp-3);
-}
-.best-pick.collapsed .section-head {
-  margin-bottom: 0;
-}
-/* The whole section folds away from its heading; the state is remembered (localStorage). */
-.picks-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  min-height: var(--tap-sm);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.picks-toggle .eyebrow {
-  margin: 0;
-}
-.picks-toggle .chev {
-  flex: none;
-  transition: transform 0.15s ease;
-}
-.best-pick.collapsed .picks-toggle .chev {
-  transform: rotate(-90deg);
-}
-.pick-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.pick-list > li {
-  padding: var(--sp-3) 0;
-  border-top: 1px solid var(--line);
-  cursor: pointer;
-}
-.pick-list > li:first-child {
-  padding-top: 0;
-  border-top: 0;
-}
-.pick-list > li:last-child {
-  padding-bottom: 0;
-}
-.best-pick .section-head .segmented {
-  flex: none;
-  flex-wrap: nowrap;
-}
-.best-pick .section-head {
-  flex-wrap: wrap;
-}
 /* How sure a rating is (lib/confidence.ts). */
 .sure {
   display: inline-block;
@@ -829,8 +950,18 @@ label.field,
 .timing-notes li::before {
   content: '⏱';
 }
-.pick-list .explain {
-  margin-bottom: var(--sp-2);
+.spot-item .explain {
+  margin-bottom: 0;
+}
+.pick-badges {
+  margin-top: var(--sp-2);
+}
+.pick-badges + .peak-pick {
+  margin-top: var(--sp-2);
+}
+/* Spots that don't really work for you at that time: still listed, a little quieter. */
+.spot-item.dim .spot-head {
+  opacity: 0.75;
 }
 .go-line {
   margin-top: var(--sp-3);
@@ -988,9 +1119,10 @@ body.full-map .foot {
     min-width: 0;
   }
   .tb-time select.time-filter {
-    flex: 1;
-    min-width: 0;
-    padding: 0 18px 0 var(--sp-2);
+    padding: 0 20px 0 26px;
+  }
+  .tb-time > .icon {
+    left: 10px;
   }
   .toolbar .segmented button {
     padding: 0 9px;
@@ -1147,6 +1279,38 @@ body.full-map .foot {
   font-size: var(--fs-sm);
 }
 
+/* Step sliders (wave size seen, how the size felt): a value line, the slider, the two ends below. */
+.step-slider {
+  max-width: 32rem;
+}
+.step-slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.step-val {
+  font-size: var(--fs-md);
+}
+.step-slider.unset .step-val {
+  color: var(--muted);
+  font-weight: 500;
+}
+.step-slider input[type='range'] {
+  width: 100%;
+  height: var(--tap);
+  accent-color: var(--accent);
+}
+.step-slider.unset input[type='range'] {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+.step-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -6px;
+}
+
 /* rating sliders */
 .ratings {
   display: grid;
@@ -1226,6 +1390,71 @@ body.full-map .foot {
 .stats span {
   color: var(--muted);
   font-size: var(--fs-xs);
+}
+/* Trips: a row of folder chips above the journal (All sessions · each trip · Not in a trip · New trip). */
+.trip-bar {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  overscroll-behavior-x: none;
+  scrollbar-width: none;
+  margin: 0 0 var(--sp-3);
+  padding-bottom: 2px;
+}
+.trip-bar::-webkit-scrollbar {
+  display: none;
+}
+.trip-bar .chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.trip-bar .chip .n {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-weight: 600;
+}
+.trip-bar .chip.on .n {
+  color: inherit;
+  opacity: 0.8;
+}
+.trip-bar .chip.add {
+  border-style: dashed;
+  color: var(--accent);
+  background: transparent;
+}
+.trip-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-3);
+  margin: 0 0 var(--sp-3);
+}
+.trip-head h2 {
+  margin: 0;
+  font-size: var(--fs-xl);
+}
+.trip-form h3 {
+  margin-top: 0;
+}
+.trip-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+.trip-form .warn {
+  color: var(--warn);
+}
+.trip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  border-color: var(--accent-soft);
+  background: var(--accent-soft);
 }
 .filters {
   display: flex;
@@ -1744,13 +1973,6 @@ td.fc-wind.unsure {
   color: var(--warn);
 }
 .fc-time td.now {
-  color: var(--accent);
-}
-.now-tag {
-  display: block;
-  font-size: 0.625rem;
-  font-weight: 700;
-  text-transform: uppercase;
   color: var(--accent);
 }
 .fc-score {

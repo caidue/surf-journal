@@ -6,7 +6,7 @@ resource: "src/types.ts"
 tags: ["architecture", "schema"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T20:30:00+00:00"
+  at: "2026-11-16T11:30:00+00:00"
 ---
 # Data model
 
@@ -26,7 +26,9 @@ Defined in `src/types.ts`. Stored tables: `spots`, `sessions`, `forecasts`, `geo
 
 **ConditionsSeries** (cached forecast): `key` = `cell|start|end`, `lat`, `lon`, `timezone`, `utcOffsetSeconds`, `hours`, `days` (sunrise/sunset), `source`, `version`, `gridLat?`, `gridLon?` (MFWAM cell), `fetchedAt`, `stale?` (never stored).
 
-**Session**: `id`, `spotId`, `date`, `startMin`, `endMin`, `ratings` (category → 1–10, `fun` required), `conditions` (snapshot), `conditionsSource`, `conditionsVersion?`, `conditionsPending?`, `days?`, `fields` {board, wetsuit, crowd, waves, observedSize (body-scale id), vsForecast, feel}, `tags`, `notes`, `excluded`, `skillAtTime` {stage, comfort, max}, `demo?`, timestamps.
+**Session**: `id`, `spotId`, `date`, `startMin`, `endMin`, `ratings` (category → 1–10, `fun` required), `conditions` (snapshot), `conditionsSource`, `conditionsVersion?`, `conditionsPending?`, `days?`, `fields` {board, wetsuit, crowd, waves, observedSize (body-scale id), vsForecast, feel}, `tags`, `notes`, `excluded`, `tripId?`, `skillAtTime` {stage, comfort, max}, `demo?`, timestamps.
+
+**Trip** (a named folder of sessions: a vacation or time period): `id`, `name`, `from?` / `to?` (YYYY-MM-DD, inclusive, both or neither: sessions on those days that aren't in another trip join it when it's saved, and new sessions on those days start in it), timestamps. Deleting a trip removes `tripId` from its sessions.
 
 **Settings** (single row `id: 'settings'`): `profile: SkillProfile | null` (null → onboarding), `categories`, `halfLifeMonths`, `ignoreBefore`, `boards`, `heightUnit` (m/ft), `windUnit` (kmh/kn/mph), `lastQuery?`, `seedVersion?`.
 

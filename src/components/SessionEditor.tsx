@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { DayInfo, HourConditions, Session, SessionFields, Settings, SkillProfile, Spot } from '../types';
 import { CONDITIONS_VERSION } from '../types';
-import { db, saveSettings } from '../db';
+import { db, saveSettings, tripForDate } from '../db';
+import { useTrips } from '../hooks';
 import { fetchOne, isOfflineError } from '../lib/openMeteo';
 import { requestPersistence } from '../lib/pwa';
 import { syncPendingSessions } from '../lib/sync';
@@ -9,20 +10,16 @@ import { samplePoint } from '../lib/geo';
 import { deriveSeries, tideLabel, windKind, WIND_LABEL } from '../lib/conditions';
 import { rateSpot, reasonsText, SUIT_LABEL } from '../lib/rating';
 import { calibratedGain } from '../lib/recommend';
-import { bodyRange, DEFAULT_PROFILE, FEEL_OPTIONS, learnFromSession, OBSERVED_SIZES, sessionSize, snapshot } from '../lib/skill';
+import { bodyRange, DEFAULT_PROFILE, FEEL_OPTIONS, learnFromSession, nearestStep, OBSERVED_SIZES, sessionSize, snapshot } from '../lib/skill';
 import { fmtDate, fmtDuration, fmtMin, isoToMin, todayAt, uid } from '../lib/time';
 import { fmtSurfRange, fmtWind } from '../lib/format';
 import Timeline, { type HourScore, type Range } from './Timeline';
-import { ActionBar, Card, Chips, Segmented } from './ui';
+import { ActionBar, Card, Chips, Segmented, StepSlider } from './ui';
 import SpotPicker from './SpotPicker';
 
 const WETSUITS = ['Boardshorts', 'Shorty / top', '3/2', '4/3', '5/4+'].map((x) => ({ id: x, label: x }));
 const CROWD = ['Empty', 'Few', 'Moderate', 'Crowded', 'Packed'].map((x) => ({ id: x, label: x }));
 const VS_FORECAST = ['Worse', 'As forecast', 'Better'].map((x) => ({ id: x, label: x }));
-export const TAGS = ['Glassy', 'Choppy', 'Closeouts', 'Barrels', 'Long rides', 'Strong current', 'Crowded peak', 'Sea life', 'Progress made', 'New board', 'Injured'].map((x) => ({
-  id: x,
-  label: x,
-}));
 
 export default function SessionEditor({
   spots,
@@ -48,8 +45,14 @@ export default function SessionEditor({
   const [ratings, setRatings] = useState<Record<string, number | null>>(() => Object.fromEntries(settings.categories.map((c) => [c.id, existing?.ratings?.[c.id] ?? null])));
   const setRating = (id: string, v: number | null) => setRatings((r) => ({ ...r, [id]: v }));
   const [fields, setFields] = useState<SessionFields>(existing?.fields ?? {});
-  const [tags, setTags] = useState<string[]>(existing?.tags ?? []);
+  // Tags are no longer entered; an edited session keeps the ones it has.
+  const tags = existing?.tags ?? [];
   const [notes, setNotes] = useState(existing?.notes ?? '');
+  // Trip: kept for an existing session; a new one starts in the trip whose dates include its day
+  // (following the date until you pick a trip yourself).
+  const trips = useTrips();
+  const [tripPicked, setTripPicked] = useState<string | null>(existing ? existing.tripId ?? '' : null);
+  const tripId = tripPicked ?? tripForDate(trips, date)?.id ?? '';
   /** Your skill when the session was logged: kept with the session (weights it later). */
   const skillThen = existing?.skillAtTime ?? snapshot(settings.profile ?? DEFAULT_PROFILE);
   const profileThen: SkillProfile = { ...(settings.profile ?? DEFAULT_PROFILE), ...skillThen };
@@ -200,6 +203,7 @@ export default function SessionEditor({
       notes,
       // Relevance is set in the Journal (per session) or Settings (cut-off date), not here.
       excluded: existing?.excluded ?? false,
+      tripId: tripId && trips.some((t) => t.id === tripId) ? tripId : undefined,
       skillAtTime: skillThen,
       demo: existing?.demo,
       createdAt: existing?.createdAt ?? now,
@@ -248,6 +252,19 @@ export default function SessionEditor({
             Date
             <input type="date" value={date} max={today} min="2021-11-01" onChange={(e) => setDate(e.target.value)} />
           </label>
+          {trips.length > 0 && (
+            <label>
+              Trip
+              <select value={tripId} onChange={(e) => setTripPicked(e.target.value)}>
+                <option value="">No trip</option>
+                {trips.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
       </Card>
 
@@ -284,7 +301,6 @@ export default function SessionEditor({
           )}
           {conditions || (condState.error && !condState.loading) ? (
             <>
-              <p className="muted small">Drag across the chart to mark when you were in the water (drag the edges to adjust).</p>
               <Timeline
                 hours={conditions ?? []}
                 emptyText="Conditions are added when you're online"
@@ -355,12 +371,19 @@ export default function SessionEditor({
           <h4 className="subsection">Waves & conditions</h4>
           <div className="field first">
             <span>Wave size you actually saw</span>
-            <Chips small options={OBSERVED_SIZES.map((o) => ({ id: o.id, label: o.label }))} value={fields.observedSize} onChange={(v) => setFields({ ...fields, observedSize: v ?? undefined })} />
+            <StepSlider
+              label="Wave size you actually saw"
+              options={OBSERVED_SIZES}
+              value={fields.observedSize}
+              // Until you choose, the thumb rests on the forecast size for your time in the water.
+              start={summary?.hbMean != null ? OBSERVED_SIZES.findIndex((o) => o.id === nearestStep(summary.hbMean!).id) : undefined}
+              onChange={(v) => setFields({ ...fields, observedSize: v })}
+            />
             <span className="muted tiny">Face height. Calibrates this spot's surf-height estimate.</span>
           </div>
           <div className="field">
             <span>How did the size feel?</span>
-            <Chips small options={FEEL_OPTIONS} value={fields.feel} onChange={(v) => setFields({ ...fields, feel: v ?? undefined })} />
+            <StepSlider label="How did the size feel?" options={FEEL_OPTIONS} value={fields.feel} start={1} onChange={(v) => setFields({ ...fields, feel: v })} />
             <span className="muted tiny">Nudges your comfortable size in small steps; the app tells you what changed and lets you undo it.</span>
           </div>
           <div className="field">
@@ -387,14 +410,10 @@ export default function SessionEditor({
             <Chips small options={WETSUITS} value={fields.wetsuit} onChange={(v) => setFields({ ...fields, wetsuit: v ?? undefined })} />
           </div>
 
-          <h4 className="subsection">Crowd & vibe</h4>
+          <h4 className="subsection">Crowd</h4>
           <div className="field first">
             <span>Crowd</span>
             <Chips small options={CROWD} value={fields.crowd} onChange={(v) => setFields({ ...fields, crowd: v ?? undefined })} />
-          </div>
-          <div className="field">
-            <span>Tags</span>
-            <Chips small multi options={TAGS} value={tags} onChange={setTags} />
           </div>
 
           <h4 className="subsection">Notes</h4>

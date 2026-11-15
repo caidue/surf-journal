@@ -234,11 +234,16 @@ export function recommendSpotDay(
   date: string,
   today: string,
   nowMin: number | null,
+  /**
+   * history: false rates for someone else (the "Rate for" level): your sessions don't count as
+   * their history. Your sessions still calibrate the spot's size (that's about the spot).
+   */
+  opts: { history?: boolean } = {},
 ): SpotRec {
   const me = profile ?? DEFAULT_PROFILE;
   const { gain } = calibratedGain(spot, sessions);
   const derivedAll = deriveSeries(spot, hours, gain);
-  const history = buildHistory(spot, sessions, settings, today, gain);
+  const history = opts.history === false ? [] : buildHistory(spot, sessions, settings, today, gain);
   const [rise, set] = daylight(days, date);
   const recs: HourRec[] = [];
   hours.forEach((h, i) => {
@@ -309,11 +314,14 @@ export function recommendSpotDay(
 /* The suitability reasons are shown separately (ui.tsx → SuitReasons). */
 /* ------------------------------------------------------------------ */
 
-export function explain(r: HourRec, fmtSessionDate: (s: Session) => string): string[] {
+/** @param forLevel set when rating for another level ("Advanced"): your sessions are left out. */
+export function explain(r: HourRec, fmtSessionDate: (s: Session) => string, forLevel?: string): string[] {
   const out: string[] = [];
   const rated = r.pred.neighbours.filter((n) => n.y != null && !n.session.excluded);
   const used = rated.filter((n) => n.k >= 0.3 && n.w > 0.05);
-  if (used.length) {
+  if (forLevel) {
+    out.push(`Rated for a typical ${forLevel} surfer from the spot guide; your own sessions are left out.`);
+  } else if (used.length) {
     const avg = used.reduce((a, n) => a + n.y! * n.w, 0) / used.reduce((a, n) => a + n.w, 0);
     out.push(`${used.length} past session${used.length > 1 ? 's' : ''} here in similar conditions → you rated them ${avg.toFixed(1)}/10 fun on average.`);
     const c = used[0];

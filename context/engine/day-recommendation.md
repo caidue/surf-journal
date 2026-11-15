@@ -6,7 +6,7 @@ resource: "src/lib/recommend.ts"
 tags: ["engine", "recommendation"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-15T15:10:00+00:00"
+  at: "2026-11-16T12:30:00+00:00"
 ---
 # Day recommendation and best picks
 
@@ -22,4 +22,6 @@ generated:
 
 `TimingNotes` (ui.tsx) shows these under each pick (day mode) and on the spot's recommendation card (below the forecast table).
 
-**Best picks** (Explore): the top three spots by best-window score (Time filter "Any time"), by this hour's score ("Now") or by the chosen hour's score, with score > 0.5. Every pick shows the explanation (incl. "Local knowledge (sources agree): …" lines for rules that changed the hour) and suitability reasons.
+`recommendSpotDay(…, opts)`: `opts.history === false` rates for someone else (Rate for): no session history in the prediction (score = rule score, `sumW` 0); your sessions still calibrate the spot's size gain. `explain(r, fmt, forLevel)` then opens with "Rated for a typical <level> surfer …".
+
+**Ranked spot list** (Explore, which replaced the top-three best picks): every spot, by best-window score (Time filter "Any time"), by this hour's score ("Now") or by the chosen hour's score; spots not for you or without a rating at that hour follow. Every card shows the explanation (incl. "Local knowledge (sources agree): …" lines for rules that changed the hour) and suitability reasons.

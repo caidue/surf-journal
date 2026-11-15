@@ -13,13 +13,13 @@ sources:
     title: "Live app"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-16T10:00:00+00:00"
 ---
 # Surf Journal
 
 A local-first web app (installable PWA) for surfers in **northern Fuerteventura**, usable anywhere. It does three things:
 
-1. **Explore:** for a region, rank spots for *you* today, tomorrow or the day after (best picks, map, list, per-spot forecast). See [Explore](/features/explore.md).
+1. **Explore:** for a region, rank spots for *you* today, tomorrow or the day after (one ranked list of spots for you, map, per-spot forecast; filter by day and time). See [Explore](/features/explore.md).
 2. **Log sessions:** mark your time in the water on the day's real conditions, rate fun (and other categories), note size and how it felt. See [Session logging](/features/session-logging.md).
 3. **Learn from you:** recommendations blend a rule-based spot rating with your own ratings in similar past conditions. See [Personal prediction](/engine/personal-prediction.md).
 

@@ -1,7 +1,7 @@
 ---
 type: "Feature"
 title: "Hourly forecast table"
-description: "Surf-forecast-style hourly table: spot rating, For you, surf, swell trains, energy, wind, tide."
+description: "Surf-forecast-style hourly table: rating for you (or a chosen level), wave, swell trains, energy, wind, tide."
 resource: "src/components/ForecastTable.tsx"
 tags: ["feature", "forecast"]
 sources:
@@ -9,7 +9,7 @@ sources:
     id: "report"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-15T15:10:00+00:00"
+  at: "2026-11-16T13:20:00+00:00"
 ---
 # Hourly forecast table
 
@@ -17,11 +17,10 @@ Columns: daylight hours (one before sunrise to sunset), 50 px each, scrolled to 
 
 | Row | Content |
 |---|---|
-| Time | hour, "now" tag; on today a small marker at the top shows the current time to the minute, with a faint line down the table (updates every minute) |
-| Withheld hours | "?" in Spot and For you with the reason on hover (For you keeps ✕ when the spot isn't for you anyway) |
+| Time | hour (the current hour in the accent colour, no label); on today a small arrow at the top marks the current time to the minute, with a faint line down the table (updates every minute) |
+| Withheld hours | "?" in Rating with the reason on hover (✕ stays when the spot isn't for you anyway) |
 | Wind | mean of four models over the sea: arrow, average speed over the hour and, only when they are at least 15 km/h stronger, the gusts in small grey below (km/h, kn or mph; background by wind kind) (explained in the tooltip and legend; surf-forecast shows no gusts, Surfline lists them next to the wind); colour by kind; tooltip "15 km/h on average, gusts up to 23 km/h · cross-shore, from NE …" plus every model; "?" when they disagree by ≥ 45° |
-| **Spot** rating | the same score pill as For you, coloured by the word ladder; the tooltip gives the word (Poor … Epic) and what the wind costs ("5.8 without the wind") |
-| **For you** | predicted fun, ✕ when unsuitable; tooltip with status, best peak and reasons |
+| **Rating** ("for me", or "for advanced" etc. under Rate for on Explore) | the one rating row: predicted fun for you (your profile and sessions here) or for a typical surfer of the chosen level (your sessions left out); ✕ when unsuitable. The separate Spot rating row was removed (2026-11-16): the tooltip gives the status, best peak and reasons, then how good the waves are for anyone ("Waves fair–good (6.4/10, 7.5 without the wind)", the [spot rating](/engine/spot-rating.md)) |
 | **Wave** (m or ft) | one value per hour: the middle of the ±20 % estimate of the face height (e.g. 2.4; whole feet with ft), like surf-forecast's single "Height" number, above a slim breaking-wave figure (a back rising to a pointed peak with a small lip, then the face; 34 px wide, as tall as the surf: full height at 3 m, at least 6 px) coloured light blue → sky blue → blue → green (2.6 m+) (`waveColor`, `WaveFigure`; our own shape); the range and body words are in the tooltip |
 | Swell (▸ expandable) | strongest train: height, peak period, arrow; expands into Swell 1–3 by energy, Wind sea and Total sea (Hs · Tp, Te in the tooltip). Trains outside the swell window are greyed out |
 | Energy (kJ) | strongest train; tooltip: strongest and total |

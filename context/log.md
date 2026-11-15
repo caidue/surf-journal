@@ -1,5 +1,17 @@
 # Knowledge base log
 
+## 2026-11-16
+
+* **Update** of [Releases](/operations/releases.md): 1.6.0 committed, tagged `v1.6.0` and pushed.
+* **Update** of [Explore](/features/explore.md): badges under the conditions line, then peak, timing notes, reasons, explanation.
+* **Update** of [UI shell](/architecture/ui-shell.md): no page overscroll bounce; `StepSlider`.
+* **Update** of [Session logging](/features/session-logging.md) (step sliders for size seen and feel, tags input removed) and [Journal](/features/journal.md) (search placeholder).
+* **Update** of [Forecast table](/features/forecast-table.md) (one Rating row for me or the Rate-for level, Spot row removed, no "now" label), [Per-peak rating](/engine/per-peak-rating.md), [Session logging](/features/session-logging.md) (no help text above the chart).
+* **Creation** of [0021: Rate spots for another level](/decisions/0021-rate-for-another-level.md). **Update** of [Explore](/features/explore.md) (Rate for menu on the level chip), [Spot view](/features/spot-view.md), [Forecast table](/features/forecast-table.md) ("For Advanced" row), [Day recommendation](/engine/day-recommendation.md) (`opts.history`, `explain(…, forLevel)`), [Testing](/operations/testing.md), [Releases](/operations/releases.md).
+* **Creation** of [0020: Trips](/decisions/0020-trips.md). **Update** of [Journal](/features/journal.md) (trip chips, trip header, trip form), [Session logging](/features/session-logging.md) (Trip select), [Storage](/architecture/storage.md) (version 4, trips table, backup), [Data model](/architecture/data-model.md) (Trip, `tripId`), [Code map](/architecture/code-map.md), [Testing](/operations/testing.md) (trips.test.ts), [Releases](/operations/releases.md).
+* **Update** of [Explore](/features/explore.md) (one ranked list of spots for you instead of Best picks plus a list), [Day recommendation](/engine/day-recommendation.md), [How sure a rating is](/engine/confidence.md), [Maps](/architecture/maps.md) (markers follow the filters), [Product overview](/product/overview.md), [Releases](/operations/releases.md) (1.6.0).
+* **Update** of [Explore](/features/explore.md): one filter panel (area and level, day and time in matching controls), softer level chip, quieter list heading.
+
 ## 2026-11-15
 
 * **Update** of [Releases](/operations/releases.md): 1.5.0 committed, tagged `v1.5.0` and pushed.

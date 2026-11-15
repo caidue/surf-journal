@@ -8,7 +8,7 @@ import { bodyRange, learnFromSession, profileForStage, profileSummary, snapshot,
 import { RETIRED_SPOTS, SEED_SPOTS } from '../data/seedSpots';
 import { SPOT_RULES } from '../data/spotRules';
 import { distance, kernel, SIMILAR_MIN_K } from './similarity';
-import { calibratedGain, predict, buildHistory, recommendSpotDay, sessionWeight, insights, ratingFor, sessionOverall } from './recommend';
+import { calibratedGain, explain, predict, buildHistory, recommendSpotDay, sessionWeight, insights, ratingFor, sessionOverall } from './recommend';
 import { parseRegionQuery, subBox } from './geocode';
 import { monthRanges } from './format';
 import { DEFAULT_SETTINGS, withCurrentCategories } from '../db';
@@ -555,6 +555,18 @@ describe('similarity & prediction', () => {
     expect(late.dayOver).toBe(true);
     expect(late.best).toBeNull();
     expect(late.now?.time).toBe('2026-03-01T20:00');
+  });
+
+  it('rating for another level leaves your sessions out and says so', () => {
+    const hours = day('2026-03-01');
+    const days = [{ date: '2026-03-01', sunrise: '2026-03-01T07:30', sunset: '2026-03-01T19:00' }];
+    const mine = [session('2026-02-01', 9), session('2026-02-10', 9)];
+    const me = recommendSpotDay(spot, hours, days, mine, settings, settings.profile, '2026-03-01', '2026-03-01', null);
+    expect(me.best!.pred.sumW).toBeGreaterThan(0.5);
+    const friend = recommendSpotDay(spot, hours, days, mine, settings, profileForStage(6), '2026-03-01', '2026-03-01', null, { history: false });
+    expect(friend.best!.pred.sumW).toBe(0);
+    expect(friend.best!.score).toBeCloseTo(friend.best!.rule, 5);
+    expect(explain(friend.best!, (s) => s.date, 'Advanced')[0]).toMatch(/typical Advanced surfer.*your own sessions are left out/);
   });
 
   it('tide insight: average rating per tide stage, with your average at the spot as reference', () => {

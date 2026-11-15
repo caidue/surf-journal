@@ -21,6 +21,8 @@ Accepted decisions (numbered) and pending ones.
 * [0017: Local knowledge as sourced rules](0017-local-knowledge-rules.md) - Per-spot local rules with sources and confidence; conflicting sources never become a hard preference.
 * [0018: Rules engine with confidence-limited effects, size fit and no cliffs](0018-rules-engine.md) - Executable local rules change the rating within limits set by how well their sources agree; small waves count less for progressing surfers; no 0-score cliffs.
 * [0019: Grade how sure each rating is; withhold where guessing is dangerous](0019-rating-confidence.md) - Ratings carry Reliable / Less certain / Rough guide from local knowledge, model agreement and your sessions; no rating for undocumented expert reefs at low tide.
+* [0020: Trips as named folders of sessions](0020-trips.md) - Group journal sessions into named trips with optional dates; one trip per session.
+* [0021: Rate spots for another level](0021-rate-for-another-level.md) - A temporary Rate-for switch rates spots for a typical surfer of any level, without your sessions.
 
 # Pending decisions
 

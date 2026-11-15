@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session, Settings, Spot } from '../types';
-import { useConditions } from '../hooks';
+import { useConditions, useRating } from '../hooks';
 import { tideExtremes, windKind, WIND_LABEL, type WindKind } from '../lib/conditions';
 import { buildHistory, calibratedGain, explain, insights, matchSession, recommendSpotDay, sessionOverall } from '../lib/recommend';
 import { KNOWLEDGE_LABEL, spotKnowledge } from '../lib/confidence';
@@ -86,11 +86,14 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
     return k ? nearby.filter((s) => s.id !== spot.id && gridKey(bySpot.get(s.id)) === k).map((s) => s.name) : [];
   }, [series, nearby, bySpot, spot.id]);
 
+  // Rated for you, or for the level chosen under "Rate for" on Explore (a friend).
+  const rating = useRating(settings);
+  const who = rating.forLevel ?? 'you';
   const rec = useMemo(() => {
     if (!series) return null;
     const nowMin = dayOffset === 0 ? nowMinutesAt(series.utcOffsetSeconds) : null;
-    return recommendSpotDay(spot, series.hours, series.days, sessions, settings, settings.profile, date, today, nowMin);
-  }, [series, spot, sessions, settings, date, today, dayOffset]);
+    return recommendSpotDay(spot, series.hours, series.days, sessions, settings, rating.profile, date, today, nowMin, { history: rating.history });
+  }, [series, spot, sessions, settings, date, today, dayOffset, rating]);
   const tides = useMemo(() => (series ? tideExtremes(series.hours, date) : []), [series, date]);
 
   const mySessions = useMemo(() => sessions.filter((s) => s.spotId === spot.id), [sessions, spot.id]);
@@ -155,7 +158,7 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
           {!!spot.aliases?.length && <div className="muted tiny">Also called {spot.aliases.join(', ')}</div>}
         </div>
         <div className="row gap">
-          {best && <ScoreBadge score={best.score} size="lg" title={`Best predicted score for you ${dayWord}`} />}
+          {best && <ScoreBadge score={best.score} size="lg" title={`Best predicted score for ${who} ${dayWord}`} />}
           {headerActions}
         </div>
       </header>
@@ -192,6 +195,7 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                   tides={tides}
                   gridMates={gridMates}
                   focusMin={dayOffset === initialDay ? focusMin : undefined}
+                  forLevel={rating.forLevel}
                 />
               ) : (
                 <p className="muted">{loading ? 'Loading forecast…' : 'No forecast available for this spot.'}</p>
@@ -199,13 +203,13 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
               {best && (
               <div className="sheet-best">
                 <div className="row gap wrap">
-                  <SuitBadge status={best.suit.status} />
+                  <SuitBadge status={best.suit.status} who={rating.forLevel} />
                   {goodWindow ? (
                     <strong>
                       Best {fmtMin(rec!.bestWindow![0])}–{fmtMin(rec!.bestWindow![1])}
                     </strong>
                   ) : (
-                    <strong>Not much for you {dayWord}</strong>
+                    <strong>Not much for {who} {dayWord}</strong>
                   )}
                   <span className="small">
                     {fmtSurf(best.derived.hb, settings.heightUnit)} · {best.derived.tDom ? `${Math.round(best.derived.tDom)} s · ` : ''}
@@ -215,13 +219,13 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                 </div>
                 {best.peak && (
                   <div className="peak-pick">
-                    Best for you: <strong>{best.peak.name}</strong>
+                    Best for {who}: <strong>{best.peak.name}</strong>
                   </div>
                 )}
                 {rec && <TimingNotes rec={rec} />}
-                <SuitReasons suit={best.suit} />
+                <SuitReasons suit={best.suit} own={!rating.forLevel} />
                 <ul className="explain">
-                  {explain(best, (s) => fmtDate(s.date)).map((l) => (
+                  {explain(best, (s) => fmtDate(s.date), rating.forLevel).map((l) => (
                     <li key={l}>{l}</li>
                   ))}
                 </ul>

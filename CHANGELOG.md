@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.6.0 — 2026-11-16
+
+- Spot cards on Explore: the suitability and confidence badges sit right under the conditions, before the notes and reasons, instead of between two lists.
+- **No more bouncing page:** scrolling stops at the top and bottom instead of dragging the whole page (header included) and snapping back.
+- Logging a session: **wave size you saw** and **how the size felt** are sliders now (the size slider starts at the forecast size); the Tags input is gone.
+- **One rating row in the forecast:** "Rating · for me" (or "for advanced" etc. when rating for someone else) replaces the Spot rating and For you rows; hover a score for how good the waves are for anyone and what the wind costs. The "now" label under the current hour is gone (the arrow stays).
+- Logging a session: the help text above the chart is gone; the hint inside the empty chart stays.
+- **Rate for someone else:** tap your level on Explore to rate the spots for any level, e.g. a friend who surfs better. The list, the map and the spot forecasts then rate for a typical surfer of that level without your sessions; the chip shows "Rating for Advanced" with an × to switch back, and reopening the app rates for you again.
+- **Trips in the journal:** group your sessions of a vacation or time period in named trips. Chips above the journal switch between all sessions, one trip (with its own stats) and the sessions not in a trip. Give a trip dates and the sessions on those days join it; new sessions on those days start in it. Pick or change a session's trip when you log or edit it.
+- **Explore is one ranked list of spots for you.** The separate Best picks section is gone: every spot now shows what the picks did (when to go or the chosen hour, surf, wind, tide, best peak, timing notes, why, suitability and confidence), ranked for the Day and Time filters. Spots that aren't for you then come last.
+- The score on every card and on the map markers is always your predicted fun for the chosen day and time.
+- **One filter panel** above the list: area and your level on top, day and time below in matching controls (the time with a clock, highlighted once set). Your level is a smaller, softer chip.
+
 ## 1.5.0 — 2026-11-15
 
 - **Time filter on Explore**, next to the day: Any time (the default: each spot's best window), Now, or an hour of that day. Best picks and the spot list follow it, so the Today / Now / At… switch inside Best picks is gone.
