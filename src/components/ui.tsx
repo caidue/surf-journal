@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { scoreColor, SUIT_COLOR, SUIT_LABEL, type Suit, type Suitability } from '../lib/rating';
-import type { SpotRec } from '../lib/recommend';
+import { explain, type HourRec, type SpotRec } from '../lib/recommend';
 import { SURE_LABEL, type Sureness } from '../lib/confidence';
-import { fmtMin } from '../lib/time';
+import { fmtDate, fmtMin } from '../lib/time';
 import type { Settings } from '../types';
 import { windKind, WIND_LABEL, type Derived } from '../lib/conditions';
 import { fmtSurfRange, fmtWind } from '../lib/format';
@@ -296,12 +296,43 @@ export function CondBadges({ d, settings }: { d: Derived; settings: Settings }) 
   );
 }
 
-/** The footer line under a recommendation: how sure the app is about this rating, and why. */
+/** The footer line under a recommendation: how sure the app is about this rating (reasons on hover). */
 export function SureLine({ sure }: { sure: Sureness }) {
   return (
     <div className="sure-line">
-      <span className="muted">Confidence in this rating:</span> <SureBadge sure={sure} />{' '}
-      <span className="muted">{sure.withheld ? sure.withheld : `${sure.reasons.join(', ')}.`.replace(/^./, (c) => c.toUpperCase())}</span>
+      <span className="muted">Confidence in this rating:</span> <SureBadge sure={sure} />
     </div>
+  );
+}
+
+/**
+ * Everything under a recommendation's conditions, shared by Explore's spot cards and the spot's
+ * recommendation card: timing warnings ("!"), suitability reasons (✓ / − / ✕), then one bullet
+ * list: the best peak, "other times are about as good" on an even day, the explanation; and the
+ * confidence footer. The score already says how good it is, so there's no suitability badge.
+ * @param timing the hour is the day's best window (not Now or a chosen time): show timing notes
+ */
+export function PickDetails({ rec, hour, who, forLevel, timing, dayWord }: { rec: SpotRec; hour: HourRec; who: string; forLevel?: string; timing: boolean; dayWord: string }) {
+  const lines = explain(hour, (s) => fmtDate(s.date), forLevel);
+  const even = timing && rec.evenDay && hour.score > 0.5;
+  return (
+    <>
+      {timing && <TimingNotes rec={rec} showEven={false} />}
+      <SuitReasons suit={hour.suit} own={!forLevel} />
+      {(hour.peak || even || lines.length > 0) && (
+        <ul className="explain">
+          {hour.peak && (
+            <li>
+              Best for {who}: <strong>{hour.peak.name}</strong>
+            </li>
+          )}
+          {even && <li>Other times {dayWord} are about as good (within half a point).</li>}
+          {lines.map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
+      )}
+      <SureLine sure={hour.sure} />
+    </>
   );
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.3 — 2026-11-16
+
+- **Journal:** the title shows the trip filter ("All sessions" or the trip's name); logging is a round **+** button that starts the session in the selected trip. The text search is gone, and the spot filter and "hide not relevant" share one row.
+
+## 1.6.2 — 2026-11-16
+
+- Spot cards are calmer: no "Good for you" / "OK for you" badge (the score says it), the best peak is a bullet point, and the confidence footer shows just the badge (reasons on hover).
+- **The recommended window is back on even days**, with a bullet "Other times today are about as good (within half a point)" instead of "Go any time".
+- The "No logged sessions here yet" line is gone.
+
 ## 1.6.1 — 2026-11-16
 
 - **Spot cards read at a glance:** "Go 07:19–09:00 · tide mid, falling", then the conditions as badges: wave height (wave icon), swell period and direction (swell icon), wind speed and direction on the forecast's wind colours. The suitability badge has the best peak next to it.

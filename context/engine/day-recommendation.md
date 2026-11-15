@@ -6,7 +6,7 @@ resource: "src/lib/recommend.ts"
 tags: ["engine", "recommendation"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T16:00:00+00:00"
+  at: "2026-11-16T17:00:00+00:00"
 ---
 # Day recommendation and best picks
 
@@ -16,7 +16,7 @@ generated:
 * **best window** = the best single or two consecutive upcoming daylight hours (average score), clipped to daylight;
 * `now` = the current hour when looking at today; `dayOver` when no daylight is left (Explore then jumps to tomorrow once);
 * `windTurn`: the first hour within 3 h after the window starts where the wind factor drops below 0.5 (and by more than 0.15) → "The wind turns onshore around 13:00: go early.";
-* `evenDay`: the best window beats the median of the other windows by less than 0.5 → the cards say "Go any time" instead of a window (and no tide); `TimingNotes` only writes "Fairly even day" where `showEven` is left on;
+* `evenDay`: the best window beats the median of the other windows by less than 0.5 → the cards keep the window and add the bullet "Other times today are about as good (within half a point)" (`PickDetails`); `TimingNotes` only writes "Fairly even day" where `showEven` is left on;
 * `sure` on every hour ([How sure a rating is](/engine/confidence.md)): Reliable / Less certain / Rough guide, or `withheld` (score 0, never a best window);
 * `windUnsure`: the wind models disagree by ≥ 45° at the best hour → "check the wind before you go".
 

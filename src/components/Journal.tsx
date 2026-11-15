@@ -62,7 +62,6 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
   /** The new/rename trip form: null = closed, 'new' or the trip being renamed. */
   const [editing, setEditing] = useState<'new' | Trip | null>(null);
   const [spotFilter, setSpotFilter] = useState('');
-  const [text, setText] = useState('');
   const [hideExcluded, setHideExcluded] = useState(false);
   const [page, setPage] = useState(0);
   const spotById = useMemo(() => new Map(spots.map((s) => [s.id, s])), [spots]);
@@ -71,19 +70,19 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
   const inTrip = (s: Session) => (tripFilter === '' ? true : tripFilter === 'none' ? !s.tripId || !tripById.has(s.tripId) : s.tripId === tripFilter);
   // The trip's (or all) sessions: the stats and the spot filter follow the selected trip.
   const scope = useMemo(() => sessions.filter(inTrip), [sessions, tripFilter, tripById]); // eslint-disable-line react-hooks/exhaustive-deps
-  const list = useMemo(() => {
-    const t = text.trim().toLowerCase();
-    return scope
-      .filter((s) => !spotFilter || s.spotId === spotFilter)
-      .filter((s) => !hideExcluded || !s.excluded)
-      .filter((s) => !t || `${s.notes} ${s.tags.join(' ')} ${s.fields.board ?? ''} ${spotById.get(s.spotId)?.name ?? ''}`.toLowerCase().includes(t))
-      .sort((a, b) => (b.date + String(b.startMin).padStart(4, '0')).localeCompare(a.date + String(a.startMin).padStart(4, '0')));
-  }, [scope, spotFilter, hideExcluded, text, spotById]);
+  const list = useMemo(
+    () =>
+      scope
+        .filter((s) => !spotFilter || s.spotId === spotFilter)
+        .filter((s) => !hideExcluded || !s.excluded)
+        .sort((a, b) => (b.date + String(b.startMin).padStart(4, '0')).localeCompare(a.date + String(a.startMin).padStart(4, '0'))),
+    [scope, spotFilter, hideExcluded],
+  );
 
   // 10 sessions per page, newest first; back to the first page whenever the filters change.
   const PAGE = 10;
   const pages = Math.max(1, Math.ceil(list.length / PAGE));
-  useEffect(() => setPage(0), [spotFilter, hideExcluded, text, tripFilter]);
+  useEffect(() => setPage(0), [spotFilter, hideExcluded, tripFilter]);
   const current = Math.min(page, pages - 1);
   const shown = list.slice(current * PAGE, current * PAGE + PAGE);
   const goPage = (p: number) => {
@@ -113,10 +112,16 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
 
   return (
     <div className="page">
+      {/* The title is what the trip filter shows; "+" logs a session (into the selected trip). */}
       <div className="page-head">
-        <h1>Journal</h1>
-        <button className="btn primary" onClick={() => go('log')}>
-          + Log a session
+        <h1>{trip ? trip.name : tripFilter === 'none' ? 'Not in a trip' : 'All sessions'}</h1>
+        <button
+          className="btn primary icon-btn"
+          onClick={() => go(trip ? `log?trip=${encodeURIComponent(trip.id)}` : 'log')}
+          aria-label={trip ? `Log a session in ${trip.name}` : 'Log a session'}
+          title={trip ? `Log a session in ${trip.name}` : 'Log a session'}
+        >
+          <Icon name="plus" size={22} />
         </button>
       </div>
 
@@ -152,7 +157,6 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
       {trip && editing === null && (
         <div className="trip-head">
           <div>
-            <h2>{trip.name}</h2>
             <div className="small muted">
               {[tripSpan(trip, scope), `${scope.length} session${scope.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
               {trip.from && trip.to ? ' · sessions on these days join automatically' : ''}
@@ -206,7 +210,6 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
               </option>
             ))}
           </select>
-          <input type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search notes, boards…" aria-label="Search sessions" />
           <label className="check small">
             <input type="checkbox" checked={hideExcluded} onChange={(e) => setHideExcluded(e.target.checked)} /> hide not relevant
           </label>

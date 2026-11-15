@@ -4,7 +4,7 @@ import { saveSettings } from '../db';
 import { setRateFor, useConditions, useMediaQuery, useRating } from '../hooks';
 import { bboxAround, bboxOf, inBBox, type BBox } from '../lib/geo';
 import { geocode, parseRegionQuery, PART_LABEL, subBox } from '../lib/geocode';
-import { buildHistory, explain, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec } from '../lib/recommend';
+import { buildHistory, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec } from '../lib/recommend';
 import { scoreColor } from '../lib/rating';
 import { bodyWord, levelName, stageBand, STAGES } from '../lib/skill';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
@@ -15,7 +15,7 @@ import MapView, { type MapMarker } from './MapView';
 import SpotSheet from './SpotSheet';
 import SpotThumb from './SpotThumb';
 import { Icon } from './icons';
-import { Card, CondBadges, ConditionsStatus, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons, SureLine, TimingNotes } from './ui';
+import { Card, CondBadges, ConditionsStatus, Empty, PickDetails, ScoreBadge, Segmented } from './ui';
 
 interface Region {
   label: string;
@@ -425,8 +425,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                   />
                   {rec && hour ? (
                     <>
-                      {/* When, then the tide; the conditions of that hour as badges. On a fairly even
-                          day no time stands out, so it says "Go any time" instead of a window. */}
+                      {/* When, then the tide; the conditions of that hour as badges; then the details. */}
                       <div className="go-line">
                         {mode === 'now' ? (
                           <span className="muted">Now</span>
@@ -434,10 +433,6 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                           <>
                             <span className="muted">At</span> <strong>{fmtMin(time ?? 0)}</strong>
                           </>
-                        ) : rec.evenDay && hour.score > 0.5 ? (
-                          <span title={`No time clearly stands out today: every daylight hour is within half a point of the best (${fmtMin(isoToMin(hour.time) ?? 0)}).`}>
-                            <span className="muted">Go</span> <strong>any time</strong>
-                          </span>
                         ) : rec.bestWindow && hour.score > 0.5 ? (
                           <>
                             <span className="muted">Go</span>{' '}
@@ -450,27 +445,10 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                             <span className="muted">Best at</span> <strong>{fmtMin(isoToMin(hour.time) ?? 0)}</strong>
                           </>
                         )}
-                        {!(mode === 'day' && rec.evenDay && hour.score > 0.5) && hour.derived.tideNorm != null && (
-                          <span className="go-tide"> · tide {tideLabel(hour.derived.tideNorm, hour.derived.tideTrend)}</span>
-                        )}
+                        {hour.derived.tideNorm != null && <span className="go-tide"> · tide {tideLabel(hour.derived.tideNorm, hour.derived.tideTrend)}</span>}
                       </div>
                       <CondBadges d={hour.derived} settings={settings} />
-                      <div className="suit-line">
-                        <SuitBadge status={hour.suit.status} who={rating.forLevel} />
-                        {hour.peak && (
-                          <span className="peak-pick">
-                            Best for {who}: <strong>{hour.peak.name}</strong>
-                          </span>
-                        )}
-                      </div>
-                      {mode === 'day' && <TimingNotes rec={rec} showEven={false} />}
-                      <SuitReasons suit={hour.suit} own={!rating.forLevel} />
-                      <ul className="explain">
-                        {explain(hour, (s) => fmtDate(s.date), rating.forLevel).map((l) => (
-                          <li key={l}>{l}</li>
-                        ))}
-                      </ul>
-                      <SureLine sure={hour.sure} />
+                      <PickDetails rec={rec} hour={hour} who={who} forLevel={rating.forLevel} timing={mode === 'day'} dayWord={dayWord} />
                     </>
                   ) : (
                     <div className="muted small cond-line">

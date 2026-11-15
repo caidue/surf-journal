@@ -48,7 +48,7 @@ export default function App() {
   // First launch: the few questions about your surfing come before anything else.
   else if (!settings.profile) body = <Onboarding settings={settings} go={go} first />;
   else if (page === 'surfing') body = <Onboarding key={queryParam('step') ?? 'all'} settings={settings} go={go} first={false} startAt={queryParam('step')} />;
-  else if (page === 'log') body = <SessionEditor key={`new-${queryParam('spot')}`} spots={spots} sessions={sessions} settings={settings} preset={{ spotId: queryParam('spot'), date: queryParam('date') }} go={go} />;
+  else if (page === 'log') body = <SessionEditor key={`new-${queryParam('spot')}-${queryParam('trip')}`} spots={spots} sessions={sessions} settings={settings} preset={{ spotId: queryParam('spot'), date: queryParam('date'), tripId: queryParam('trip') }} go={go} />;
   else if (page === 'session') {
     const s = sessions.find((x) => x.id === route[1]);
     body = s ? <SessionEditor key={s.id} id={s.id} spots={spots} sessions={sessions} settings={settings} go={go} /> : <Empty>Session not found.</Empty>;

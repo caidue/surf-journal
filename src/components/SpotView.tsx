@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session, Settings, Spot } from '../types';
 import { useConditions, useRating } from '../hooks';
 import { tideExtremes, tideLabel, WIND_LABEL, type WindKind } from '../lib/conditions';
-import { buildHistory, calibratedGain, explain, insights, matchSession, recommendSpotDay, sessionOverall } from '../lib/recommend';
+import { buildHistory, calibratedGain, insights, matchSession, recommendSpotDay, sessionOverall } from '../lib/recommend';
 import { KNOWLEDGE_LABEL, spotKnowledge } from '../lib/confidence';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
 import { compass, haversineKm } from '../lib/geo';
@@ -14,7 +14,7 @@ import { Icon, type IconName } from './icons';
 import MapView from './MapView';
 import SpotGuide from './SpotGuide';
 import { sessionSummary } from './Journal';
-import { CondBadges, ConditionsStatus, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons, SureLine, TimingNotes } from './ui';
+import { CondBadges, ConditionsStatus, Empty, PickDetails, ScoreBadge, Segmented } from './ui';
 
 export type SpotTab = 'forecast' | 'guide' | 'sessions' | 'info';
 const TAB_KEY = 'surf-journal.spotTab';
@@ -202,43 +202,22 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
               {best && (
               <div className="sheet-best">
                 {/* Same layout as the spot cards on Explore: when (and the tide), the conditions as
-                    badges, suitability with the best peak, the lists, and the confidence footer. */}
+                    badges, then the shared details (timing, reasons, bullets, confidence). */}
                 <div className="go-line">
-                  {!goodWindow ? (
-                    <strong>Not much for {who} {dayWord}</strong>
-                  ) : rec!.evenDay ? (
-                    <span title="No time clearly stands out: every daylight hour is within half a point of the best.">
-                      <span className="muted">Go</span> <strong>any time {dayWord}</strong>
-                    </span>
-                  ) : (
+                  {goodWindow ? (
                     <>
                       <span className="muted">Go</span>{' '}
                       <strong>
                         {fmtMin(rec!.bestWindow![0])}–{fmtMin(rec!.bestWindow![1])}
                       </strong>
                     </>
+                  ) : (
+                    <strong>Not much for {who} {dayWord}</strong>
                   )}
-                  {!(goodWindow && rec!.evenDay) && best.derived.tideNorm != null && (
-                    <span className="go-tide"> · tide {tideLabel(best.derived.tideNorm, best.derived.tideTrend)}</span>
-                  )}
+                  {best.derived.tideNorm != null && <span className="go-tide"> · tide {tideLabel(best.derived.tideNorm, best.derived.tideTrend)}</span>}
                 </div>
                 <CondBadges d={best.derived} settings={settings} />
-                <div className="suit-line">
-                  <SuitBadge status={best.suit.status} who={rating.forLevel} />
-                  {best.peak && (
-                    <span className="peak-pick">
-                      Best for {who}: <strong>{best.peak.name}</strong>
-                    </span>
-                  )}
-                </div>
-                {rec && <TimingNotes rec={rec} showEven={false} />}
-                <SuitReasons suit={best.suit} own={!rating.forLevel} />
-                <ul className="explain">
-                  {explain(best, (s) => fmtDate(s.date), rating.forLevel).map((l) => (
-                    <li key={l}>{l}</li>
-                  ))}
-                </ul>
-                <SureLine sure={best.sure} />
+                {rec && <PickDetails rec={rec} hour={best} who={who} forLevel={rating.forLevel} timing={goodWindow} dayWord={dayWord} />}
               </div>
               )}
               {tides.length > 0 && (

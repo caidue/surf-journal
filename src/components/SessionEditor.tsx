@@ -33,7 +33,7 @@ export default function SessionEditor({
   sessions: Session[];
   settings: Settings;
   id?: string;
-  preset?: { spotId?: string | null; date?: string | null };
+  preset?: { spotId?: string | null; date?: string | null; tripId?: string | null };
   go: (p: string) => void;
 }) {
   const existing = id ? sessions.find((s) => s.id === id) : undefined;
@@ -51,7 +51,8 @@ export default function SessionEditor({
   // Trip: kept for an existing session; a new one starts in the trip whose dates include its day
   // (following the date until you pick a trip yourself).
   const trips = useTrips();
-  const [tripPicked, setTripPicked] = useState<string | null>(existing ? existing.tripId ?? '' : null);
+  // Logging from a trip in the journal ("+" with a trip selected) starts in that trip.
+  const [tripPicked, setTripPicked] = useState<string | null>(existing ? existing.tripId ?? '' : preset?.tripId ?? null);
   const tripId = tripPicked ?? tripForDate(trips, date)?.id ?? '';
   /** Your skill when the session was logged: kept with the session (weights it later). */
   const skillThen = existing?.skillAtTime ?? snapshot(settings.profile ?? DEFAULT_PROFILE);

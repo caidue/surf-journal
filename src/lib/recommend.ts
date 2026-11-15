@@ -334,9 +334,8 @@ export function explain(r: HourRec, fmtSessionDate: (s: Session) => string, forL
     out.push(
       `Your closest session here (${fmtSessionDate(c.session)}, ${Math.round(c.k * 100)}% similar${c.differs ? `, differs mainly in ${c.differs}` : ''}) is too different to count much: the score is mostly the spot guide and your surfing profile.`,
     );
-  } else {
-    out.push('No logged sessions here yet: the score comes from the spot guide and your surfing profile.');
   }
+  // No sessions here yet: nothing to say (the score then comes from the spot guide and your profile).
   // Local knowledge that changed this hour (lib/rules.ts), most certain first.
   const conf = { high: 0, medium: 1, low: 2 } as const;
   const word = { high: 'sources agree', medium: 'some support', low: 'sources disagree' } as const;

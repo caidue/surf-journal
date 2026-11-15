@@ -6,12 +6,12 @@ resource: "src/components/SessionEditor.tsx"
 tags: ["feature", "journal", "session"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T14:00:00+00:00"
+  at: "2026-11-16T17:40:00+00:00"
 ---
 # Session logging
 
 `SessionEditor` (`#/log`, `#/session/:id`):
-1. **Spot** (searchable picker, aliases included, see `SpotPicker.tsx`), **date** (from 2021-11-01) and, once you have trips, **Trip** (No trip or one of them; a new session starts in the trip whose dates include its day and follows the date until you pick one; an existing session keeps its trip).
+1. **Spot** (searchable picker, aliases included, see `SpotPicker.tsx`), **date** (from 2021-11-01) and, once you have trips, **Trip** (No trip or one of them; a new session starts in the trip it was logged from (journal "+" with a trip selected, `?trip=`), else in the trip whose dates include its day, following the date until you pick one; an existing session keeps its trip).
 2. **"When were you at {spot} on {day}?"** The day's conditions load automatically ([Open-Meteo](/data-sources/open-meteo-marine.md)); drag across the [timeline](/features/timeline.md) to mark your time (tap = 90 min; the only hint is inside the empty chart, no help text above it). Zoom: Session / Daylight / Full day. A summary line shows time, surf range with body words, peak period, wind and tide.
 3. **How was it?** One 1–10 slider per category (Fun required; Exertion, Confidence by default; own categories in Settings).
 4. **Details:** Waves & conditions (wave size you saw on the [body scale](/domain/body-scale.md) and **How did the size feel?**, both as step sliders (`StepSlider`, ui.tsx: the chosen step above the slider, the two ends below, "Not set" with a faded thumb until touched, "clear" to unset; the size slider rests on the forecast size of your time in the water, the feel slider on Comfortable), vs forecast, waves caught), Gear (board, wetsuit), Crowd, Notes. There is no tags input any more (removed 2026-11-16); an edited session keeps the tags it has, and the journal still shows and searches them.

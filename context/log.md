@@ -2,6 +2,9 @@
 
 ## 2026-11-16
 
+* **Update** of [Releases](/operations/releases.md): 1.6.2 and 1.6.3 committed together, tagged `v1.6.3` and pushed.
+* **Update** of [Journal](/features/journal.md) (title from the trip filter, + button, no search, one filter row), [Session logging](/features/session-logging.md) (`?trip=` pre-fill), [Releases](/operations/releases.md) (1.6.3).
+* **Update** of [Explore](/features/explore.md), [Spot view](/features/spot-view.md), [Day recommendation](/engine/day-recommendation.md), [How sure a rating is](/engine/confidence.md), [UI shell](/architecture/ui-shell.md) (`PickDetails`), [Releases](/operations/releases.md) (1.6.2): no suitability badge, peak and even day as bullets, no "No logged sessions" line.
 * **Update** of [Releases](/operations/releases.md): 1.6.1 committed, tagged `v1.6.1` and pushed.
 * **Update** of [Explore](/features/explore.md) and [Spot view](/features/spot-view.md) (card layout: go line with tide, condition badges, suitability with peak, confidence footer), [Day recommendation](/engine/day-recommendation.md) (Go any time on even days), [How sure a rating is](/engine/confidence.md), [UI shell](/architecture/ui-shell.md), [Releases](/operations/releases.md) (1.6.1).
 * **Update** of [Releases](/operations/releases.md): 1.6.0 committed, tagged `v1.6.0` and pushed.
