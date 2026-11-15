@@ -1022,15 +1022,13 @@ label.field,
   font-weight: 700;
 }
 /* "Go early: the wind turns onshore around 13:00", "the models disagree", "fairly even day". */
+/* Timing warnings ("the wind turns onshore around 13:00", "models disagree"): the same warning
+   triangle and text colour as the other points against the hour. */
 .timing-notes {
   margin: var(--sp-2) 0;
   padding: 0;
   list-style: none;
   font-size: var(--fs-sm);
-  color: var(--warn);
-}
-.timing-notes li::before {
-  content: '!';
 }
 .spot-item .explain {
   margin-bottom: 0;
@@ -1124,12 +1122,19 @@ label.field,
   color: var(--ink);
 }
 .explain li::before {
-  content: '›';
+  content: '•';
 }
-/* "Held back by …" counts against the spot: a minus like the reasons; lines about your past
-   sessions get a small journal icon instead of the bullet. */
-.explain li.x-against::before {
-  content: '−';
+/* What counts against the hour ("Held back by …" and the reasons against) gets a small warning
+   triangle in the text colour; lines about your past sessions a small journal icon. */
+.explain li.x-against::before,
+.suit-reasons li:not(.plus):not(.s-unsuitable)::before,
+.timing-notes li::before {
+  content: '';
+  top: 0.18em;
+  height: 1.05em;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 2.5 20h19z'/%3E%3Cpath d='M12 10v4.5M12 17.4v.1'/%3E%3C/svg%3E") center / 0.95em no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 2.5 20h19z'/%3E%3Cpath d='M12 10v4.5M12 17.4v.1'/%3E%3C/svg%3E") center / 0.95em no-repeat;
 }
 .explain li.x-history::before {
   content: none;
@@ -2287,11 +2292,11 @@ td.fc-swell.with-waves {
   transform: translateX(calc(-50% + var(--dx))) scaleX(var(--flip));
 }
 .fc-wave.n2 {
-  opacity: 0.85;
+  opacity: 1;
   --dx: -8px;
 }
 .fc-wave.n3 {
-  opacity: 0.7;
+  opacity: 1;
   --dx: -15px;
 }
 /* A swell from a poor direction for the spot faces the other way (as on surf-forecast). */
@@ -2315,10 +2320,10 @@ td.fc-swell.with-waves {
   display: block;
 }
 .fc-dir-more.n2 {
-  opacity: 0.9;
+  opacity: 1;
 }
 .fc-dir-more.n3 {
-  opacity: 0.75;
+  opacity: 1;
 }
 .fc-score.s-stretch {
   box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.55);
@@ -3227,9 +3232,10 @@ h4.subsection {
 .suit-reasons li {
   margin: 2px 0;
 }
-/* ✓ for what speaks for the hour, − for what speaks against it, ✕ for "not for you" (all in the text colour). */
+/* ✓ for what speaks for the hour, a warning triangle for what speaks against it (see .explain),
+   ✕ for "not for you" (all in the text colour). */
 .suit-reasons li::before {
-  content: '−';
+  content: '';
 }
 .suit-reasons li.plus::before {
   content: '✓';

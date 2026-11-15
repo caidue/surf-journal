@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.11 — 2026-11-16
+
+- Spot cards: points against the hour and timing warnings (wind turning onshore, models disagreeing) are marked with one small warning triangle in the text colour, instead of a minus and an orange "!"; the other bullet points use a plain dot instead of an arrow.
+- **Swell colours by direction:** swells coming from a good direction for the spot are blue, from a poor direction red (and their wave faces left). The 1st, 2nd and 3rd swell are dark, medium and light shades; all filled, the main one with the larger arrow and the front wave.
+
 ## 1.6.10 — 2026-11-17
 
 - Forecast: the Period row sits below the whole swell block, also when the swell rows are unfolded; the Swell row keeps all swell arrows when unfolded too.

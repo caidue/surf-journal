@@ -6,7 +6,7 @@ resource: "src/lib/recommend.ts"
 tags: ["engine", "recommendation"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T19:40:00+00:00"
+  at: "2026-11-16T14:00:00+00:00"
 ---
 # Day recommendation and best picks
 
@@ -20,7 +20,7 @@ generated:
 * `sure` on every hour ([How sure a rating is](/engine/confidence.md)): Reliable / Less certain / Rough guide, or `withheld` (score 0, never a best window);
 * `windUnsure`: the wind models disagree by ≥ 45° at the best hour → "check the wind before you go".
 
-`TimingNotes` (ui.tsx) shows the wind turn and model disagreement (marked "!") under each card (Any time only) and on the spot's recommendation card (below the forecast table).
+`TimingNotes` (ui.tsx) shows the wind turn and model disagreement (marked with the warning triangle, in the text colour) under each card (Any time only) and on the spot's recommendation card (below the forecast table).
 
 `recommendSpotDay(…, opts)`: `opts.history === false` rates for someone else (Rate for): no session history in the prediction (score = rule score, `sumW` 0); your sessions still calibrate the spot's size gain. `explain(r, fmt, forLevel)` returns `{text, kind}` lines (`history` = your sessions, `against` = "Held back by …", `info` = the rest) and then opens with "Rated for a typical <level> surfer …".
 

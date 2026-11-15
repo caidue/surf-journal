@@ -2,6 +2,10 @@
 
 ## 2026-11-17
 
+* **Update** of [Releases](/operations/releases.md): 1.6.11 committed, tagged `v1.6.11` and pushed.
+* **Update** of [Explore](/features/explore.md), [Day recommendation](/engine/day-recommendation.md), [UI shell](/architecture/ui-shell.md): timing notes use the warning triangle too.
+* **Update** of [Explore](/features/explore.md) and [UI shell](/architecture/ui-shell.md): warning triangle for points against, dots for the other bullets.
+* **Update** of [Forecast table](/features/forecast-table.md) (swell colours by direction: blue / red shades), [pending: threshold tuning](/decisions/pending/threshold-tuning.md), [Releases](/operations/releases.md) (1.6.11).
 * **Update** of [Releases](/operations/releases.md): 1.6.10 committed, tagged `v1.6.10` and pushed.
 * **Update** of [Forecast table](/features/forecast-table.md): main swell solid and larger, 2nd / 3rd hollow arrows and outlined waves.
 * **Update** of [Forecast table](/features/forecast-table.md): all swell arrows stay in the Swell row when unfolded.

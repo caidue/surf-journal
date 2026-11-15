@@ -160,13 +160,12 @@ export default function ForecastTable({
   const trainCell = (t: TrainInfo | null | undefined, key: string, extraClass = '', others: TrainInfo[] = [], figures = false, rank: number | null = 0, waveOthers: TrainInfo[] = others) => {
     if (!t) return <td key={key} className={`fc-swell empty${extraClass}`} />;
     const blocked = exposure(spot, t.dir) < OUTSIDE_EXPOSURE;
-    // Grey = practically none of it reaches the spot (under 10 %), so a swell just either side of
-    // the window edge (e.g. 358° vs 2°) doesn't flip between grey and colour from hour to hour.
     const outside = (x: TrainInfo) => exposure(spot, x.dir) < OUTSIDE_EXPOSURE;
-    const colorOf = (x: TrainInfo, r: number | null) => (outside(x) ? BLOCKED_SWELL : r == null ? 'currentColor' : SWELL_COLORS[r]);
-    // Like surf-forecast: a swell from a poor direction for this spot (less than half of it gets
-    // in, see `exposure`) is drawn as a wave facing the other way.
+    // A swell from a poor direction for this spot (less than half of it gets in, see `exposure`):
+    // red, and its wave faces the other way (like surf-forecast). Good directions are blue. Within
+    // each, the 1st / 2nd / 3rd swell by energy go from dark to light.
     const poor = (x: TrainInfo) => exposure(spot, x.dir) < POOR_EXPOSURE;
+    const colorOf = (x: TrainInfo, r: number | null) => (r == null ? 'currentColor' : (poor(x) ? SWELL_RED : SWELL_BLUE)[r]);
     const dirNote = (x: TrainInfo) => (outside(x) ? ' · (almost) outside the swell window' : poor(x) ? ' · poor direction for this spot' : '');
     const line = (x: TrainInfo) => `${fmtDir(x.dir)} · ${hgt(x.h)} ${ft ? 'ft' : 'm'} @ ${Math.round(x.t)} s peak · ${Math.round(x.kj)} kJ`;
     return (
@@ -174,7 +173,7 @@ export default function ForecastTable({
         key={key}
         className={`fc-swell${blocked ? ' blocked' : ''}${figures ? ' with-waves' : ''}${extraClass}`}
         title={
-          `${line(t)}${dirNote(t)}` + waveOthers.map((o, k) => `\n${k === 0 ? '2nd swell' : '3rd swell'}${outside(o) ? '' : k === 0 ? ' (red)' : ' (purple)'}: ${line(o)}${dirNote(o)}`).join('')
+          `${line(t)}${dirNote(t)}` + waveOthers.map((o, k) => `\n${k === 0 ? '2nd swell' : '3rd swell'}: ${line(o)}${dirNote(o)}`).join('')
         }
       >
         <div>{hgt(t.h)}</div>
@@ -186,7 +185,7 @@ export default function ForecastTable({
           <DirArrow from={t.dir} size={figures && others.length ? 16 : 13} color={colorOf(t, rank)} />
           {others.map((o, k) => (
             <span key={k} className={`fc-dir-more n${k + 2}`}>
-              <DirArrow from={o.dir} size={11} color={colorOf(o, k + 1)} outline />
+              <DirArrow from={o.dir} size={12} color={colorOf(o, k + 1)} />
             </span>
           ))}
         </span>
@@ -196,7 +195,7 @@ export default function ForecastTable({
           // to the left behind it, like the next waves of a set.
           <span className="fc-swell-waves" aria-hidden>
             {waveOthers.map((o, k) => (
-              <SwellWave key={k} h={o.h} color={colorOf(o, k + 1)} outline className={`n${k + 2}${poor(o) ? ' mirrored' : ''}`} />
+              <SwellWave key={k} h={o.h} color={colorOf(o, k + 1)} className={`n${k + 2}${poor(o) ? ' mirrored' : ''}`} />
             ))}
             <SwellWave h={t.h} color={colorOf(t, rank)} className={poor(t) ? 'mirrored' : ''} />
           </span>
@@ -438,7 +437,7 @@ export default function ForecastTable({
       {legendOpen && (
       <div className="fc-legend muted tiny">
         <span>{forLevel ? `Rating = predicted fun for a typical ${forLevel} surfer (your sessions left out)` : `Rating = predicted fun for you, from your surfing profile${rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}`}; hover a score for how good the waves are for anyone (Poor … Epic) and what the wind costs</span>
-        <span>Wave = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words); Swell = strongest train offshore (height and direction) · Period = its peak period, as surf sites show it (bold from 12 s, grey under 8 s); a small wave per swell, as tall as its height; swells are coloured by energy, 1st blue, 2nd red, 3rd purple (grey when practically outside the spot's swell window, under 10 % gets in); a wave facing left = the swell comes from a poor direction for this spot (less than half of it gets in), as on surf-forecast; the main swell is solid (larger arrow, filled wave), the 2nd and 3rd are small hollow arrows next to it and outlined waves behind it{estimated ? ' · some periods estimated from mean periods' : ''}</span>
+        <span>Wave = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words); Swell = strongest train offshore (height and direction) · Period = its peak period, as surf sites show it (bold from 12 s, grey under 8 s); a small wave per swell, as tall as its height; blue = the swell comes from a good direction for this spot, red (and the wave facing left, as on surf-forecast) = a poor direction, less than half of it gets in; the 1st, 2nd and 3rd swell by energy go from dark to light, and the main one has the larger arrow and the front wave{estimated ? ' · some periods estimated from mean periods' : ''}</span>
         <span>Energy = strongest train, kJ per metre of crest; hover for the total</span>
         <span>{gridMates.length ? `Same swell and energy (same wave-model cell) at ${gridMates.join(', ')}` : 'No other spot shares this wave-model cell'}</span>
         <span>Wind = average speed over the hour; strong gusts (bursts at least 15 km/h above it) in grey below, all gusts on hover; over the sea, mean of four models (ECMWF, ICON, ARPEGE, GFS), hover for each · ? = the models disagree on the direction</span>
@@ -457,29 +456,23 @@ export default function ForecastTable({
   );
 }
 
-/** Swell colours by energy (arrows and waves): 1st blue, 2nd red, 3rd purple; grey outside the window. */
-const SWELL_COLORS = ['#2563eb', '#dc2626', '#7c3aed'];
-const BLOCKED_SWELL = '#94a3b8';
+/** Swell colours: blue = good direction for the spot, red = poor; 1st / 2nd / 3rd swell by energy dark → light. */
+const SWELL_BLUE = ['#1d4ed8', '#3b82f6', '#93c5fd'];
+const SWELL_RED = ['#b91c1c', '#ef4444', '#fca5a5'];
 /** Below this share of a swell reaching the spot (`exposure`), its wave is drawn mirrored. */
 const POOR_EXPOSURE = 0.5;
 /** Below this share it is drawn grey: practically outside the swell window. */
 const OUTSIDE_EXPOSURE = 0.1;
 
 /** A small breaking wave for one swell train, as tall as its height (full at 1.6 m). */
-function SwellWave({ h, color, className = '', outline }: { h: number; color: string; className?: string; outline?: boolean }) {
+function SwellWave({ h, color, className = '' }: { h: number; color: string; className?: string }) {
   const px = Math.max(5, Math.min(1, h / 1.6) * 28);
-  // A slim back rising to a pointed peak, a small lip, then the face down to the right. The main
-  // swell is solid; the 2nd / 3rd are outlines with a faint fill, so the main one stands out.
+  // A slim back rising to a pointed peak, a small lip, then the face down to the right.
   return (
     <svg className={`fc-wave ${className}`} width={30} height={px} viewBox="0 0 100 100" preserveAspectRatio="none" overflow="visible">
       <path
         d="M0 100 C22 94 38 58 58 26 C66 12 74 4 84 2 L91 11 C85 11 81 15 79 22 C83 50 92 80 100 100 Z"
         fill={color}
-        fillOpacity={outline ? 0.12 : 1}
-        stroke={outline ? color : undefined}
-        strokeWidth={outline ? 1.4 : undefined}
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
       />
     </svg>
   );
