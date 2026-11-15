@@ -948,16 +948,67 @@ label.field,
   color: var(--warn);
 }
 .timing-notes li::before {
-  content: '⏱';
+  content: '!';
 }
 .spot-item .explain {
   margin-bottom: 0;
 }
-.pick-badges {
+/* Spot card: "Go 15:00–17:00 · tide high, falling", the hour's conditions as badges, then the
+   suitability badge with the best peak, the lists, and a confidence footer. */
+.spot-item .go-line {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-md);
+}
+.sheet-best .go-line {
+  margin-top: 0;
+}
+.sheet-best .cbadge {
+  background: var(--panel);
+}
+.go-tide {
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+}
+.cond-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
   margin-top: var(--sp-2);
 }
-.pick-badges + .peak-pick {
-  margin-top: var(--sp-2);
+.cbadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 0 8px 0 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--panel-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.cbadge .icon {
+  color: var(--accent);
+  flex: none;
+}
+.cbadge.wind .icon {
+  color: var(--ink-2);
+}
+.suit-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.sure-line {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--line-2);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
 }
 /* Spots that don't really work for you at that time: still listed, a little quieter. */
 .spot-item.dim .spot-head {

@@ -9,7 +9,7 @@ sources:
     id: "report"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T10:00:00+00:00"
+  at: "2026-11-16T16:00:00+00:00"
 ---
 # How sure a rating is
 
@@ -22,7 +22,7 @@ A good local says "I don't know that reef at low tide" instead of guessing; the 
 
 Shown in the Info tab ("What the app knows"), with the spot's `dataNote` when its forecast point or location is doubtful (Flag Beach near Lobos, Mejillones, Spew Pits).
 
-**How sure one hour is** (`sureness`, on every `HourRec`): local → Reliable, partial → Less certain, general → Rough guide; one step down when the wind models disagree by ≥ 45° and one step down for a `dataNote`; one step up when your similar past sessions here weigh ≥ 1.2 (`Prediction.sumW`). The badge (`SureBadge`) sits on every best pick and on the spot's recommendation card; hover lists the reasons.
+**How sure one hour is** (`sureness`, on every `HourRec`): local → Reliable, partial → Less certain, general → Rough guide; one step down when the wind models disagree by ≥ 45° and one step down for a `dataNote`; one step up when your similar past sessions here weigh ≥ 1.2 (`Prediction.sumW`). The badge (`SureBadge`) sits in a footer line at the bottom of every spot card and of the spot's recommendation card (`SureLine`: "Confidence in this rating: Reliable · Local knowledge, your sessions here in similar conditions."), the reasons written out.
 
 **No rating** (`withheld`): an advanced or expert reef or rock spot with no tide source (`tideKnown` false: tide preference "all" and no well-sourced tide rule) at a tide position below 0.25 → "No source describes this reef at low tide …". The hour scores 0 (never a best window or pick); the table shows "?" in Spot and For you (For you keeps ✕ when the spot isn't for you at any tide). Today this applies to Spew Pits.
 

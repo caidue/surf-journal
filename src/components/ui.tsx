@@ -3,6 +3,12 @@ import { scoreColor, SUIT_COLOR, SUIT_LABEL, type Suit, type Suitability } from 
 import type { SpotRec } from '../lib/recommend';
 import { SURE_LABEL, type Sureness } from '../lib/confidence';
 import { fmtMin } from '../lib/time';
+import type { Settings } from '../types';
+import { windKind, WIND_LABEL, type Derived } from '../lib/conditions';
+import { fmtSurfRange, fmtWind } from '../lib/format';
+import { bodyRange } from '../lib/skill';
+import { WIND_BG } from './Timeline';
+import { Icon } from './icons';
 
 export function Chips<T extends string>({
   options,
@@ -180,6 +186,7 @@ export function TimingNotes({ rec, showEven = true }: { rec: SpotRec; showEven?:
   const notes: string[] = [];
   if (rec.windTurn != null) notes.push(`The wind turns onshore around ${fmtMin(rec.windTurn)}: go early.`);
   if (rec.windUnsure) notes.push('The wind models disagree on the direction then: check the wind before you go.');
+  // Explore and the spot card say "Go any time" instead (showEven false); this line is for elsewhere.
   if (showEven && rec.evenDay) notes.push('Fairly even day: no time clearly stands out.');
   if (!notes.length) return null;
   return (
@@ -246,6 +253,55 @@ export function StepSlider<T extends string>({
         <span>{options[0].label}</span>
         <span>{options[options.length - 1].label}</span>
       </div>
+    </div>
+  );
+}
+
+const compass = (deg: number) => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+
+/**
+ * One hour's conditions as badges: wave height (wave icon), swell peak period and direction (swell
+ * icon, arrow = where it goes), wind speed and direction coloured by kind like the forecast's wind
+ * row (offshore green … onshore red). Details in each badge's tooltip.
+ */
+export function CondBadges({ d, settings }: { d: Derived; settings: Settings }) {
+  const k = windKind(d);
+  return (
+    <div className="cond-badges">
+      {d.hb != null && (
+        <span className="cbadge" title={`Wave height (face): ${fmtSurfRange(d.hb, settings.heightUnit)}, ${bodyRange(d.hb * 0.8, d.hb * 1.2)}`}>
+          <Icon name="wave" size={15} />
+          {fmtSurfRange(d.hb, settings.heightUnit)}
+        </span>
+      )}
+      {d.tDom != null && (
+        <span className="cbadge" title={`Swell: ${Math.round(d.tDom)} s peak period${d.dirDom != null ? `, from ${compass(d.dirDom)} (${Math.round(d.dirDom)}°)` : ''}`}>
+          <Icon name="swell" size={15} />
+          {Math.round(d.tDom)} s
+          <DirArrow from={d.dirDom} size={12} />
+        </span>
+      )}
+      {d.windSpeed != null && (
+        <span
+          className="cbadge wind"
+          style={k ? { background: WIND_BG[k], borderColor: 'transparent' } : undefined}
+          title={`Wind: ${k ? WIND_LABEL[k] : ''} ${fmtWind(d.windSpeed, settings.windUnit)}${d.windDir != null ? `, from ${compass(d.windDir)} (${Math.round(d.windDir)}°)` : ''}`}
+        >
+          <Icon name="wind" size={15} />
+          {fmtWind(d.windSpeed, settings.windUnit)}
+          <DirArrow from={d.windDir} size={12} />
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** The footer line under a recommendation: how sure the app is about this rating, and why. */
+export function SureLine({ sure }: { sure: Sureness }) {
+  return (
+    <div className="sure-line">
+      <span className="muted">Confidence in this rating:</span> <SureBadge sure={sure} />{' '}
+      <span className="muted">{sure.withheld ? sure.withheld : `${sure.reasons.join(', ')}.`.replace(/^./, (c) => c.toUpperCase())}</span>
     </div>
   );
 }

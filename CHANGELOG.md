@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.1 — 2026-11-16
+
+- **Spot cards read at a glance:** "Go 07:19–09:00 · tide mid, falling", then the conditions as badges: wave height (wave icon), swell period and direction (swell icon), wind speed and direction on the forecast's wind colours. The suitability badge has the best peak next to it.
+- **"Go any time"** on fairly even days instead of a window plus a "Fairly even day" note; the other timing notes (wind turning onshore, models disagreeing) are marked "!" instead of a stopwatch.
+- **Confidence moves to the bottom** of each card and says what it means: "Confidence in this rating: Reliable · Local knowledge."
+- The spot's recommendation card under the forecast uses the same layout.
+
 ## 1.6.0 — 2026-11-16
 
 - Spot cards on Explore: the suitability and confidence badges sit right under the conditions, before the notes and reasons, instead of between two lists.

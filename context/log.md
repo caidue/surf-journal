@@ -2,6 +2,8 @@
 
 ## 2026-11-16
 
+* **Update** of [Releases](/operations/releases.md): 1.6.1 committed, tagged `v1.6.1` and pushed.
+* **Update** of [Explore](/features/explore.md) and [Spot view](/features/spot-view.md) (card layout: go line with tide, condition badges, suitability with peak, confidence footer), [Day recommendation](/engine/day-recommendation.md) (Go any time on even days), [How sure a rating is](/engine/confidence.md), [UI shell](/architecture/ui-shell.md), [Releases](/operations/releases.md) (1.6.1).
 * **Update** of [Releases](/operations/releases.md): 1.6.0 committed, tagged `v1.6.0` and pushed.
 * **Update** of [Explore](/features/explore.md): badges under the conditions line, then peak, timing notes, reasons, explanation.
 * **Update** of [UI shell](/architecture/ui-shell.md): no page overscroll bounce; `StepSlider`.

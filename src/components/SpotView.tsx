@@ -1,13 +1,12 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session, Settings, Spot } from '../types';
 import { useConditions, useRating } from '../hooks';
-import { tideExtremes, windKind, WIND_LABEL, type WindKind } from '../lib/conditions';
+import { tideExtremes, tideLabel, WIND_LABEL, type WindKind } from '../lib/conditions';
 import { buildHistory, calibratedGain, explain, insights, matchSession, recommendSpotDay, sessionOverall } from '../lib/recommend';
 import { KNOWLEDGE_LABEL, spotKnowledge } from '../lib/confidence';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
 import { compass, haversineKm } from '../lib/geo';
 import { similarityPct } from '../lib/similarity';
-import { fmtSurf, fmtWind } from '../lib/format';
 import { surfForecastUrl, surflineUrl } from '../lib/links';
 import { gridKey } from '../lib/openMeteo';
 import ForecastTable from './ForecastTable';
@@ -15,7 +14,7 @@ import { Icon, type IconName } from './icons';
 import MapView from './MapView';
 import SpotGuide from './SpotGuide';
 import { sessionSummary } from './Journal';
-import { ConditionsStatus, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons, TimingNotes, SureBadge } from './ui';
+import { CondBadges, ConditionsStatus, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons, SureLine, TimingNotes } from './ui';
 
 export type SpotTab = 'forecast' | 'guide' | 'sessions' | 'info';
 const TAB_KEY = 'surf-journal.spotTab';
@@ -202,33 +201,44 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
               )}
               {best && (
               <div className="sheet-best">
-                <div className="row gap wrap">
-                  <SuitBadge status={best.suit.status} who={rating.forLevel} />
-                  {goodWindow ? (
-                    <strong>
-                      Best {fmtMin(rec!.bestWindow![0])}–{fmtMin(rec!.bestWindow![1])}
-                    </strong>
-                  ) : (
+                {/* Same layout as the spot cards on Explore: when (and the tide), the conditions as
+                    badges, suitability with the best peak, the lists, and the confidence footer. */}
+                <div className="go-line">
+                  {!goodWindow ? (
                     <strong>Not much for {who} {dayWord}</strong>
+                  ) : rec!.evenDay ? (
+                    <span title="No time clearly stands out: every daylight hour is within half a point of the best.">
+                      <span className="muted">Go</span> <strong>any time {dayWord}</strong>
+                    </span>
+                  ) : (
+                    <>
+                      <span className="muted">Go</span>{' '}
+                      <strong>
+                        {fmtMin(rec!.bestWindow![0])}–{fmtMin(rec!.bestWindow![1])}
+                      </strong>
+                    </>
                   )}
-                  <span className="small">
-                    {fmtSurf(best.derived.hb, settings.heightUnit)} · {best.derived.tDom ? `${Math.round(best.derived.tDom)} s · ` : ''}
-                    {WIND_LABEL[windKind(best.derived) ?? 'glassy']} {fmtWind(best.derived.windSpeed, settings.windUnit)}
-                  </span>
-                  <SureBadge sure={best.sure} />
+                  {!(goodWindow && rec!.evenDay) && best.derived.tideNorm != null && (
+                    <span className="go-tide"> · tide {tideLabel(best.derived.tideNorm, best.derived.tideTrend)}</span>
+                  )}
                 </div>
-                {best.peak && (
-                  <div className="peak-pick">
-                    Best for {who}: <strong>{best.peak.name}</strong>
-                  </div>
-                )}
-                {rec && <TimingNotes rec={rec} />}
+                <CondBadges d={best.derived} settings={settings} />
+                <div className="suit-line">
+                  <SuitBadge status={best.suit.status} who={rating.forLevel} />
+                  {best.peak && (
+                    <span className="peak-pick">
+                      Best for {who}: <strong>{best.peak.name}</strong>
+                    </span>
+                  )}
+                </div>
+                {rec && <TimingNotes rec={rec} showEven={false} />}
                 <SuitReasons suit={best.suit} own={!rating.forLevel} />
                 <ul className="explain">
                   {explain(best, (s) => fmtDate(s.date), rating.forLevel).map((l) => (
                     <li key={l}>{l}</li>
                   ))}
                 </ul>
+                <SureLine sure={best.sure} />
               </div>
               )}
               {tides.length > 0 && (

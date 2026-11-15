@@ -6,16 +6,16 @@ import { bboxAround, bboxOf, inBBox, type BBox } from '../lib/geo';
 import { geocode, parseRegionQuery, PART_LABEL, subBox } from '../lib/geocode';
 import { buildHistory, explain, matchSession, recommendSpotDay, sessionOverall, type HourRec, type Neighbour, type SpotRec } from '../lib/recommend';
 import { scoreColor } from '../lib/rating';
-import { bodyRange, bodyWord, levelName, stageBand, STAGES } from '../lib/skill';
+import { bodyWord, levelName, stageBand, STAGES } from '../lib/skill';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
-import { fmtFeature, fmtSurfRange, fmtWind } from '../lib/format';
-import { tideLabel, windKind, WIND_LABEL, type Derived } from '../lib/conditions';
+import { fmtFeature } from '../lib/format';
+import { tideLabel, type Derived } from '../lib/conditions';
 import { SIMILAR_MIN_K, similarityPct } from '../lib/similarity';
 import MapView, { type MapMarker } from './MapView';
 import SpotSheet from './SpotSheet';
 import SpotThumb from './SpotThumb';
 import { Icon } from './icons';
-import { Card, ConditionsStatus, DirArrow, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons, TimingNotes, SureBadge } from './ui';
+import { Card, CondBadges, ConditionsStatus, Empty, ScoreBadge, Segmented, SuitBadge, SuitReasons, SureLine, TimingNotes } from './ui';
 
 interface Region {
   label: string;
@@ -425,54 +425,52 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
                   />
                   {rec && hour ? (
                     <>
-                      <div className="cond-line go-line">
+                      {/* When, then the tide; the conditions of that hour as badges. On a fairly even
+                          day no time stands out, so it says "Go any time" instead of a window. */}
+                      <div className="go-line">
                         {mode === 'now' ? (
-                          <span className="muted small">Now</span>
+                          <span className="muted">Now</span>
                         ) : mode === 'time' ? (
                           <>
-                            <span className="muted small">At</span>
-                            <strong>{fmtMin(time ?? 0)}</strong>
+                            <span className="muted">At</span> <strong>{fmtMin(time ?? 0)}</strong>
                           </>
+                        ) : rec.evenDay && hour.score > 0.5 ? (
+                          <span title={`No time clearly stands out today: every daylight hour is within half a point of the best (${fmtMin(isoToMin(hour.time) ?? 0)}).`}>
+                            <span className="muted">Go</span> <strong>any time</strong>
+                          </span>
                         ) : rec.bestWindow && hour.score > 0.5 ? (
                           <>
-                            <span className="muted small">Go</span>
+                            <span className="muted">Go</span>{' '}
                             <strong>
                               {fmtMin(rec.bestWindow[0])}–{fmtMin(rec.bestWindow[1])}
                             </strong>
                           </>
                         ) : (
                           <>
-                            <span className="muted small">Best at</span>
-                            <strong>{fmtMin(isoToMin(hour.time) ?? 0)}</strong>
+                            <span className="muted">Best at</span> <strong>{fmtMin(isoToMin(hour.time) ?? 0)}</strong>
                           </>
                         )}
-                        <span title={hour.derived.hb != null ? bodyRange(hour.derived.hb * 0.8, hour.derived.hb * 1.2) : undefined}>
-                          <strong>{fmtSurfRange(hour.derived.hb, settings.heightUnit)}</strong>
-                          {hour.derived.tDom ? ` · ${Math.round(hour.derived.tDom)} s` : ''} <DirArrow from={hour.derived.dirDom} />
-                        </span>
-                        <span>
-                          {WIND_LABEL[windKind(hour.derived) ?? 'glassy']} {fmtWind(hour.derived.windSpeed, settings.windUnit)} <DirArrow from={hour.derived.windDir} />
-                        </span>
-                        <span>tide {tideLabel(hour.derived.tideNorm, hour.derived.tideTrend)}</span>
+                        {!(mode === 'day' && rec.evenDay && hour.score > 0.5) && hour.derived.tideNorm != null && (
+                          <span className="go-tide"> · tide {tideLabel(hour.derived.tideNorm, hour.derived.tideTrend)}</span>
+                        )}
                       </div>
-                      {/* Badges right under the conditions they describe, then the lists (same order as
-                          the spot's recommendation card): peak, timing notes, reasons, explanation. */}
-                      <div className="row gap wrap pick-badges">
+                      <CondBadges d={hour.derived} settings={settings} />
+                      <div className="suit-line">
                         <SuitBadge status={hour.suit.status} who={rating.forLevel} />
-                        <SureBadge sure={hour.sure} />
+                        {hour.peak && (
+                          <span className="peak-pick">
+                            Best for {who}: <strong>{hour.peak.name}</strong>
+                          </span>
+                        )}
                       </div>
-                      {hour.peak && (
-                        <div className="peak-pick">
-                          Best for {who}: <strong>{hour.peak.name}</strong>
-                        </div>
-                      )}
-                      {mode === 'day' && <TimingNotes rec={rec} />}
+                      {mode === 'day' && <TimingNotes rec={rec} showEven={false} />}
                       <SuitReasons suit={hour.suit} own={!rating.forLevel} />
                       <ul className="explain">
                         {explain(hour, (s) => fmtDate(s.date), rating.forLevel).map((l) => (
                           <li key={l}>{l}</li>
                         ))}
                       </ul>
+                      <SureLine sure={hour.sure} />
                     </>
                   ) : (
                     <div className="muted small cond-line">
