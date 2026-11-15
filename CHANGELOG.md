@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.10 — 2026-11-17
+
+- Forecast: the Period row sits below the whole swell block, also when the swell rows are unfolded; the Swell row keeps all swell arrows when unfolded too.
+- **The main swell stands out:** its arrow is solid and larger and its wave filled; the 2nd and 3rd swell are small hollow arrows and outlined waves.
+- A swell that barely reaches the spot is grey in every hour, instead of switching between grey and red as its direction wobbles across the edge of the spot's swell window.
+
 ## 1.6.9 — 2026-11-17
 
 - **Forecast: a Period row** under Swell with the main swell's peak period (bold from 12 s, grey under 8 s); the Swell row shows height, direction and the swell waves.

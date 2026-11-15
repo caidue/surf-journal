@@ -140,11 +140,12 @@ export function Empty({ children }: { children: ReactNode }) {
 }
 
 /** Small arrow pointing where the swell/wind is GOING (direction "from" + 180). */
-export function DirArrow({ from, size = 14, color = 'currentColor' }: { from: number | null | undefined; size?: number; color?: string }) {
+/** `outline`: a hollow arrow (the forecast's 2nd / 3rd swell, so the solid main one stands out). */
+export function DirArrow({ from, size = 14, color = 'currentColor', outline }: { from: number | null | undefined; size?: number; color?: string; outline?: boolean }) {
   if (from == null) return null;
   return (
     <svg width={size} height={size} viewBox="-10 -10 20 20" style={{ transform: `rotate(${from + 180}deg)`, flex: 'none' }} aria-hidden>
-      <path d="M0 -8 L5 4 L0 1 L-5 4 Z" fill={color} />
+      <path d="M0 -8 L5 4 L0 1 L-5 4 Z" fill={outline ? 'none' : color} stroke={outline ? color : undefined} strokeWidth={outline ? 1.8 : undefined} strokeLinejoin="round" />
     </svg>
   );
 }

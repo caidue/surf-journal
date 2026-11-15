@@ -2,6 +2,10 @@
 
 ## 2026-11-17
 
+* **Update** of [Releases](/operations/releases.md): 1.6.10 committed, tagged `v1.6.10` and pushed.
+* **Update** of [Forecast table](/features/forecast-table.md): main swell solid and larger, 2nd / 3rd hollow arrows and outlined waves.
+* **Update** of [Forecast table](/features/forecast-table.md): all swell arrows stay in the Swell row when unfolded.
+* **Update** of [Forecast table](/features/forecast-table.md) (Period below the swell block, grey below 10 % exposure), [pending: threshold tuning](/decisions/pending/threshold-tuning.md), [Releases](/operations/releases.md) (1.6.10).
 * **Update** of [Releases](/operations/releases.md): 1.6.9 committed, tagged `v1.6.9` and pushed.
 * **Update** of [Session logging](/features/session-logging.md) (Delete at the bottom, confirm window) and [UI shell](/architecture/ui-shell.md) (`ConfirmDialog`).
 * **Update** of [Forecast table](/features/forecast-table.md) (arrows side by side, waves of all swells when unfolded), [Journal](/features/journal.md) (trip form as a window), [UI shell](/architecture/ui-shell.md) (`.dialog`, header wrap).
