@@ -150,6 +150,7 @@ export default function Journal({ spots, sessions, settings, go }: { spots: Spot
           title={trip ? `Log a session in ${trip.name}` : 'Log a session'}
         >
           <Icon name="plus" size={22} />
+          <span className="btn-label">Log a session</span>
         </button>
       </div>
       {trip && editing === null && (

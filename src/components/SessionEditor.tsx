@@ -177,7 +177,7 @@ export default function SessionEditor({
     };
   })();
 
-  // What's still missing before the session can be saved (shown next to the Save button).
+  // What's still missing before the session can be saved (Save stays disabled until it's done).
   // Conditions aren't required: without a connection the session is saved and filled in later.
   const missing = [!spot && 'choose a spot', spot && !range && 'mark your time on the chart', ratings.fun == null && 'rate Fun'].filter(Boolean) as string[];
   const canSave = missing.length === 0 && !condState.loading;
@@ -442,7 +442,7 @@ export default function SessionEditor({
         </ConfirmDialog>
       )}
 
-      <ActionBar note={!canSave && missing.length ? `To save: ${missing.join(', ')}` : pending && spot && range ? 'Conditions are added when you are back online' : undefined}>
+      <ActionBar note={pending && spot && range ? 'Conditions are added when you are back online' : undefined}>
         <button className="btn" onClick={() => go('journal')}>
           Cancel
         </button>

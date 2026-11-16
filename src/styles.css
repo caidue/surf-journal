@@ -906,9 +906,6 @@ label.field,
 .list-col {
   min-width: 0;
 }
-.explore-foot {
-  display: none;
-}
 /* Desktop Explore: the page fits the window and doesn't scroll; the map fills its column and only
    the list on the right scrolls (to its ends, no bounce). The page footer moves to the list's end. */
 @media (min-width: 900px) {
@@ -925,8 +922,11 @@ label.field,
     display: flex;
     min-height: 0;
   }
+  /* The page footer stays under the whole page (map and list), below the scrolling list. */
   .app:has(.page.explore) .foot {
-    display: none;
+    flex: none;
+    padding-top: 0;
+    padding-bottom: var(--sp-3);
   }
   .page.explore {
     flex: 1;
@@ -957,11 +957,6 @@ label.field,
     overscroll-behavior: contain;
     padding-right: var(--sp-2);
     margin-right: calc(-1 * var(--sp-2));
-  }
-  .explore-foot {
-    display: block;
-    text-align: center;
-    margin: var(--sp-5) 0 var(--sp-2);
   }
 }
 .map {
@@ -2737,16 +2732,32 @@ details.sources ul {
 .page-head h1 {
   margin: 0;
 }
-/* A round "+" button (Journal: log a session). */
+/* Journal "log a session": "+ Log a session" on wider screens, a round "+" on phones. */
 .btn.icon-btn {
   flex: none;
-  width: var(--tap);
-  height: var(--tap);
-  min-height: var(--tap);
-  padding: 0;
-  border-radius: 50%;
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.btn.icon-btn .icon {
+  margin-left: -4px;
+}
+@media (max-width: 600px) {
+  .btn.icon-btn {
+    width: var(--tap);
+    height: var(--tap);
+    min-height: var(--tap);
+    padding: 0;
+    border-radius: 50%;
+    justify-content: center;
+    gap: 0;
+  }
+  .btn.icon-btn .icon {
+    margin-left: 0;
+  }
+  .btn.icon-btn .btn-label {
+    display: none;
+  }
 }
 /* Journal: the trip title and the "+" button always share the row (long trip names wrap). */
 .page-head:has(.trip-menu) {
@@ -2791,8 +2802,11 @@ details.sources ul {
 .app:has(.with-action-bar) .foot {
   padding-bottom: calc(var(--actionbar-h) + var(--sp-4) + env(safe-area-inset-bottom));
 }
-.app:has(.explore.view-list) .foot {
-  padding-bottom: calc(var(--switch-h) + var(--sp-4) + env(safe-area-inset-bottom));
+/* Phones: room under the footer for the List / Map bar. */
+@media (max-width: 899px) {
+  .app:has(.explore.view-list) .foot {
+    padding-bottom: calc(var(--switch-h) + var(--sp-4) + env(safe-area-inset-bottom));
+  }
 }
 @media (max-width: 600px) {
   .action-bar-inner {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.12 — 2026-11-16
+
+- **Desktop Explore:** the data and map credits are back at the bottom of the whole page instead of at the end of the spot list.
+- **Desktop Explore:** clicking a spot on the map highlights it and scrolls the list on the right to its card (click the card to open it).
+- **Journal:** on desktop the button reads "+ Log a session"; phones keep the round "+".
+- Logging a session: the "To save: choose a spot, rate Fun" hint is gone; Save stays disabled until those are done.
+
 ## 1.6.11 — 2026-11-16
 
 - Spot cards: points against the hour and timing warnings (wind turning onshore, models disagreeing) are marked with one small warning triangle in the text colour, instead of a minus and an orange "!"; the other bullet points use a plain dot instead of an arrow.

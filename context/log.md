@@ -2,6 +2,9 @@
 
 ## 2026-11-17
 
+* **Update** of [Releases](/operations/releases.md): 1.6.12 committed, tagged `v1.6.12` and pushed.
+* **Update** of [Explore](/features/explore.md): on desktop a map marker scrolls the list to its spot.
+* **Update** of [Explore](/features/explore.md) (footer under the page), [Journal](/features/journal.md) (labelled log button on desktop), [Session logging](/features/session-logging.md) (no To save hint), [Releases](/operations/releases.md) (1.6.12).
 * **Update** of [Releases](/operations/releases.md): 1.6.11 committed, tagged `v1.6.11` and pushed.
 * **Update** of [Explore](/features/explore.md), [Day recommendation](/engine/day-recommendation.md), [UI shell](/architecture/ui-shell.md): timing notes use the warning triangle too.
 * **Update** of [Explore](/features/explore.md) and [UI shell](/architecture/ui-shell.md): warning triangle for points against, dots for the other bullets.

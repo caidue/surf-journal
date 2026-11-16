@@ -70,6 +70,18 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
     setSheet(id);
   };
   const phone = useMediaQuery(PHONE_QUERY);
+  // A map marker: on phones it opens the spot; on wide screens map and list sit side by side, so it
+  // highlights the spot and scrolls the list to its card (tap the card to open it).
+  const onMarker = (id: string) => {
+    if (phone) return openSheet(id);
+    setSelected(id);
+    // Scroll only the list (not the page), so the card lands at its top.
+    const card = document.getElementById(`spot-${id}`);
+    const list = card?.closest('.list-col');
+    if (!card || !list) return;
+    const top = list.scrollTop + card.getBoundingClientRect().top - list.getBoundingClientRect().top - 8;
+    list.scrollTo({ top, behavior: 'smooth' });
+  };
   // Phones start with the list; the Map | List bar at the bottom switches.
   const [view, setViewState] = useState<'map' | 'list'>('list');
   const setView = (v: 'map' | 'list') => {
@@ -354,7 +366,7 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
             fit={bboxOf(regionSpots) ?? region?.bbox ?? bboxOf(spots)}
             area={region?.bbox ?? null}
             selectedId={selected}
-            onSelect={openSheet}
+            onSelect={onMarker}
             // Desktop: the map fills its column (the page fits the window; only the list scrolls).
             height={fullMap ? `calc(100dvh - ${Math.round(mapTop)}px - 2.25rem - var(--switch-h) - env(safe-area-inset-bottom))` : phone ? 'min(62vh, 560px)' : '100%'}
           />
@@ -500,9 +512,6 @@ export default function Explore({ spots, sessions, settings, go }: { spots: Spot
               </p>
             </details>
           </section>
-          <p className="explore-foot muted tiny">
-            Data stays in your browser · Weather &amp; marine data by <a href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0) · Map © OpenStreetMap contributors, OpenFreeMap
-          </p>
         </div>
       </div>
 
