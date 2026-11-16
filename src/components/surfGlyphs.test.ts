@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { HourConditions } from '../types';
-import { isPoor, periodTone, ratingText, swellColor, swellsOf, SWELL_BLUE, SWELL_RED } from './surfGlyphs';
+import { isPoor, periodTone, ratingText, smoothLine, swellColor, swellsOf, SWELL_BLUE, SWELL_RED } from './surfGlyphs';
 
 const hour = (trains: HourConditions['trains']): HourConditions => ({ time: '2026-11-16T10:00', trains }) as HourConditions;
 const spot = { idealSwellDir: 300, swellWindow: 75 };
@@ -44,5 +44,19 @@ describe('shared forecast pieces', () => {
     expect(periodTone(13)).toBe('strong');
     expect(periodTone(7)).toBe('weak');
     expect(periodTone(10)).toBe('');
+  });
+
+  it('the height curve passes through every hour and stays flat on a flat stretch', () => {
+    const d = smoothLine([
+      [0, 50],
+      [50, 50],
+      [100, 20],
+      [150, 20],
+    ]);
+    expect(d.startsWith('M0.0,50.0')).toBe(true);
+    // Each segment ends on the next point; the flat first segment keeps its control points at y = 50.
+    expect(d).toContain('C16.7,50.0 33.3,50.0 50.0,50.0');
+    expect(d).toContain(' 100.0,20.0');
+    expect(d.endsWith(' 150.0,20.0')).toBe(true);
   });
 });

@@ -14,7 +14,7 @@ const WIND_SPREAD_WARN = 45;
 /** Show the gusts in the table only when they are this much stronger than the average wind (km/h). */
 const GUST_SHOW_KMH = 15;
 import { DirArrow } from './ui';
-import { isOutside, periodTone, ratingFill, ratingText, SwellArrows, swellsOf, swellTooltip, SwellWaves, WaveStackSvg, type RankedSwell } from './surfGlyphs';
+import { isOutside, periodTone, ratingFill, ratingText, SwellArrows, swellsOf, swellTooltip, SwellWaves, HeightCurve, type RankedSwell } from './surfGlyphs';
 
 const COL_W = 50;
 const OPEN_KEY = 'surf-journal.trainsOpen';
@@ -143,6 +143,7 @@ export default function ForecastTable({
   const lo = Math.min(...all);
   const hi = Math.max(...all);
   const TH = 64;
+  const WAVE_H = 62;
   const ty = (v: number) => 18 + (1 - (v - lo) / Math.max(0.1, hi - lo)) * (TH - 36);
   const tx = (hours: number) => (hours - h0) * COL_W + COL_W / 2;
   const inner = cols.map((c, i) => (lv[i] == null ? null : ([tx(Math.floor((isoToMin(c.time) ?? 0) / 60)), ty(lv[i]!)] as const))).filter(Boolean) as (readonly [number, number])[];
@@ -243,17 +244,32 @@ export default function ForecastTable({
                 Wave
                 <small>{ft ? 'ft' : 'm'}</small>
               </th>
-              {cols.map((c) => {
-                const hb = c.derived.hb;
-                const val = hb == null ? '–' : ft ? String(Math.round(hb * 3.281)) : hb.toFixed(1);
-                return (
-                  <td key={c.time} className={`fc-surf${night(c)}`} title={hb == null ? undefined : `${fmtSurfRange(hb, settings.heightUnit)} · ${bodyRange(hb * 0.8, hb * 1.2)}`}>
-                    <span className="fc-val">{val}</span>
-                    {/* The height as stacked Japanese-style waves (full at 3 m). */}
-                    {hb != null && <WaveStackSvg className="fc-stack" h={hb} w={34} max={40} />}
-                  </td>
-                );
-              })}
+              {/* One continuous, smooth blue curve over all hours (full at 3 m), each hour's number
+                  above its column; hover a column for the range and body words. */}
+              <td colSpan={cols.length} className="fc-wave-row">
+                <svg width={W} height={WAVE_H} aria-label="Wave height">
+                  <HeightCurve
+                    points={cols.flatMap((c, i) => (c.derived.hb == null ? [] : [{ x: i * COL_W + COL_W / 2, h: c.derived.hb }]))}
+                    x0={0}
+                    x1={W}
+                    base={WAVE_H}
+                    maxPx={WAVE_H - 20}
+                  />
+                  {cols.map((c, i) => {
+                    const hb = c.derived.hb;
+                    return (
+                      <g key={c.time}>
+                        <rect x={i * COL_W} y={0} width={COL_W} height={WAVE_H} fill="transparent">
+                          {hb != null && <title>{`${fmtSurfRange(hb, settings.heightUnit)} · ${bodyRange(hb * 0.8, hb * 1.2)}`}</title>}
+                        </rect>
+                        <text x={i * COL_W + COL_W / 2} y={13} textAnchor="middle" className="fc-wave-val">
+                          {hb == null ? '–' : ft ? String(Math.round(hb * 3.281)) : hb.toFixed(1)}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+              </td>
             </tr>
             <tr>
               <th scope="row">

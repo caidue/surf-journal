@@ -1,11 +1,10 @@
-import { useId } from 'react';
 import type { HourConditions, Spot } from '../types';
 import { exposure, trainsByEnergy, type TrainInfo } from '../lib/conditions';
 import { scoreColor } from '../lib/rating';
 
 /**
  * Drawing pieces shared by the forecast table (ForecastTable) and the session chart (Timeline),
- * so the two look the same: the wave-height stack, the swell colours and the swell wave glyph.
+ * so the two look the same: the wave-height curve, the swell colours and the swell wave glyph.
  */
 
 /** Swell colours: blue = good direction for the spot, red = poor; 1st / 2nd / 3rd swell by energy dark → light. */
@@ -25,54 +24,58 @@ export const swellColor = (spot: Pick<Spot, 'idealSwellDir' | 'swellWindow'> | u
 /** A small breaking wave in a 100 × 100 box: a slim back, a rounded crest with a soft lip, the face down. */
 export const SWELL_WAVE_PATH = 'M0 100 C26 96 42 66 58 36 C67 18 75 8 84 8 C91 8 95 13 94 18 C90 15 85 16 83 23 C85 52 92 80 100 100 Z';
 
-/** Height of the wave stack (px) for a face height of `h` m: full at 3 m, at least a sliver. */
-export const stackPx = (h: number, max: number) => Math.max(4, Math.min(1, h / 3) * max);
-
 /**
- * The wave height as stacked waves in the style of Japanese prints (the seigaiha pattern:
- * overlapping scallops of concentric rings, navy and blue with white between), reaching up to the
- * height. An SVG group in a `w` × `max` box with its baseline at the bottom (y = max), placed at
- * (x, y).
+ * A smooth line through points (monotone cubic: it passes through every point and never
+ * overshoots between them, so a flat stretch stays flat and the curve bends softly at each hour).
  */
-export function WaveStack({ h, w, max, x = 0, y = 0 }: { h: number; w: number; max: number; x?: number; y?: number }) {
-  const clip = useId().replace(/:/g, '');
-  const px = stackPx(h, max);
-  const top = max - px;
-  const r = Math.min(w / 4, 8.5); // two scallops across a forecast column; same size in wider ones
-  const dy = r * 0.55; // rows overlap so only the top arcs of each show
-  const scales: { cx: number; cy: number }[] = [];
-  for (let i = 0, cy = top + r; cy - r < max; cy += dy, i++) {
-    const off = i % 2 ? r : 0;
-    for (let cx = -r + off; cx < w + 2 * r; cx += 2 * r) scales.push({ cx, cy });
+export function smoothLine(pts: readonly (readonly [number, number])[]): string {
+  const n = pts.length;
+  if (!n) return '';
+  if (n === 1) return `M${pts[0][0]},${pts[0][1]}`;
+  const slope: number[] = [];
+  for (let i = 0; i < n - 1; i++) slope.push((pts[i + 1][1] - pts[i][1]) / Math.max(1e-6, pts[i + 1][0] - pts[i][0]));
+  const tan: number[] = pts.map((_, i) => (i === 0 ? slope[0] : i === n - 1 ? slope[n - 2] : slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2));
+  for (let i = 0; i < n - 1; i++) {
+    if (slope[i] === 0) {
+      tan[i] = 0;
+      tan[i + 1] = 0;
+      continue;
+    }
+    const a = tan[i] / slope[i];
+    const b = tan[i + 1] / slope[i];
+    const q = a * a + b * b;
+    if (q > 9) {
+      const k = 3 / Math.sqrt(q);
+      tan[i] = k * a * slope[i];
+      tan[i + 1] = k * b * slope[i];
+    }
   }
-  return (
-    <g transform={`translate(${x},${y})`} aria-hidden>
-      <defs>
-        <clipPath id={clip}>
-          <rect x={0} y={top} width={w} height={px} />
-        </clipPath>
-      </defs>
-      <g clipPath={`url(#${clip})`}>
-        {scales.map(({ cx, cy }, k) => (
-          <g key={k}>
-            <circle cx={cx} cy={cy} r={r} fill="#1e3a8a" />
-            <circle cx={cx} cy={cy} r={r * 0.74} fill="#fff" />
-            <circle cx={cx} cy={cy} r={r * 0.6} fill="#2563eb" />
-            <circle cx={cx} cy={cy} r={r * 0.34} fill="#fff" />
-            <circle cx={cx} cy={cy} r={r * 0.2} fill="#60a5fa" />
-          </g>
-        ))}
-      </g>
-    </g>
-  );
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    const h = (x1 - x0) / 3;
+    d += ` C${(x0 + h).toFixed(1)},${(y0 + tan[i] * h).toFixed(1)} ${(x1 - h).toFixed(1)},${(y1 - tan[i + 1] * h).toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  }
+  return d;
 }
 
-/** The wave stack as its own small SVG (for HTML table cells). */
-export function WaveStackSvg({ h, w, max, className }: { h: number; w: number; max: number; className?: string }) {
+/**
+ * The wave height across the hours as one continuous, smooth, blue-filled curve: each hour's
+ * height at the middle of its column (`points`: x and metres), flat out to `x0` / `x1` at both
+ * ends, on a baseline at y = `base`, full height (`maxPx`) at `fullAt` m. Shared by the forecast
+ * table and the session chart.
+ */
+export function HeightCurve({ points, x0, x1, base, maxPx, fullAt = 3 }: { points: { x: number; h: number }[]; x0: number; x1: number; base: number; maxPx: number; fullAt?: number }) {
+  if (!points.length) return null;
+  const y = (h: number) => base - Math.max(2, Math.min(1, h / fullAt) * maxPx);
+  const pts: [number, number][] = [[x0, y(points[0].h)], ...points.map((p) => [p.x, y(p.h)] as [number, number]), [x1, y(points[points.length - 1].h)]];
+  const line = smoothLine(pts);
   return (
-    <svg className={className} width={w} height={max} viewBox={`0 0 ${w} ${max}`} aria-hidden>
-      <WaveStack h={h} w={w} max={max} />
-    </svg>
+    <g aria-hidden>
+      <path d={`${line} L${x1},${base} L${x0},${base} Z`} className="height-area" />
+      <path d={line} className="height-line" />
+    </g>
   );
 }
 

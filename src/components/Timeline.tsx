@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react';
 import type { HourConditions, Settings, Spot } from '../types';
 import { SLOT_MIN } from '../types';
 import { waveEnergyKJ, windKind, type Derived, type WindKind } from '../lib/conditions';
-import { periodTone, ratingFill, ratingText, stackPx, SwellArrows, swellsOf, SwellWaves, WaveStack } from './surfGlyphs';
+import { HeightCurve, periodTone, ratingFill, ratingText, SwellArrows, swellsOf, SwellWaves } from './surfGlyphs';
 import { energyColors, fmtEnergy, WIND_UNIT_LABEL, windIn } from '../lib/format';
 import { fmtDuration, fmtMin, isoToMin } from '../lib/time';
 import { useElementWidth } from '../hooks';
@@ -96,14 +96,13 @@ export default function Timeline(p: Props) {
   const axis = row(18, 0);
   const H = y;
 
-  const STACK_MAX = 48; // wave stack full height (3 m)
+  const STACK_MAX = 50; // wave curve full height (3 m)
   const tideVals = hours.map((r) => r.h.seaLevel).filter((v): v is number => v != null);
   const tLo = tideVals.length ? Math.min(...tideVals) : 0;
   const tHi = tideVals.length ? Math.max(...tideVals) : 1;
   const tideY = (v: number) => tide.y + tide.h - 4 - ((v - tLo) / Math.max(0.05, tHi - tLo)) * (tide.h - 12);
   const fmtH = (m: number) => (p.heightUnit === 'ft' ? `${Math.round(m * 3.281)}` : m.toFixed(1));
   const fmtW = (k: number) => windIn(k, p.windUnit);
-  const colW = Math.max(4, pxPerHour - 4);
   const showVal = (m: number) => (m / 60) % every === 0;
 
   /* ---------------- interaction ---------------- */
@@ -253,23 +252,22 @@ export default function Timeline(p: Props) {
             </g>
           )}
 
-          {/* wave: the height as a number over the stacked Japanese-style waves (full at 3 m) */}
+          {/* wave: one continuous, smooth blue curve over the hours (full at 3 m), numbers above */}
           {label(wave, 'Wave', p.heightUnit === 'ft' ? 'ft' : 'm')}
-          {hours.map((r) => {
-            const hb = r.d?.hb;
-            if (hb == null) return null;
-            const top = wave.y + wave.h - stackPx(hb, STACK_MAX);
-            return (
-              <g key={r.m}>
-                <WaveStack h={hb} w={colW} max={STACK_MAX} x={x(r.m) + (pxPerHour - colW) / 2} y={wave.y + wave.h - STACK_MAX} />
-                {showVal(r.m) && (
-                  <text x={x(r.m) + pxPerHour / 2} y={Math.min(wave.y + 11, top - 3)} textAnchor="middle" className="tl-val">
-                    {fmtH(hb)}
-                  </text>
-                )}
-              </g>
-            );
-          })}
+          <HeightCurve
+            points={hours.flatMap((r) => (r.d?.hb == null ? [] : [{ x: x(r.m) + pxPerHour / 2, h: r.d.hb }]))}
+            x0={x(v0)}
+            x1={x(v1)}
+            base={wave.y + wave.h}
+            maxPx={STACK_MAX}
+          />
+          {hours.map((r) =>
+            r.d?.hb != null && showVal(r.m) ? (
+              <text key={r.m} x={x(r.m) + pxPerHour / 2} y={wave.y + 11} textAnchor="middle" className="tl-val">
+                {fmtH(r.d.hb)}
+              </text>
+            ) : null,
+          )}
 
           {/* swell: height, the swells' arrows side by side and their waves (blue = good direction
               for the spot, red = poor and facing left; dark → light by energy), as in the forecast */}

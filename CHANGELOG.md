@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.1 — 2026-11-17
+
+- **Wave row as one smooth curve:** instead of the stacked Japanese-style waves, the wave height is one continuous blue-filled line over all hours that bends softly at each hour (full height at 3 m), in the forecast and in the session chart.
+
 ## 1.7.0 — 2026-11-16
 
 - **Wave height as stacked waves:** the forecast's Wave row and the session chart show the height as waves stacked in the style of Japanese prints (navy and blue rings with white between), reaching up to the height (full at 3 m).

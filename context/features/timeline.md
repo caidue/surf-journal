@@ -6,14 +6,14 @@ resource: "src/components/Timeline.tsx"
 tags: ["feature", "chart"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T19:10:00+00:00"
+  at: "2026-11-17T08:30:00+00:00"
 ---
 # Conditions timeline
 
-SVG chart with the **same rows, order and look as the [forecast table](/features/forecast-table.md)** (aligned 2026-11-16; both are drawn with the same small pieces from `surfGlyphs.tsx`: `swellsOf`, `SwellArrows`, `SwellWaves`, `WaveStack`, `ratingFill` / `ratingText`, `periodTone`):
+SVG chart with the **same rows, order and look as the [forecast table](/features/forecast-table.md)** (aligned 2026-11-16; both are drawn with the same small pieces from `surfGlyphs.tsx`: `swellsOf`, `SwellArrows`, `SwellWaves`, `HeightCurve`, `ratingFill` / `ratingText`, `periodTone`):
 
 * **Rating** ("for you" then): the same rounded score pills (✕ on grey when not for you; numbers from 22 px per hour).
-* **Wave**: the height as a number over the stacked Japanese-style waves (`WaveStack`, full at 3 m, 48 px).
+* **Wave**: the height as a number over the same continuous, smooth blue curve as the forecast (`HeightCurve`, full at 3 m, 50 px).
 * **Swell**: the main swell's height, the arrows of the main and up to two more swells side by side (from 30 px per hour; else the main one) and their small waves stacked by height, coloured like the forecast (blue = good direction for the spot, red = poor and facing left; dark → light by energy; needs the `spot` prop).
 * **Period** of the main swell (bold from 12 s, grey under 8 s), **Energy** (strongest train, the same colour pills), **Wind** (speed, arrow, wind colours), **Tide** curve with high/low labels.
 

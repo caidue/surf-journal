@@ -2,6 +2,8 @@
 
 ## 2026-11-17
 
+* **Update** of [Releases](/operations/releases.md): 1.7.1 committed, tagged `v1.7.1` and pushed.
+* **Update** of [Forecast table](/features/forecast-table.md), [Conditions timeline](/features/timeline.md), [UI shell](/architecture/ui-shell.md): Wave row as one smooth blue curve (`HeightCurve`) instead of the seigaiha stacks; [Releases](/operations/releases.md) (1.7.1).
 * **Update** of [Releases](/operations/releases.md): 1.6.13 and 1.7.0 committed together, tagged `v1.7.0` and pushed.
 * **Update** of [UI shell](/architecture/ui-shell.md), [Conditions timeline](/features/timeline.md), [Forecast table](/features/forecast-table.md): forecast and session chart drawn with the same shared pieces (`swellsOf`, `SwellArrows`, `SwellWaves`, `ratingFill`, `periodTone`); [Testing](/operations/testing.md) (surfGlyphs.test.ts).
 * **Update** of [Conditions timeline](/features/timeline.md) (rows, look and session band like the forecast), [Forecast table](/features/forecast-table.md) (Wave row as seigaiha wave stack), [UI shell](/architecture/ui-shell.md) and [Code map](/architecture/code-map.md) (`surfGlyphs.tsx`), [Releases](/operations/releases.md) (1.7.0).

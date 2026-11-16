@@ -2280,19 +2280,26 @@ td.fc-wind.unsure {
   padding: 2px 0;
   font-weight: 700;
 }
-/* Wave row: the number above the stacked waves (seigaiha), on the cell's bottom edge. */
-td.fc-surf {
-  position: relative;
-  height: 62px;
-  vertical-align: top;
-  padding-top: 3px;
+/* Wave row: one continuous, smooth blue curve over all hours (shared HeightCurve), each hour's
+   number above its column. Also used by the session chart. */
+.fc-wave-row {
+  padding: 0;
 }
-.fc-stack {
-  position: absolute;
-  left: 50%;
-  bottom: 3px;
-  transform: translateX(-50%);
+.fc-wave-row svg {
   display: block;
+}
+.fc-wave-val {
+  font-size: 0.8125rem;
+  fill: var(--ink);
+}
+.height-area {
+  fill: #60a5fa;
+  fill-opacity: 0.55;
+}
+.height-line {
+  fill: none;
+  stroke: #1d4ed8;
+  stroke-width: 1.8;
 }
 /* Period row: the main swell's peak period; long periods bold, short ones muted. */
 td.fc-period {
@@ -2336,12 +2343,6 @@ td.fc-period.weak {
 }
 .fc td.empty {
   background: transparent;
-}
-.fc-val {
-  position: relative;
-  font-weight: 400;
-  white-space: nowrap;
-  font-size: 0.8125rem;
 }
 /* Gusts under the average wind: smaller and grey. */
 .fc-wind .fc-gust {
