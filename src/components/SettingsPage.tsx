@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Session, Settings, SkillProfile, Spot } from '../types';
 import { CONDITIONS_VERSION } from '../types';
-import { db, exportAll, importAll, refreshSeedSpots, saveSettings, type Backup } from '../db';
+import { db, importAll, refreshSeedSpots, saveSettings, type Backup } from '../db';
 import { SEED_SPOTS } from '../data/seedSpots';
 import { addDemoSessions, removeDemoSessions } from '../lib/demo';
 import { todayAt, uid } from '../lib/time';
@@ -11,6 +11,7 @@ import StageCard from './StageCard';
 import { isIOS, promptInstall, requestPersistence, storageStatus, usePwa } from '../lib/pwa';
 import { syncPendingSessions } from '../lib/sync';
 import { useDebounced } from './SpotPicker';
+import { backupAge, backupDue, backupJson, lastBackupAt, markBackedUp, offersShareBackup, shareBackup } from '../lib/backup';
 
 const mb = (b: number) => (b < 1e6 ? `${Math.max(1, Math.round(b / 1e3))} kB` : `${(b / 1e6).toFixed(b < 1e7 ? 1 : 0)} MB`);
 
@@ -259,15 +260,32 @@ export default function SettingsPage({ settings, spots, sessions, go }: { settin
     }
   };
 
+  const [lastBackup, setLastBackup] = useState(lastBackupAt);
+  const [canShare] = useState(offersShareBackup);
+  /** A backup the browser refused to share because the tap had expired: the next tap sends it at once. */
+  const [prepared, setPrepared] = useState<File | null>(null);
+
   const download = async () => {
-    const data = await exportAll();
-    const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+    const blob = new Blob([await backupJson()], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `surf-journal-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
+    markBackedUp();
+    setLastBackup(lastBackupAt());
   };
+
+  const share = () =>
+    run('share', async () => {
+      const r = await shareBackup(prepared);
+      setPrepared(r.status === 'retry' ? r.file : null);
+      if (r.status === 'retry') return 'Your backup is ready. Tap "Save backup" once more.';
+      if (r.status === 'unsupported') return 'This browser can\'t share files. Use "Download backup" instead.';
+      if (r.status === 'cancelled') return '';
+      setLastBackup(lastBackupAt());
+      return 'Backup handed over. Check that it arrived where you saved it.';
+    });
 
   const setCat = (i: number, patch: Partial<Settings['categories'][number]>) =>
     saveSettings({ categories: settings.categories.map((c, k) => (k === i ? { ...c, ...patch } : c)) });
@@ -350,17 +368,31 @@ export default function SettingsPage({ settings, spots, sessions, go }: { settin
       <Card>
         <h3>Your data</h3>
         <p className="small">
-          Everything is stored only in this browser ({spots.length} spots, {sessions.length} sessions). Export a backup regularly, or to move to another device.
+          Everything is stored only in this browser ({spots.length} spots, {sessions.length} sessions). Back it up regularly, or to move to another device.
+        </p>
+        {canShare && (
+          <p className="small">
+            <strong>Back up to your cloud</strong> opens the share sheet:{' '}
+            {isIOS() ? 'choose "Save to Files" and a folder in iCloud Drive.' : 'choose Drive, or another cloud app you use.'} Saving to the same folder again replaces the old backup.
+          </p>
+        )}
+        <p className={`small ${backupDue(lastBackup, sessions.length) ? 'backup-due' : 'muted'}`}>
+          {backupAge(lastBackup) ? `Last backup from this device: ${backupAge(lastBackup)}.` : 'No backup from this device yet.'}
         </p>
         <div className="btn-group">
+          {canShare && (
+            <button className="btn primary" disabled={busy === 'share'} onClick={share}>
+              {prepared ? 'Save backup' : busy === 'share' ? 'Preparing…' : 'Back up to your cloud…'}
+            </button>
+          )}
           <button className="btn" onClick={download}>
-            Export backup (JSON)
+            {canShare ? 'Download backup' : 'Export backup (JSON)'}
           </button>
           <label className="btn">
             Import backup…
             <input
               type="file"
-              accept="application/json,.json"
+              accept="application/json,.json,text/plain,.txt"
               hidden
               onChange={(e) => {
                 const f = e.target.files?.[0];

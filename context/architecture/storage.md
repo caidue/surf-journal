@@ -5,8 +5,8 @@ description: "Dexie schema, the version-3 upgrade, seed refresh, backup and pers
 resource: "src/db.ts"
 tags: ["architecture", "storage", "indexeddb"]
 generated:
-  by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T11:30:00+00:00"
+  by: "claude-code/claude-fable-5-2"
+  at: "2026-11-16T12:50:00+00:00"
 ---
 # Storage and migrations
 
@@ -32,4 +32,4 @@ Clears `forecasts`; converts a string `skillAtTime` (old four levels) to `{stage
 Forecasts: past days (end < today − 2) kept forever, today/future for one hour, entries older than a week pruned at start (`pruneCache`). A cached series with another `version` is ignored. Offline, `findSaved()` returns the newest saved series covering the range, flagged `stale`.
 
 ## Backup
-Settings → Your data exports `{app, version: 1, spots, sessions, trips, settings, photos (data URLs)}` (`trips` optional on import) as JSON; import merges with `bulkPut`. Saving a session calls `navigator.storage.persist()` (`requestPersistence`).
+Settings → Your data exports `{app, version: 1, spots, sessions, trips, settings, photos (data URLs)}` (`trips` optional on import) as JSON (`exportAll`), either as a download or, on phones, through the share sheet into the user's own cloud (`src/lib/backup.ts`, see [Backup](/features/backup.md)); import merges with `bulkPut` and reads `.json` and `.txt`. The time of the last backup from this device is kept in `localStorage` (`surf-journal.lastBackupAt`), outside the backup. Saving a session calls `navigator.storage.persist()` (`requestPersistence`).

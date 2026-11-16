@@ -1746,6 +1746,10 @@ body.full-map .foot {
 .trip-form .warn {
   color: var(--warn);
 }
+/* Settings → Your data: no backup yet, or the last one is over a month old. */
+.backup-due {
+  color: var(--warn);
+}
 .trip-badge {
   display: inline-flex;
   align-items: center;

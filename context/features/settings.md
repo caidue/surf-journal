@@ -5,8 +5,8 @@ description: "Your surfing, units, spots, how old sessions count, categories, ph
 resource: "src/components/SettingsPage.tsx"
 tags: ["feature", "settings"]
 generated:
-  by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T11:10:00+00:00"
+  by: "claude-code/claude-fable-5-2"
+  at: "2026-11-16T12:50:00+00:00"
 ---
 # Settings
 
@@ -16,6 +16,6 @@ generated:
 * **How old sessions count:** half-life (months), ignore before a date; note on stage weighting (¾ one stage apart, ½ two, ¼ more).
 * **Feeling categories:** name, colour, add/remove (Fun is fixed).
 * **On your phone:** install, offline explanation, sessions waiting for conditions (incl. old snapshots) with "Fetch now", storage use and persistence.
-* **Your data:** export/import JSON, clear forecast cache.
+* **Your data:** on touch devices that can share files, **Back up to your cloud…** opens the system share sheet with the backup (iPhone: Save to Files → iCloud Drive; Android: Drive or another cloud app), see [Backup](/features/backup.md); download (`Export backup (JSON)`, on phones `Download backup`) and import everywhere; "Last backup from this device" line, in the warning colour when there are sessions and no backup for 30 days; clear forecast cache.
 * **Demo sessions:** add random / remove ([Demo sessions](/features/demo-sessions.md)).
 * **About the data:** Open-Meteo (MFWAM height, ECMWF peak period, GFS-Wave trains), maps, surf-height estimate, Surfline naming, spot guide sources.

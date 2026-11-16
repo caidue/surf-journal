@@ -10,8 +10,8 @@ sources:
 decision_status: "accepted"
 decided: "2026-11-12"
 generated:
-  by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  by: "claude-code/claude-fable-5-2"
+  at: "2026-11-16T12:50:00+00:00"
 ---
 # Local-first storage in IndexedDB, no backend
 
@@ -22,4 +22,4 @@ A personal journal; the feasibility research priced a backend (Supabase) at ~€
 Store everything in IndexedDB via Dexie; JSON export/import for backups; ask for persistent storage when saving.
 
 ## Consequences
-No accounts or sync across devices (see [pending: accounts and sync](/decisions/pending/accounts-and-sync.md)); data can be lost if the browser clears it, so the app nudges backups.
+No accounts or sync across devices (see [pending: accounts and sync](/decisions/pending/accounts-and-sync.md)); data can be lost if the browser clears it, so the app nudges backups ([decision 0022](/decisions/0022-share-sheet-backup.md): share-sheet backup into the user's own cloud).

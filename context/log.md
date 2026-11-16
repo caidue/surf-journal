@@ -29,6 +29,8 @@
 
 ## 2026-11-16
 
+* **Creation** of [Backup](/features/backup.md) and [decision 0022](/decisions/0022-share-sheet-backup.md): backup through the share sheet into the user's own cloud on phones, last-backup line (`src/lib/backup.ts`).
+* **Update** of [Settings](/features/settings.md), [Storage](/architecture/storage.md), [Code map](/architecture/code-map.md), [Testing](/operations/testing.md) (backup.test.ts), [Principles](/product/principles.md), [decision 0001](/decisions/0001-local-first-indexeddb.md), [pending: accounts and sync](/decisions/pending/accounts-and-sync.md), [Releases](/operations/releases.md) (1.8.0).
 * **Update** of [Releases](/operations/releases.md): 1.6.4–1.6.8 committed together, tagged `v1.6.8` and pushed.
 * **Update** of [Forecast table](/features/forecast-table.md): swell waves face left when the swell comes from a poor direction for the spot.
 * **Update** of [Forecast table](/features/forecast-table.md): swell colours by energy (blue, red, purple; grey outside the window).

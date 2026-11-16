@@ -72,6 +72,7 @@ Algorithms: spot rating, suitability rules, skill profile and learning, predicti
 
 User-facing screens and flows. ([folder index](features/index.md))
 
+* [Backup](features/backup.md) - Backup into the user's own cloud through the share sheet on phones, download elsewhere, import, last-backup line.
 * [Demo sessions](features/demo-sessions.md) - Random sessions on real past conditions to try the app.
 * [Explore](features/explore.md) - Area breadcrumb, day and time filters, map and one ranked list of spots for you, similar past sessions.
 * [Hourly forecast table](features/forecast-table.md) - Surf-forecast-style hourly table: rating for you (or a chosen level), wave, swell trains, energy, wind, tide.
@@ -129,6 +130,7 @@ Accepted decisions (numbered) and pending ones. ([folder index](decisions/index.
 * [0019: Grade how sure each rating is; withhold where guessing is dangerous](decisions/0019-rating-confidence.md) - Ratings carry Reliable / Less certain / Rough guide from local knowledge, model agreement and your sessions; no rating for undocumented expert reefs at low tide.
 * [0020: Trips as named folders of sessions](decisions/0020-trips.md) - Group journal sessions into named trips with optional dates; one trip per session.
 * [0021: Rate spots for another level](decisions/0021-rate-for-another-level.md) - A temporary Rate-for switch rates spots for a typical surfer of any level, without your sessions.
+* [0022: Backup into the user's own cloud through the share sheet](decisions/0022-share-sheet-backup.md) - Phones back up through the system share sheet; no native cloud, no cloud APIs; desktop keeps its data and the download.
 * [Accounts, sync and a commercial data plan](decisions/pending/accounts-and-sync.md) - What a public release would need.
 * [Should several challenging causes compound?](decisions/pending/compounding-challenges.md) - Worst status wins, so two problems count like one.
 * [Ask Open-Meteo for per-train peak periods in MFWAM](decisions/pending/open-meteo-upstream.md) - Upstream improvement, not ours to build.

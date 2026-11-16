@@ -2,6 +2,7 @@
 
 User-facing screens and flows.
 
+* [Backup](backup.md) - Backup into the user's own cloud through the share sheet on phones, download elsewhere, import, last-backup line.
 * [Demo sessions](demo-sessions.md) - Random sessions on real past conditions to try the app.
 * [Explore](explore.md) - Area breadcrumb, day and time filters, map and one ranked list of spots for you, similar past sessions.
 * [Hourly forecast table](forecast-table.md) - Surf-forecast-style hourly table: rating for you (or a chosen level), wave, swell trains, energy, wind, tide.

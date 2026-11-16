@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.0 — 2026-11-16
+
+- **Back up to your own cloud (phones and tablets):** Settings → Your data has a new "Back up to your cloud…" button. It opens the share sheet, where you save the backup to iCloud Drive (iPhone: "Save to Files"), Google Drive or any other app. No sign-in in the app. The file always has the same name, so saving to the same folder replaces the old backup.
+- Settings shows when this device last made a backup, and highlights it when you have sessions and no backup for 30 days.
+- Import also reads the `.txt` backups that Android's share sheet produces.
+
 ## 1.7.1 — 2026-11-17
 
 - **Wave row as one smooth curve:** instead of the stacked Japanese-style waves, the wave height is one continuous blue-filled line over all hours that bends softly at each hour (full height at 3 m), in the forecast and in the session chart.

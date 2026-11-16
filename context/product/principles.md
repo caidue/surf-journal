@@ -7,12 +7,12 @@ sources:
   - resource: "README.md"
     id: "readme"
 generated:
-  by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  by: "claude-code/claude-fable-5-2"
+  at: "2026-11-16T12:50:00+00:00"
 ---
 # Product principles
 
-* **Local-first, no backend.** Data lives in IndexedDB on the device; export/import JSON for backups. See [decision 0001](/decisions/0001-local-first-indexeddb.md).
+* **Local-first, no backend.** Data lives in IndexedDB on the device; export/import JSON for backups, on phones through the share sheet into your own cloud ([decision 0022](/decisions/0022-share-sheet-backup.md)). See [decision 0001](/decisions/0001-local-first-indexeddb.md).
 * **Works offline at the beach.** App shell, saved forecasts, map tiles and photos are cached; sessions logged offline get their conditions later. See [Offline and PWA](/architecture/offline-pwa.md).
 * **Explain every number.** Scores come with reasons generated only from computed values (`explain()` in `src/lib/recommend.ts`, `SuitReasons` in `src/components/ui.tsx`). Size reasons always name both sizes and link to "Edit comfort size".
 * **Conventions surfers know.** Peak periods, face heights with body words, strongest-train energy, Surfline spot names. See [Wave periods](/domain/wave-periods.md), [Spot naming](/spots/naming.md).

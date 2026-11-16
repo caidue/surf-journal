@@ -23,6 +23,7 @@ Accepted decisions (numbered) and pending ones.
 * [0019: Grade how sure each rating is; withhold where guessing is dangerous](0019-rating-confidence.md) - Ratings carry Reliable / Less certain / Rough guide from local knowledge, model agreement and your sessions; no rating for undocumented expert reefs at low tide.
 * [0020: Trips as named folders of sessions](0020-trips.md) - Group journal sessions into named trips with optional dates; one trip per session.
 * [0021: Rate spots for another level](0021-rate-for-another-level.md) - A temporary Rate-for switch rates spots for a typical surfer of any level, without your sessions.
+* [0022: Backup into the user's own cloud through the share sheet](0022-share-sheet-backup.md) - Phones back up through the system share sheet; no native cloud, no cloud APIs; desktop keeps its data and the download.
 
 # Pending decisions
 
