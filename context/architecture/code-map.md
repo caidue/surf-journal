@@ -6,7 +6,7 @@ resource: "src/"
 tags: ["architecture", "code"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T11:30:00+00:00"
+  at: "2026-11-16T18:30:00+00:00"
 ---
 # Code map
 
@@ -41,4 +41,4 @@ generated:
 * `CLAUDE.md` / `AGENTS.md`: agent instructions, incl. the rule to keep `context/` current.
 
 ## Components (`src/components/`)
-Explore, SpotSheet/SpotPage/SpotView, ForecastTable, Timeline, SpotGuide, SessionEditor, Journal, SettingsPage, Onboarding, StageCard, SpotEditor, SpotPicker, MapView, SpotThumb, ui (Chips, Segmented, ActionBar, badges, SuitReasons), icons. See [features](/features/index.md).
+Explore, SpotSheet/SpotPage/SpotView, ForecastTable, Timeline, surfGlyphs (shared wave/swell drawing), SpotGuide, SessionEditor, Journal, SettingsPage, Onboarding, StageCard, SpotEditor, SpotPicker, MapView, SpotThumb, ui (Chips, Segmented, ActionBar, badges, SuitReasons), icons. See [features](/features/index.md).

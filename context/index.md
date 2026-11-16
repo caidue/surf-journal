@@ -82,7 +82,7 @@ User-facing screens and flows. ([folder index](features/index.md))
 * [Spot editor](features/spot-editor.md) - Adding and editing spots, peaks and guides.
 * [Spot guide](features/spot-guide.md) - About this spot, peaks, season, boards, access, warnings, parking, facilities and photos for a spot.
 * [Spot view](features/spot-view.md) - Everything about one spot in tabs, as a sheet over Explore or as its own page.
-* [Conditions timeline](features/timeline.md) - The SVG day chart used to mark a session: For you, surf, swell, energy, wind, tide.
+* [Conditions timeline](features/timeline.md) - The SVG day chart used to mark a session, in the forecast table's look: rating, wave, swell, period, energy, wind, tide.
 
 # Spots
 

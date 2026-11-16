@@ -219,6 +219,15 @@ section {
 .row.gap {
   gap: var(--sp-2);
 }
+/* "When were you at …?" with the Session / Daylight / Full day toggle: no heading margin inside
+   the row (it pushed the title off-centre), a small gap when they stack, more room to the chart. */
+.when-head {
+  gap: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.when-head h3 {
+  margin: 0;
+}
 .wrap {
   flex-wrap: wrap;
 }
@@ -1116,8 +1125,15 @@ label.field,
   font-weight: 700;
   color: var(--ink);
 }
+/* Neutral information (best peak, local knowledge, "other times are about as good"): a small
+   info icon (circled i) in the text colour. */
 .explain li::before {
-  content: '•';
+  content: '';
+  top: 0.18em;
+  height: 1.05em;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5M12 7.6v.1'/%3E%3C/svg%3E") center / 0.95em no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5M12 7.6v.1'/%3E%3C/svg%3E") center / 0.95em no-repeat;
 }
 /* What counts against the hour ("Held back by …" and the reasons against) gets a small warning
    triangle in the text colour; lines about your past sessions a small journal icon. */
@@ -1309,6 +1325,13 @@ body.full-map .foot {
   font-weight: 700;
   fill: #fff;
 }
+/* Period: bold from 12 s, grey under 8 s (as in the forecast). */
+.tl-val.strong {
+  font-weight: 700;
+}
+.tl-val.weak {
+  fill: var(--muted);
+}
 .tl-score.muted {
   fill: #94a3b8;
 }
@@ -1339,19 +1362,21 @@ body.full-map .foot {
   stroke: #0284c7;
   stroke-width: 1.6;
 }
+/* Your session: a soft accent band across all rows (handles on its edges, the time above). */
 .timeline .session {
-  fill: #0ea5e9;
-  opacity: 0.13;
-  stroke: #0284c7;
+  fill: var(--accent);
+  fill-opacity: 0.1;
+  stroke: var(--accent);
+  stroke-opacity: 0.55;
   stroke-width: 1.5;
 }
 .timeline .handle {
-  fill: #0284c7;
+  fill: var(--accent);
 }
 .session-label {
   font-size: 11px;
   font-weight: 700;
-  fill: #075985;
+  fill: var(--accent-strong);
 }
 .timeline .highlight {
   fill: none;
@@ -2255,71 +2280,38 @@ td.fc-wind.unsure {
   padding: 2px 0;
   font-weight: 700;
 }
+/* Wave row: the number above the stacked waves (seigaiha), on the cell's bottom edge. */
+td.fc-surf {
+  position: relative;
+  height: 62px;
+  vertical-align: top;
+  padding-top: 3px;
+}
+.fc-stack {
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  transform: translateX(-50%);
+  display: block;
+}
 /* Period row: the main swell's peak period; long periods bold, short ones muted. */
 td.fc-period {
   font-variant-numeric: tabular-nums;
 }
-td.fc-period.long {
+td.fc-period.strong {
   font-weight: 700;
 }
-td.fc-period.short {
+td.fc-period.weak {
   color: var(--muted);
 }
-/* Swell row: the swells as small surf waves on one baseline at the bottom of the cell, under the
-   numbers and arrows (main swell blue in front, 2nd red / 3rd purple, fainter, behind). */
-td.fc-swell.with-waves {
-  position: relative;
-  padding-bottom: 32px;
-}
-.fc-swell-waves {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 2px;
-  height: 28px;
-}
-.fc-wave {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  --dx: 0px;
-  --flip: 1;
-  transform: translateX(calc(-50% + var(--dx))) scaleX(var(--flip));
-}
-.fc-wave.n2 {
-  opacity: 1;
-  --dx: -8px;
-}
-.fc-wave.n3 {
-  opacity: 1;
-  --dx: -15px;
-}
-/* A swell from a poor direction for the spot faces the other way (as on surf-forecast). */
-.fc-wave.mirrored {
-  --flip: -1;
+/* Swell cells: the swells' arrows (and in the main Swell row their small waves) drawn by the
+   shared pieces in surfGlyphs.tsx, centred under the height. */
+.fc-swell-svg {
+  display: block;
+  margin: 1px auto 0;
+  overflow: visible;
 }
 /* Swell row: the 2nd (red) / 3rd (purple) swell arrows, fainter, sit behind the main (blue) arrow. */
-/* The swells' arrows side by side: main first, then the 2nd and 3rd. */
-.fc-dirs {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  height: 15px;
-}
-.fc-dir-more {
-  display: block;
-  line-height: 0;
-}
-.fc-dir-more svg {
-  display: block;
-}
-.fc-dir-more.n2 {
-  opacity: 1;
-}
-.fc-dir-more.n3 {
-  opacity: 1;
-}
 .fc-score.s-stretch {
   box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.55);
 }
@@ -2347,7 +2339,7 @@ td.fc-swell.with-waves {
 }
 .fc-val {
   position: relative;
-  font-weight: 700;
+  font-weight: 400;
   white-space: nowrap;
   font-size: 0.8125rem;
 }

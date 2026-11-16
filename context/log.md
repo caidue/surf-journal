@@ -2,6 +2,13 @@
 
 ## 2026-11-17
 
+* **Update** of [Releases](/operations/releases.md): 1.6.13 and 1.7.0 committed together, tagged `v1.7.0` and pushed.
+* **Update** of [UI shell](/architecture/ui-shell.md), [Conditions timeline](/features/timeline.md), [Forecast table](/features/forecast-table.md): forecast and session chart drawn with the same shared pieces (`swellsOf`, `SwellArrows`, `SwellWaves`, `ratingFill`, `periodTone`); [Testing](/operations/testing.md) (surfGlyphs.test.ts).
+* **Update** of [Conditions timeline](/features/timeline.md) (rows, look and session band like the forecast), [Forecast table](/features/forecast-table.md) (Wave row as seigaiha wave stack), [UI shell](/architecture/ui-shell.md) and [Code map](/architecture/code-map.md) (`surfGlyphs.tsx`), [Releases](/operations/releases.md) (1.7.0).
+* **Update** of [Session logging](/features/session-logging.md): zoom toggle aligned with the title, spacing on phones.
+* **Update** of [Forecast table](/features/forecast-table.md): Wave values in regular weight.
+* **Update** of [Forecast table](/features/forecast-table.md): rounded swell wave crest, waves stacked by height.
+* **Update** of [Explore](/features/explore.md), [UI shell](/architecture/ui-shell.md): info icon for neutral points; [Releases](/operations/releases.md) (1.6.13).
 * **Update** of [Releases](/operations/releases.md): 1.6.12 committed, tagged `v1.6.12` and pushed.
 * **Update** of [Explore](/features/explore.md): on desktop a map marker scrolls the list to its spot.
 * **Update** of [Explore](/features/explore.md) (footer under the page), [Journal](/features/journal.md) (labelled log button on desktop), [Session logging](/features/session-logging.md) (no To save hint), [Releases](/operations/releases.md) (1.6.12).

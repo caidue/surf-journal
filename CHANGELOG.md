@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.7.0 — 2026-11-16
+
+- **Wave height as stacked waves:** the forecast's Wave row and the session chart show the height as waves stacked in the style of Japanese prints (navy and blue rings with white between), reaching up to the height (full at 3 m).
+- **The session chart looks like the forecast:** the same rows and names (Rating, Wave, Swell, Period, Energy, Wind, Tide), the same score pills, coloured swell arrows and waves (blue from a good direction, red from a poor one), its own Period row, and your session as a soft band across all rows with the time above it. Both are drawn with the same small shared pieces, so they stay alike.
+
+## 1.6.13 — 2026-11-16
+
+- Logging a session: the Session / Daylight / Full day toggle lines up with the "When were you at …" title on desktop; on phones it sits closer to the title with more room above the chart.
+- Forecast: the Wave row's numbers are no longer bold.
+- Forecast: the swell waves have a rounded crest instead of a sharp peak, and they're stacked by height, tallest at the back and smallest in front.
+- Spot cards: neutral points (best peak, local knowledge, "other times are about as good") have a small info icon instead of a dot.
+
 ## 1.6.12 — 2026-11-16
 
 - **Desktop Explore:** the data and map credits are back at the bottom of the whole page instead of at the end of the spot list.

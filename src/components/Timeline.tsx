@@ -1,9 +1,9 @@
 import { useMemo, useRef } from 'react';
-import type { HourConditions, Settings } from '../types';
+import type { HourConditions, Settings, Spot } from '../types';
 import { SLOT_MIN } from '../types';
-import { trainsByEnergy, waveEnergyKJ, windKind, type Derived, type WindKind } from '../lib/conditions';
+import { waveEnergyKJ, windKind, type Derived, type WindKind } from '../lib/conditions';
+import { periodTone, ratingFill, ratingText, stackPx, SwellArrows, swellsOf, SwellWaves, WaveStack } from './surfGlyphs';
 import { energyColors, fmtEnergy, WIND_UNIT_LABEL, windIn } from '../lib/format';
-import { scoreColor } from '../lib/rating';
 import { fmtDuration, fmtMin, isoToMin } from '../lib/time';
 import { useElementWidth } from '../hooks';
 
@@ -20,9 +20,13 @@ export interface Range {
 
 interface Props {
   hours: HourConditions[];
+  /** For the swell colours (blue = good direction for this spot, red = poor), as in the forecast. */
+  spot?: Pick<Spot, 'idealSwellDir' | 'swellWindow'>;
   derived: Derived[];
   scores?: (HourScore | null)[];
   scoreLabel?: string;
+  /** Small grey line under the rating label ("for you"). */
+  scoreSub?: string;
   sunrise?: number | null;
   sunset?: number | null;
   heightUnit: Settings['heightUnit'];
@@ -49,9 +53,6 @@ export const WIND_BG: Record<WindKind, string> = {
 
 type Drag = { kind: 'brush'; mode: 'new' | 'start' | 'end' | 'move'; anchor: number; offset: number; moved: boolean };
 
-/** Offshore height of the strongest train (the "swell" line), else the total sea. */
-const swellH = (h: HourConditions) => trainsByEnergy(h)[0]?.h ?? h.waveH;
-
 const snap = (m: number, step = SLOT_MIN) => Math.round(m / step) * step;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -75,31 +76,35 @@ export default function Timeline(p: Props) {
 
   const interactive = !!p.onSessionChange;
 
-  // Row layout.
+  // Row layout: the same rows, order and names as the forecast table (ForecastTable).
   let y = 0;
   const row = (h: number, gap = 4) => {
     const r = { y, h };
     y += h + gap;
     return r;
   };
-  const scoreRow = p.scores ? row(16) : null;
-  const surf = row(104, 0);
-  const swell = row(24, 2);
+  const sessLane = interactive ? row(16, 2) : null; // "11:15–12:45 · 1 h 30 min" above the rows
+  const scoreRow = p.scores ? row(20, 4) : null;
+  const wave = row(66, 2);
+  const swell = row(46, 2);
+  const period = row(16, 4);
   const energy = row(20, 2);
   const wind = row(28, 2);
   const tide = row(42, 6);
+  const rowsTop = scoreRow?.y ?? wave.y;
   const condBottom = y - 6;
   const axis = row(18, 0);
   const H = y;
 
-  const maxH = Math.max(1.2, ...hours.map((r) => Math.max(r.d?.hb ?? 0, swellH(r.h) ?? 0, r.h.waveH ?? 0))) * 1.12;
-  const surfY = (m: number) => surf.y + surf.h - (m / maxH) * (surf.h - 14);
+  const STACK_MAX = 48; // wave stack full height (3 m)
   const tideVals = hours.map((r) => r.h.seaLevel).filter((v): v is number => v != null);
   const tLo = tideVals.length ? Math.min(...tideVals) : 0;
   const tHi = tideVals.length ? Math.max(...tideVals) : 1;
   const tideY = (v: number) => tide.y + tide.h - 4 - ((v - tLo) / Math.max(0.05, tHi - tLo)) * (tide.h - 12);
   const fmtH = (m: number) => (p.heightUnit === 'ft' ? `${Math.round(m * 3.281)}` : m.toFixed(1));
   const fmtW = (k: number) => windIn(k, p.windUnit);
+  const colW = Math.max(4, pxPerHour - 4);
+  const showVal = (m: number) => (m / 60) % every === 0;
 
   /* ---------------- interaction ---------------- */
   const local = (e: React.PointerEvent) => {
@@ -211,18 +216,27 @@ export default function Timeline(p: Props) {
             <rect x={x(p.highlight.startMin)} y={1} width={x(p.highlight.endMin) - x(p.highlight.startMin)} height={condBottom - 2} className="highlight" rx={4} />
           )}
 
-          {/* score strip */}
+          {/* rating: the same score pills as the forecast */}
           {scoreRow && (
             <g>
-              {label(scoreRow, p.scoreLabel ?? 'Score')}
+              {label(scoreRow, p.scoreLabel ?? 'Rating', p.scoreSub)}
               {hours.map((r) => (
                 <g key={r.m}>
-                  <rect x={x(r.m) + 1} y={scoreRow.y} width={Math.max(1, pxPerHour - 2)} height={scoreRow.h} rx={3} fill={r.s ? (r.s.unsuitable ? '#e2e8f0' : scoreColor(r.s.score)) : '#f1f5f9'}>
-                    {r.s?.title && <title>{r.s.title}</title>}
-                  </rect>
+                  {r.s && (
+                    <rect
+                      x={x(r.m) + Math.min(3, pxPerHour * 0.12)}
+                      y={scoreRow.y}
+                      width={Math.max(1, pxPerHour - 2 * Math.min(3, pxPerHour * 0.12))}
+                      height={scoreRow.h}
+                      rx={5}
+                      fill={ratingFill(r.s.score, r.s.unsuitable)}
+                    >
+                      {r.s.title && <title>{r.s.title}</title>}
+                    </rect>
+                  )}
                   {r.s && pxPerHour >= 22 && (
-                    <text x={x(r.m) + pxPerHour / 2} y={scoreRow.y + 12} textAnchor="middle" className={`tl-score${r.s.unsuitable ? ' muted' : ''}`}>
-                      {r.s.unsuitable ? '✕' : r.s.score.toFixed(r.s.score >= 9.95 ? 0 : 1)}
+                    <text x={x(r.m) + pxPerHour / 2} y={scoreRow.y + 14} textAnchor="middle" className={`tl-score${r.s.unsuitable ? ' muted' : ''}`}>
+                      {ratingText(r.s.score, r.s.unsuitable)}
                     </text>
                   )}
                 </g>
@@ -232,47 +246,61 @@ export default function Timeline(p: Props) {
 
           {p.hours.length === 0 && p.emptyText && (
             <g className="tl-empty">
-              <rect x={LABEL_W} y={surf.y + 8} width={plotW} height={condBottom - surf.y - 16} rx={8} />
-              <text x={LABEL_W + plotW / 2} y={(surf.y + condBottom) / 2 + 4} textAnchor="middle">
+              <rect x={LABEL_W} y={wave.y + 8} width={plotW} height={condBottom - wave.y - 16} rx={8} />
+              <text x={LABEL_W + plotW / 2} y={(wave.y + condBottom) / 2 + 4} textAnchor="middle">
                 {p.emptyText}
               </text>
             </g>
           )}
 
-          {/* surf height */}
-          {label(surf, 'Surf', p.heightUnit === 'ft' ? 'ft (est.)' : 'm (est.)')}
+          {/* wave: the height as a number over the stacked Japanese-style waves (full at 3 m) */}
+          {label(wave, 'Wave', p.heightUnit === 'ft' ? 'ft' : 'm')}
           {hours.map((r) => {
             const hb = r.d?.hb;
             if (hb == null) return null;
-            const top = surfY(hb);
+            const top = wave.y + wave.h - stackPx(hb, STACK_MAX);
             return (
               <g key={r.m}>
-                <rect x={x(r.m) + 1.5} y={top} width={Math.max(1, pxPerHour - 3)} height={surf.y + surf.h - top} rx={2} fill={r.s && !r.s.unsuitable ? scoreColor(r.s.score) : '#7dd3fc'} opacity={0.85} />
-                {(r.m / 60) % every === 0 && (
-                  <text x={x(r.m) + pxPerHour / 2} y={top - 3} textAnchor="middle" className="tl-val">
+                <WaveStack h={hb} w={colW} max={STACK_MAX} x={x(r.m) + (pxPerHour - colW) / 2} y={wave.y + wave.h - STACK_MAX} />
+                {showVal(r.m) && (
+                  <text x={x(r.m) + pxPerHour / 2} y={Math.min(wave.y + 11, top - 3)} textAnchor="middle" className="tl-val">
                     {fmtH(hb)}
                   </text>
                 )}
               </g>
             );
           })}
-          {(() => {
-            const pts = hours.filter((r) => swellH(r.h) != null).map((r) => `${(x(r.m) + pxPerHour / 2).toFixed(1)},${surfY(swellH(r.h)!).toFixed(1)}`);
-            return pts.length > 1 ? <polyline points={pts.join(' ')} className="swell-line" /> : null;
-          })()}
 
-          {/* swell period & direction */}
-          {label(swell, 'Swell', 'peak s/dir')}
-          {hours.map((r) =>
-            (r.m / 60) % every === 0 && r.d?.tDom != null ? (
-              <g key={r.m} transform={`translate(${x(r.m) + pxPerHour / 2},${swell.y + 12})`}>
-                {r.d.dirDom != null && <path d="M0 -7 L4 3 L0 1 L-4 3 Z" transform={`translate(-9,0) rotate(${r.d.dirDom + 180})`} fill="#0b6e99" />}
-                <text x={3} y={4} textAnchor="middle" className="tl-val">
-                  {Math.round(r.d.tDom)}s
-                </text>
+          {/* swell: height, the swells' arrows side by side and their waves (blue = good direction
+              for the spot, red = poor and facing left; dark → light by energy), as in the forecast */}
+          {label(swell, 'Swell', p.heightUnit === 'ft' ? 'ft · dir.' : 'm · dir.')}
+          {hours.map((r) => {
+            const swells = swellsOf(r.h);
+            if (!swells.length) return null;
+            const cx = x(r.m) + pxPerHour / 2;
+            return (
+              <g key={r.m}>
+                {showVal(r.m) && (
+                  <text x={cx} y={swell.y + 10} textAnchor="middle" className="tl-val">
+                    {fmtH(swells[0].t.h)}
+                  </text>
+                )}
+                {(showVal(r.m) || pxPerHour >= 30) && <SwellArrows swells={pxPerHour >= 30 ? swells : swells.slice(0, 1)} spot={p.spot} cx={cx} cy={swell.y + 19} size={11} step={11} />}
+                <SwellWaves swells={swells} spot={p.spot} cx={cx} base={swell.y + swell.h} w={Math.min(26, pxPerHour - 2)} maxPx={18} shift={Math.min(8, pxPerHour * 0.2)} />
               </g>
-            ) : null,
-          )}
+            );
+          })}
+
+          {/* period of the main swell */}
+          {label(period, 'Period', 's')}
+          {hours.map((r) => {
+            const main = swellsOf(r.h)[0]?.t;
+            return main && showVal(r.m) ? (
+              <text key={r.m} x={x(r.m) + pxPerHour / 2} y={period.y + 12} textAnchor="middle" className={`tl-val ${periodTone(main.t)}`}>
+                {Math.round(main.t)}
+              </text>
+            ) : null;
+          })}
 
           {/* wave energy of the model grid cell */}
           {label(energy, 'Energy', 'kJ')}
@@ -332,17 +360,17 @@ export default function Timeline(p: Props) {
             </text>
           )}
 
-          {/* session overlay */}
+          {/* your session: a soft band across all rows, handles on its edges, the time above */}
           {sess && (
             <g pointerEvents="none">
-              <rect x={x(sess.startMin)} y={0} width={Math.max(2, x(sess.endMin) - x(sess.startMin))} height={condBottom} className="session" />
+              <rect x={x(sess.startMin)} y={rowsTop - 2} width={Math.max(2, x(sess.endMin) - x(sess.startMin))} height={condBottom - rowsTop + 2} className="session" rx={4} />
               {interactive && (
                 <>
-                  <rect x={x(sess.startMin) - 4} y={surf.y + 30} width={8} height={44} rx={4} className="handle" />
-                  <rect x={x(sess.endMin) - 4} y={surf.y + 30} width={8} height={44} rx={4} className="handle" />
+                  <rect x={x(sess.startMin) - 4} y={wave.y + 16} width={8} height={36} rx={4} className="handle" />
+                  <rect x={x(sess.endMin) - 4} y={wave.y + 16} width={8} height={36} rx={4} className="handle" />
                 </>
               )}
-              <text x={(x(sess.startMin) + x(sess.endMin)) / 2} y={surf.y + 12} textAnchor="middle" className="session-label">
+              <text x={clamp((x(sess.startMin) + x(sess.endMin)) / 2, LABEL_W + 60, LABEL_W + plotW - 60)} y={(sessLane?.y ?? rowsTop - 14) + 12} textAnchor="middle" className="session-label">
                 {fmtMin(sess.startMin)}–{fmtMin(sess.endMin)} · {fmtDuration(sess.endMin - sess.startMin)}
               </text>
             </g>
@@ -364,7 +392,7 @@ export default function Timeline(p: Props) {
             />
           )}
           {interactive && !sess && (
-            <text x={LABEL_W + plotW / 2} y={surf.y + surf.h / 2} textAnchor="middle" className="hint" pointerEvents="none">
+            <text x={LABEL_W + plotW / 2} y={wave.y + 22} textAnchor="middle" className="hint" pointerEvents="none">
               {plotW < 380 ? "Drag to mark your time in the water" : "Drag across the chart to mark when you were in the water"}
             </text>
           )}

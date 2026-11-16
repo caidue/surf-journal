@@ -272,7 +272,8 @@ export default function SessionEditor({
 
       {spot && (
         <Card>
-          <div className="row between wrap">
+          {/* Title and zoom toggle: one row on wide screens (centred on each other), stacked on phones. */}
+          <div className="row between wrap when-head">
             <h3>
               When were you at {spot.name} on {fmtDate(date)}?
             </h3>
@@ -308,7 +309,9 @@ export default function SessionEditor({
                 emptyText="Conditions are added when you're online"
                 derived={derived}
                 scores={scores}
-                scoreLabel="For you"
+                scoreLabel="Rating"
+                scoreSub="for you"
+                spot={spot}
                 sunrise={rise}
                 sunset={set}
                 heightUnit={settings.heightUnit}
