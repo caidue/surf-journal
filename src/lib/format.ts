@@ -8,19 +8,22 @@ export function fmtHeight(m: number | null | undefined, unit: Settings['heightUn
   return unit === 'ft' ? `${(m * 3.281).toFixed(digits === 1 ? 0 : digits)} ft` : `${m.toFixed(digits)} m`;
 }
 
-/** Breaking-height range (face) shown to users: ±20 % around the estimate. */
-export function fmtSurfRange(hb: number | null | undefined, unit: Settings['heightUnit']): string {
+/**
+ * Breaking-height range (face) shown to users: the hour's likely range (Derived.hbLo/hbHi: the
+ * wave models' spread, at least ±20 %), or ±20 % around the estimate when no range is given.
+ */
+export function fmtSurfRange(hb: number | null | undefined, unit: Settings['heightUnit'], band?: { hbLo: number | null; hbHi: number | null }): string {
   if (hb == null) return '–';
-  const lo = hb * 0.8;
-  const hi = hb * 1.2;
+  const lo = band?.hbLo ?? hb * 0.8;
+  const hi = band?.hbHi ?? hb * 1.2;
   if (unit === 'ft') return `${Math.round(lo * 3.281)}–${Math.round(hi * 3.281)} ft`;
   return `${lo.toFixed(1)}–${hi.toFixed(1)} m`;
 }
 
 /** Surf range with a body descriptor: "1.8–2.6 m · head high to overhead". */
-export function fmtSurf(hb: number | null | undefined, unit: Settings['heightUnit']): string {
+export function fmtSurf(hb: number | null | undefined, unit: Settings['heightUnit'], band?: { hbLo: number | null; hbHi: number | null }): string {
   if (hb == null) return '–';
-  return `${fmtSurfRange(hb, unit)} · ${bodyRange(hb * 0.8, hb * 1.2)}`;
+  return `${fmtSurfRange(hb, unit, band)} · ${bodyRange(band?.hbLo ?? hb * 0.8, band?.hbHi ?? hb * 1.2)}`;
 }
 
 export const WIND_UNIT_LABEL: Record<Settings['windUnit'], string> = { kmh: 'km/h', kn: 'kn', mph: 'mph' };

@@ -11,7 +11,7 @@ decision_status: "accepted"
 decided: "2026-11-13"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-18T15:00:00+00:00"
 ---
 # Four wave models in one Open-Meteo request
 
@@ -22,4 +22,4 @@ Open-Meteo's default `best_match` (MFWAM) reports MEAN periods per train; surf s
 Request `models=meteofrance_wave,ecmwf_wam,ncep_gfswave016,meteofrance_currents`; take height/direction from MFWAM, trains from GFS scaled to MFWAM Hs, Tp from ECMWF; estimate Tp = 1.3 × mean when no peak data exists (flagged). Version the snapshot (`CONDITIONS_VERSION = 2`) and re-fetch older sessions.
 
 ## Consequences
-Periods match surf sites; more variables per call (still well within free limits); history for peak periods starts 2024-10 (GFS) / 2025-10 (ECMWF). See [Open-Meteo marine](/data-sources/open-meteo-marine.md).
+The total height is now the median of the three wave models, not MFWAM ([decision 0023](/decisions/0023-size-uncertainty.md)). Periods match surf sites; more variables per call (still well within free limits); history for peak periods starts 2024-10 (GFS) / 2025-10 (ECMWF). See [Open-Meteo marine](/data-sources/open-meteo-marine.md).

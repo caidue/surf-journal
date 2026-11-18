@@ -10,7 +10,7 @@ sources:
     title: "Komar & Gaughan (1972)"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-18T15:00:00+00:00"
 ---
 # Breaking height at a spot
 
@@ -21,6 +21,6 @@ generated:
 4. Wind sea × 0.7.
 5. Combined as the root of the sum of squares, times the spot's **gain** (default beach 0.72, reef/point 0.77; calibrated per spot from your observed sizes, see [Size calibration](/engine/size-calibration.md)).
 
-`Derived.hb` is a face height. The UI shows it as a ±20 % range plus body words, e.g. "1.8–2.6 m · head high to well overhead" ([Body scale](/domain/body-scale.md)).
+`Derived.hb` is a face height (like Surfline's surf height; surf-forecast, Windfinder and Windguru show the smaller offshore swell or sea height). It is the central estimate of a likely range `hbLo`–`hbHi`: the three wave models' lowest and highest total height carried over to the breaking height (Hb ∝ H^0.8), at least ±20 % (`HB_BAND`, the usual coastal wave-model error) ([decision 0023](/decisions/0023-size-uncertainty.md)). The UI shows that range plus body words, e.g. "1.8–2.6 m · head high to well overhead" ([Body scale](/domain/body-scale.md)).
 
 `tDom`/`dirDom` are the energy-weighted (a·H²·T) period and direction of what reaches the spot; they feed similarity and the long-period rule.

@@ -1,5 +1,11 @@
 # Knowledge base log
 
+## 2026-11-18
+
+* **Update** of [Releases](/operations/releases.md): wave-size release renumbered 1.9.0 after the cloud-backup 1.8.0 from another session; decision renumbered 0023.
+* **Update** of [Knowledge base maintenance](/operations/knowledge-base.md), [Majanicho wave height discrepancy](/research/majanicho-wave-height.md): the deep-research report and notes are kept in the repo (`reports/`, `research_notes/`).
+* **Creation** of [0023: Size as a range](/decisions/0023-size-uncertainty.md) and [Majanicho wave height discrepancy](/research/majanicho-wave-height.md); **Update** of [Open-Meteo marine](/data-sources/open-meteo-marine.md), [Data model](/architecture/data-model.md), [Breaking height](/domain/breaking-height.md), [Suitability rules](/engine/suitability-rules.md), [Size calibration](/engine/size-calibration.md), [Per-peak rating](/engine/per-peak-rating.md), [How sure a rating is](/engine/confidence.md), [Forecast table](/features/forecast-table.md), [Spot catalogue](/spots/catalogue.md), [0005](/decisions/0005-open-meteo-multi-model.md), [Releases](/operations/releases.md) (1.9.0): median wave model, likely size range, range-vs-limit instead of a hard size veto, wave-model spread in the confidence, Majanicho gain 0.68 and inside peaks × 0.8, gain from one session.
+
 ## 2026-11-17
 
 * **Update** of [Releases](/operations/releases.md): 1.7.1 committed, tagged `v1.7.1` and pushed.

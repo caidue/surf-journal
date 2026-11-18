@@ -131,6 +131,7 @@ Accepted decisions (numbered) and pending ones. ([folder index](decisions/index.
 * [0020: Trips as named folders of sessions](decisions/0020-trips.md) - Group journal sessions into named trips with optional dates; one trip per session.
 * [0021: Rate spots for another level](decisions/0021-rate-for-another-level.md) - A temporary Rate-for switch rates spots for a typical surfer of any level, without your sessions.
 * [0022: Backup into the user's own cloud through the share sheet](decisions/0022-share-sheet-backup.md) - Phones back up through the system share sheet; no native cloud, no cloud APIs; desktop keeps its data and the download.
+* [0023: Size as a range, not a hard cut-off](decisions/0023-size-uncertainty.md) - Median of the wave models, a likely range carried into the rating, exclusion only when even the low end is too big, wave-model disagreement in the confidence, and a sheltered Majanicho.
 * [Accounts, sync and a commercial data plan](decisions/pending/accounts-and-sync.md) - What a public release would need.
 * [Should several challenging causes compound?](decisions/pending/compounding-challenges.md) - Worst status wins, so two problems count like one.
 * [Ask Open-Meteo for per-train peak periods in MFWAM](decisions/pending/open-meteo-upstream.md) - Upstream improvement, not ours to build.
@@ -143,6 +144,7 @@ Accepted decisions (numbered) and pending ones. ([folder index](decisions/index.
 Research reports behind the decisions. ([folder index](research/index.md))
 
 * [Local surf school spot knowledge](research/local-surf-school-spot-knowledge.md) - Deep research: how local schools decide where and when to surf, per-spot local rules for all 21 spots, wind over the sea from several models, and a plan for a rules engine with validation.
+* [Majanicho wave height discrepancy](research/majanicho-wave-height.md) - Deep research: why the app showed ~2.5 m waves at Majanicho on 2026-11-19 while other sites showed ~1.5 m, why that excluded the spot, and whether to rate on swell instead.
 * [Rating errors at La Caleta](research/rating-errors-at-la-caleta.md) - Deep research: why La Caleta was rated best at 13:00 on 2026-11-14 (a hard mid–high tide factor), why thigh-high waves read "Right in your range", and how other services rate tide and size.
 * [Surf journal app feasibility](research/surf-journal-app-feasibility.md) - Deep research before building: competitors, data APIs, spot data, similarity methods, stack, cost. Some feature ideas were later dropped (feel curves, per-peak segments).
 * [Surf metrics, spot data and skill model](research/surf-metrics-spots-and-skill-model.md) - Deep research: period/energy conventions of surf sites, Open-Meteo model capabilities, spot naming across services, and a skill model with onboarding and rules. Implemented in v1.1.

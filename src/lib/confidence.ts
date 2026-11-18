@@ -1,5 +1,5 @@
 import type { Spot, SpotRule } from '../types';
-import type { Derived } from './conditions';
+import { MODELS_DISAGREE, type Derived } from './conditions';
 import { rulesFor } from '../data/spotRules';
 
 /**
@@ -89,6 +89,10 @@ export function sureness(spot: Spot, d: Derived, windSpread: number | undefined,
   if ((windSpread ?? 0) >= 45) {
     level = DOWN[level];
     reasons.push('the wind models disagree');
+  }
+  if (d.hsSpread >= MODELS_DISAGREE) {
+    level = DOWN[level];
+    reasons.push('the wave models disagree on the size');
   }
   if (spot.dataNote) {
     level = DOWN[level];

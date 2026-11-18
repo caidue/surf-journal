@@ -101,19 +101,27 @@ function qs(points: Point[], vars: string[], start: string, end: string, extra =
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const r2 = (v: number) => Math.round(v * 100) / 100;
+const median = (xs: number[]) => {
+  const a = [...xs].sort((x, y) => x - y);
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+};
 
 /** One hour of marine data from the four-model response (index i of the hourly arrays). */
 export function marineHour(mh: Json, i: number): Omit<HourConditions, 'time' | 'windSpeed' | 'windDir' | 'windGust' | 'airTemp'> {
   const v = (name: string, model: string) => num(mh[`${name}_${model}`]?.[i]);
   const hsMF = v('wave_height', MODELS.mf);
   const hsGFS = v('wave_height', MODELS.gfs);
-  const waveH = hsMF ?? v('wave_height', MODELS.ec) ?? hsGFS;
+  // Total height of each wave model; the hour's height is their median (MFWAM alone ran
+  // 15–20 % above the others near the coast, see decision 0023), the spread says how sure it is.
+  const hsAll = [hsMF, v('wave_height', MODELS.ec), hsGFS].filter((x): x is number => x != null && x > 0.02);
+  const waveH = hsAll.length ? r2(median(hsAll)) : (hsMF ?? hsGFS);
   const waveDir = v('wave_direction', MODELS.mf) ?? v('wave_direction', MODELS.ec) ?? v('wave_direction', MODELS.gfs);
   const waveTe = v('wave_period', MODELS.mf);
   const trains: WaveTrain[] = [];
   let tpEstimated = false;
   if (hsGFS != null) {
-    // GFS-Wave trains with peak periods, scaled to MFWAM's total height. Zeros mean "no such train".
+    // GFS-Wave trains with peak periods, scaled to the models' median total height. Zeros mean "no such train".
     const scale = waveH != null && hsGFS > 0.05 ? waveH / hsGFS : 1;
     for (const [p, kind] of TRAIN_PREFIXES) {
       const h = v(`${p}_height`, MODELS.gfs);
@@ -145,6 +153,7 @@ export function marineHour(mh: Json, i: number): Omit<HourConditions, 'time' | '
     waveTp,
     waveTe,
     trains,
+    ...(hsAll.length >= 2 ? { waveHModels: hsAll } : {}),
     ...(tpEstimated ? { tpEstimated } : {}),
     seaLevel: any('sea_level_height_msl'),
     waterTemp: any('sea_surface_temperature'),

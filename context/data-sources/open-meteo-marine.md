@@ -15,7 +15,7 @@ sources:
     id: "code"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-18T15:00:00+00:00"
 ---
 # Open-Meteo Marine API (four models)
 
@@ -23,10 +23,12 @@ One request per batch of up to 25 points with `&models=meteofrance_wave,ecmwf_wa
 
 | Field | From | Note |
 |---|---|---|
-| `waveH`, `waveDir` | `meteofrance_wave` (MFWAM) | reference total height; falls back to ECMWF, then GFS |
+| `waveH` | median of MFWAM, ECMWF WAM and GFS-Wave `wave_height` | total height; MFWAM alone ran 15–20 % above the others near the coast ([decision 0023](/decisions/0023-size-uncertainty.md)) |
+| `waveHModels` | each model's `wave_height` (when ≥ 2 have data) | their spread is the size uncertainty (`Derived.hbLo/hbHi`, `hsSpread`) |
+| `waveDir` | `meteofrance_wave` (MFWAM) | falls back to ECMWF, then GFS |
 | `waveTe` | MFWAM `wave_period` | energy period Tm-1,0 |
 | `waveTp` | `ecmwf_wam` `wave_peak_period` | else GFS `wave_period` (a peak period), else 1.3 × Te (`tpEstimated`) |
-| `trains` | `ncep_gfswave016` swell 1–3 + wind wave | PEAK periods; heights × (MFWAM Hs ÷ GFS Hs); **0 m / 0 s means "no train"** |
+| `trains` | `ncep_gfswave016` swell 1–3 + wind wave | PEAK periods; heights × (median Hs ÷ GFS Hs); **0 m / 0 s means "no train"** |
 | trains (fallback) | MFWAM trains | when GFS has no data for the date: Tp = 1.3 × mean period, flagged |
 | `seaLevel`, `waterTemp` | `meteofrance_currents` | sea level includes tide, relative to mean sea level |
 

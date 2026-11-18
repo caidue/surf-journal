@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { HourConditions, Session, Settings, Spot, WaveTrain } from '../types';
 import { SLOTS } from '../types';
 import { angdiff, destination, haversineKm } from './geo';
-import { breakingHeight, deriveHour, deriveSeries, exposure, tideExtremes, tideInfo, totalEnergyKJ, waveEnergyKJ, windKind } from './conditions';
-import { fPeriod, quality, rateSpot, ratedPeaks, scoreLabel, sizeFit, suitability } from './rating';
+import { breakingHeight, deriveHour, hbBand, deriveSeries, exposure, tideExtremes, tideInfo, totalEnergyKJ, waveEnergyKJ, windKind } from './conditions';
+import { fPeriod, peakDerived, quality, rateSpot, ratedPeaks, scoreLabel, sizeFit, suitability } from './rating';
 import { bodyRange, learnFromSession, profileForStage, profileSummary, snapshot, undoLastChange } from './skill';
 import { RETIRED_SPOTS, SEED_SPOTS } from '../data/seedSpots';
 import { SPOT_RULES } from '../data/spotRules';
@@ -204,7 +204,7 @@ describe('suitability rules', () => {
     expect(r.reasons.some((x) => x.positive && /Right in your range/.test(x.text))).toBe(true);
   });
   it('size reasons name both sizes, and "push my limits" makes it a stretch session', () => {
-    const mid = { ...small, hb: 1.4 }; // between C 1.2 and M 1.5
+    const mid = { ...small, hb: 1.4, hbLo: null, hbHi: null }; // between C 1.2 and M 1.5
     const r = suitability(spot, mid, stage4);
     expect(r.status).toBe('challenging');
     const size = r.reasons.find((x) => x.kind === 'size')!;
@@ -216,12 +216,32 @@ describe('suitability rules', () => {
     expect(stretch.factor).toBe(0.7);
   });
   it('compares sizes as shown: ~2.2 m is not "bigger" than a 2.2 m comfort size', () => {
-    const r = suitability(spot, { ...small, hb: 2.248 }, profileForStage(6));
+    const r = suitability(spot, { ...small, hb: 2.248, hbLo: null, hbHi: null }, profileForStage(6));
     expect(r.reasons.find((x) => x.kind === 'size')?.text).toMatch(/^Top of your comfort zone/);
   });
-  it('beyond your biggest wave is unsuitable below stage 6', () => {
-    expect(suitability(spot, { ...small, hb: 1.65 }, stage4).status).toBe('unsuitable');
-    expect(suitability(spot, { ...small, hb: 3.3 }, profileForStage(6)).status).toBe('challenging');
+  it('beyond your biggest wave is unsuitable below stage 6 when even the low end of the range is', () => {
+    // M = 1.5: 2.0 m has a low end of 1.6 m, still above it.
+    expect(suitability(spot, { ...small, hb: 2.0, hbLo: null, hbHi: null }, stage4).status).toBe('unsuitable');
+    expect(suitability(spot, { ...small, hb: 3.3, hbLo: null, hbHi: null }, profileForStage(6)).status).toBe('challenging');
+  });
+  it('a size whose range reaches your limit is a warning with a penalty, not an exclusion', () => {
+    const r = suitability(spot, { ...small, hb: 1.65, hbLo: null, hbHi: null }, stage4);
+    expect(r.status).toBe('challenging');
+    expect(r.reasons.find((x) => x.kind === 'size')?.text).toMatch(/^May be bigger than you like: ~1\.7 m \(1\.3–2\.0 m\)/);
+    expect(r.factor).toBeGreaterThan(0);
+    expect(r.factor).toBeLessThan(0.5);
+    // A wider range above the limit costs more.
+    const wide = suitability(spot, { ...small, hb: 1.65, hbLo: 1.32, hbHi: 2.4, hsSpread: 0.3 }, stage4);
+    expect(wide.factor).toBeLessThan(r.factor);
+    expect(wide.reasons.find((x) => x.kind === 'size')?.text).toMatch(/wave models disagree/);
+  });
+  it('Majanicho 19 Nov 2026: 2.5 m (2.0–3.0 m) is a warning for a surfer whose biggest is 2.2 m, not "not for you"', () => {
+    const maj = SEED_SPOTS.find((x) => x.id === 'fv-majanicho')!;
+    const me = { ...profileForStage(5), comfort: 1.6, max: 2.2 };
+    const d = { ...small, hb: 2.5, hbLo: 2.0, hbHi: 3.0, hsSpread: 0.21 };
+    const r = rateSpot(maj, d, me);
+    expect(r.suit.status).not.toBe('unsuitable');
+    expect(r.score).toBeGreaterThan(0);
   });
   it('says plainly when size is fine but the reef is the problem', () => {
     const r = suitability(spot, small, { ...stage4, reefExp: 0 });
@@ -390,18 +410,18 @@ describe('size fit and no cliffs', () => {
   const C = 1.8;
   const me = { ...stage4, comfort: C };
   it('thigh-high waves are small for an intermediate comfortable to head high (Flag Beach, 14 Nov)', () => {
-    const r = suitability(spot, { ...deriveHour(spot, hour('t')), hb: 0.7 }, me);
+    const r = suitability(spot, { ...deriveHour(spot, hour('t')), hb: 0.7, hbLo: null, hbHi: null }, me);
     expect(r.reasons[0].text).toMatch(/^Small for progressing/);
     expect(r.factor).toBeLessThan(0.5);
     expect(sizeFit(0.7, C, 2)).toBe(1); // beginners learn in small waves
     expect(sizeFit(1.4, C, 4)).toBe(1);
   });
   it('a few centimetres above your comfort size is never "nothing you have surfed"', () => {
-    const r = suitability(spot, { ...deriveHour(spot, hour('t')), hb: 1.9 }, { ...me, paddleOut: 2 });
+    const r = suitability(spot, { ...deriveHour(spot, hour('t')), hb: 1.9, hbLo: null, hbHi: null }, { ...me, paddleOut: 2 });
     expect(r.status).not.toBe('unsuitable');
   });
   it('rips alone are advice, not a halving', () => {
-    const r = suitability({ ...spot, hazards: ['rips'] }, { ...deriveHour(spot, hour('t')), hb: 1.3 }, me);
+    const r = suitability({ ...spot, hazards: ['rips'] }, { ...deriveHour(spot, hour('t')), hb: 1.3, hbLo: null, hbHi: null }, me);
     expect(r.status).not.toBe('challenging');
   });
 });
@@ -636,5 +656,41 @@ describe('rating categories', () => {
     const ids = withCurrentCategories(old).categories.map((c) => c.id);
     expect(ids).toEqual(['fun', 'exertion', 'mine', 'confidence']);
     expect(DEFAULT_SETTINGS.categories.map((c) => c.name)).toEqual(['Fun', 'Exertion', 'Confidence']);
+  });
+});
+
+describe('size uncertainty (decision 0023)', () => {
+  it('the breaking-height range is the wave models\' spread, at least ±20 %', () => {
+    // Majanicho 19 Nov 12:00: MFWAM 2.32, ECMWF 1.98, GFS 1.90 m; median 1.98.
+    const b = hbBand(2.5, { waveH: 1.98, waveHModels: [2.32, 1.98, 1.9] });
+    expect(b.spread).toBeCloseTo(0.21, 2);
+    expect(b.lo).toBeCloseTo(2.0, 2); // the models' low end (−3 %) is inside the ±20 % floor
+    expect(b.hi).toBeCloseTo(3.0, 2);
+    const wide = hbBand(2, { waveH: 2, waveHModels: [1.2, 2, 3] });
+    expect(wide.lo!).toBeLessThan(1.6);
+    expect(wide.hi!).toBeGreaterThan(2.4);
+    expect(hbBand(2, { waveH: 2 })).toEqual({ lo: 1.6, hi: 2.4, spread: 0 });
+  });
+  it('disagreeing wave models lower the confidence', () => {
+    const maj = SEED_SPOTS.find((x) => x.id === 'fv-majanicho')!;
+    const d = deriveHour(maj, hour('t'));
+    const calm = sureness(maj, { ...d, hsSpread: 0.05 }, 0, 0);
+    const split = sureness(maj, { ...d, hsSpread: 0.25 }, 0, 0);
+    expect(split.level).not.toBe(calm.level);
+    expect(split.reasons).toContain('the wave models disagree on the size');
+  });
+  it('a sheltered inside peak sees smaller waves than the spot estimate', () => {
+    const d = deriveHour(spot, hour('t'));
+    const p = peakDerived(d, { id: 'in', name: 'Inside', sizeFactor: 0.8 });
+    expect(p.hb).toBeCloseTo(d.hb! * 0.8, 6);
+    expect(p.hbLo).toBeCloseTo(d.hbLo! * 0.8, 6);
+    expect(peakDerived(d, null)).toBe(d);
+  });
+  it('one session with an observed size already moves the gain halfway', () => {
+    const s1 = session('2026-02-01', 7, { fields: { observedSize: 'waist' } });
+    const { gain, n } = calibratedGain(spot, [s1]);
+    expect(n).toBe(1);
+    expect(gain).toBeLessThan(spot.gain);
+    expect(gain).toBeGreaterThan(calibratedGain(spot, [s1, session('2026-02-02', 7, { fields: { observedSize: 'waist' } })]).gain);
   });
 });

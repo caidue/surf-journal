@@ -132,7 +132,7 @@ function ProfileCard({ settings, sessions, go }: { settings: Settings; sessions:
         <dd>
           {bodyWord(p.comfort)} ({h(p.comfort)}) {edit('comfort')}
         </dd>
-        <dt>Biggest caught</dt>
+        <dt title="Face height, like the app's Wave row and Surfline's surf height (not the offshore swell height)">Biggest caught</dt>
         <dd>
           {bodyWord(Math.max(p.max, p.comfort))} ({h(Math.max(p.max, p.comfort))}) {edit('max')}
         </dd>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ConditionsSeries, HourConditions, Settings, Spot } from '../types';
-import { exposure, totalEnergyKJ, trainsByEnergy, windKind, WIND_LABEL, type TideExtreme, type TrainInfo } from '../lib/conditions';
+import { exposure, MODELS_DISAGREE, totalEnergyKJ, trainsByEnergy, windKind, WIND_LABEL, type TideExtreme, type TrainInfo } from '../lib/conditions';
 import { daylight, type SpotRec } from '../lib/recommend';
 import { reasonsText, scoreColor, scoreLabel, SUIT_LABEL } from '../lib/rating';
 import { bodyRange } from '../lib/skill';
@@ -240,7 +240,7 @@ export default function ForecastTable({
               })}
             </tr>
             <tr>
-              <th scope="row" title="Estimated wave height at the spot: the face of the waves, from trough to crest">
+              <th scope="row" title="Estimated wave height at the spot: the face of the waves, from trough to crest (other sites often show the smaller offshore swell height)">
                 Wave
                 <small>{ft ? 'ft' : 'm'}</small>
               </th>
@@ -260,7 +260,9 @@ export default function ForecastTable({
                     return (
                       <g key={c.time}>
                         <rect x={i * COL_W} y={0} width={COL_W} height={WAVE_H} fill="transparent">
-                          {hb != null && <title>{`${fmtSurfRange(hb, settings.heightUnit)} · ${bodyRange(hb * 0.8, hb * 1.2)}`}</title>}
+                          {hb != null && (
+                            <title>{`Likely ${fmtSurfRange(hb, settings.heightUnit, c.derived)} · ${bodyRange(c.derived.hbLo ?? hb * 0.8, c.derived.hbHi ?? hb * 1.2)}${c.derived.hsSpread >= MODELS_DISAGREE ? ' · the wave models disagree' : ''}`}</title>
+                          )}
                         </rect>
                         <text x={i * COL_W + COL_W / 2} y={13} textAnchor="middle" className="fc-wave-val">
                           {hb == null ? '–' : ft ? String(Math.round(hb * 3.281)) : hb.toFixed(1)}
@@ -302,7 +304,7 @@ export default function ForecastTable({
                   </tr>
                 )}
                 <tr className="fc-train">
-                  <th scope="row" title="All trains together: significant wave height (Météo-France MFWAM) and peak period">
+                  <th scope="row" title="All trains together: significant wave height offshore (median of Météo-France MFWAM, ECMWF WAM and GFS-Wave) and peak period">
                     Total sea
                     <small>Hs · Tp</small>
                   </th>
@@ -426,7 +428,7 @@ export default function ForecastTable({
       {legendOpen && (
       <div className="fc-legend muted tiny">
         <span>{forLevel ? `Rating = predicted fun for a typical ${forLevel} surfer (your sessions left out)` : `Rating = predicted fun for you, from your surfing profile${rec.best && rec.best.pred.sumW > 0.05 ? ' and your sessions here' : ''}`}; hover a score for how good the waves are for anyone (Poor … Epic) and what the wind costs</span>
-        <span>Wave = estimated face height at the spot (the middle of a ±20 % range; hover for the range and body words); Swell = strongest train offshore (height and direction) · Period = its peak period, as surf sites show it (bold from 12 s, grey under 8 s); a small wave per swell, as tall as its height; blue = the swell comes from a good direction for this spot, red (and the wave facing left, as on surf-forecast) = a poor direction, less than half of it gets in; the 1st, 2nd and 3rd swell by energy go from dark to light, and the main one has the larger arrow and the front wave{estimated ? ' · some periods estimated from mean periods' : ''}</span>
+        <span>Wave = estimated face height at the spot, from trough to crest, like Surfline's surf height (the middle of a range: how far the three wave models disagree, at least ±20 %; hover for the range and body words). Most other sites (surf-forecast, Windfinder, Windguru) show the offshore swell or sea height instead, which is smaller; Swell = strongest train offshore (height and direction) · Period = its peak period, as surf sites show it (bold from 12 s, grey under 8 s); a small wave per swell, as tall as its height; blue = the swell comes from a good direction for this spot, red (and the wave facing left, as on surf-forecast) = a poor direction, less than half of it gets in; the 1st, 2nd and 3rd swell by energy go from dark to light, and the main one has the larger arrow and the front wave{estimated ? ' · some periods estimated from mean periods' : ''}</span>
         <span>Energy = strongest train, kJ per metre of crest; hover for the total</span>
         <span>{gridMates.length ? `Same swell and energy (same wave-model cell) at ${gridMates.join(', ')}` : 'No other spot shares this wave-model cell'}</span>
         <span>Wind = average speed over the hour; strong gusts (bursts at least 15 km/h above it) in grey below, all gusts on hover; over the sea, mean of four models (ECMWF, ICON, ARPEGE, GFS), hover for each · ? = the models disagree on the direction</span>

@@ -5,7 +5,7 @@ import { explain, type HourRec, type SpotRec } from '../lib/recommend';
 import { SURE_LABEL, type Sureness } from '../lib/confidence';
 import { fmtDate, fmtMin } from '../lib/time';
 import type { Settings } from '../types';
-import { windKind, WIND_LABEL, type Derived } from '../lib/conditions';
+import { MODELS_DISAGREE, windKind, WIND_LABEL, type Derived } from '../lib/conditions';
 import { fmtSurfRange, fmtWind } from '../lib/format';
 import { bodyRange } from '../lib/skill';
 import { WIND_BG } from './Timeline';
@@ -271,9 +271,9 @@ export function CondBadges({ d, settings }: { d: Derived; settings: Settings }) 
   return (
     <div className="cond-badges">
       {d.hb != null && (
-        <span className="cbadge" title={`Wave height (face): ${fmtSurfRange(d.hb, settings.heightUnit)}, ${bodyRange(d.hb * 0.8, d.hb * 1.2)}`}>
+        <span className="cbadge" title={`Wave height (face, estimated): ${fmtSurfRange(d.hb, settings.heightUnit, d)}, ${bodyRange(d.hbLo ?? d.hb * 0.8, d.hbHi ?? d.hb * 1.2)}${d.hsSpread >= MODELS_DISAGREE ? ' · the wave models disagree' : ''}`}>
           <Icon name="wave" size={15} />
-          {fmtSurfRange(d.hb, settings.heightUnit)}
+          {fmtSurfRange(d.hb, settings.heightUnit, d)}
         </span>
       )}
       {d.tDom != null && (
