@@ -11,11 +11,12 @@ import { distance, kernel, SIMILAR_MIN_K, similarityPct } from './similarity';
 import { calibratedGain, explain, matchSession, predict, buildHistory, recommendSpotDay, sessionWeight, insights, ratingFor, sessionOverall } from './recommend';
 import { parseRegionQuery, subBox } from './geocode';
 import { monthRanges } from './format';
+import { isoToMin } from './time';
 import { DEFAULT_SETTINGS, withCurrentCategories } from '../db';
 import { evaluateRules, inArc } from './rules';
 import { spotKnowledge, sureness, tideKnown } from './confidence';
 import { marineHour, windHour } from './openMeteo';
-import { align, closestPair, featureCloseness, shiftRange } from './compare';
+import { align, closestPair, dayAt, featureCloseness, shiftRange } from './compare';
 import caleta from './fixtures/caleta-2026-11-14';
 
 const spot: Spot = {
@@ -711,25 +712,33 @@ describe('lining a session up against another day (Sessions tab)', () => {
     expect(shiftRange(480, 600, 420, 1140)).toEqual([-60, 540]); // 07:00–09:00 … 17:00–19:00
     expect(shiftRange(485, 600, 420, 1140)).toEqual([-60, 540]);
   });
-  it('the closest pair is the list\'s "% like today", and only uses daylight hours', () => {
+  it('the closest pair is the list\'s "% like today", over the whole day', () => {
     const best = closestPair(spot, surfedHours, dayHours)!;
     expect(best.dayMin).toBeGreaterThanOrEqual(14 * 60);
-    expect(best.dayMin).toBeLessThan(19 * 60);
     let listBest = 0;
-    for (const t of dayHours.filter((h) => h.daylight)) {
+    for (const t of dayHours) {
       const nb = matchSession(spot, t.d, surfed);
       if (nb) listBest = Math.max(listBest, similarityPct(nb.d));
     }
     expect(best.pct).toBe(listBest);
-    // A night with the same swell is never the closest pair.
-    const night = target.map((d, h) => ({ d: h < 5 ? deriveSeries(spot, day('2026-03-01', () => ({ swell: [2, 12, 320] })))[h] : d, daylight: h >= 7 && h < 19 }));
-    expect(closestPair(spot, surfedHours, night)!.dayMin).toBeGreaterThanOrEqual(7 * 60);
+    // Night hours count too.
+    const same = deriveSeries(spot, day('2026-02-01', () => ({ swell: [2, 12, 320] })));
+    const night = target.map((d, h) => (h === 2 ? { d: { ...same[8], time: d.time }, daylight: false } : { d, daylight: h >= 7 && h < 19 }));
+    expect(closestPair(spot, surfedHours, night)!.dayMin).toBe(120);
   });
-  it('lines each surfed hour up with the nearest hour of the day', () => {
+  it('lines each surfed hour up with the day at the exact minute, between hours interpolated', () => {
     const early = align(spot, surfedHours, dayHours, 0);
     expect(early.pairs.map((p) => p.dayMin)).toEqual([480, 540]);
-    expect(align(spot, surfedHours, dayHours, 30).pairs.map((p) => p.dayMin)).toEqual([540, 600]);
-    expect(align(spot, surfedHours, dayHours, 15).pairs.map((p) => p.dayMin)).toEqual([480, 540]);
+    expect(align(spot, surfedHours, dayHours, 15).pairs.map((p) => p.dayMin)).toEqual([495, 555]);
+    // Halfway between 13:00 (small swell) and 14:00 (the session's swell): in between.
+    const at13 = align(spot, surfedHours, dayHours, 5 * 60).best!.pct;
+    const at1330 = align(spot, surfedHours, dayHours, 5 * 60 + 30).best!.pct;
+    const at14 = align(spot, surfedHours, dayHours, 6 * 60).best!.pct;
+    expect(at1330).toBeGreaterThan(at13);
+    expect(at14).toBeGreaterThan(at1330);
+    const dm = new Map(dayHours.map((h) => [isoToMin(h.d.time)!, h]));
+    const mid = dayAt(dm, 13 * 60 + 30)!.d;
+    expect(mid.hIn!).toBeCloseTo((dayHours[13].d.hIn! + dayHours[14].d.hIn!) / 2, 6);
     const late = align(spot, surfedHours, dayHours, 6 * 60);
     expect(late.mean!).toBeGreaterThan(early.mean!);
   });

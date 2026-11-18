@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.12.1 — 2026-11-18
+
+- Session comparison: the chart shows daylight again instead of the whole night. It only reaches into the night as far as needed when the best match is there.
+
+## 1.12.0 — 2026-11-18
+
+- **Session comparison over the whole day again:** the daylight-only limit from 1.11.0 is undone. The chart shows the whole day (night shaded), the best match can be at any hour, and "% like today" in the list counts every hour too.
+- **Comparison to the minute:** when you move your session by 15 or 30 minutes, the values are now worked out for that exact time between the forecast's hours, instead of jumping from one full hour to the next.
+- The tide row shows where the tide stands between low (0%) and high (100%), not just a word.
+
 ## 1.11.0 — 2026-11-18
 
 - **Session comparison, simpler:** your session is now a band on today's forecast chart, and you drag it right there (the second chart is gone). It moves in 15-minute steps with −30 / −15 / +15 / +30 buttons, and only within daylight, so the best match is never at 4 in the morning. The texts are shorter, and the exact values are listed below the chart.

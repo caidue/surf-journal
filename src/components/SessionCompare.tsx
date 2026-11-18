@@ -6,7 +6,7 @@ import { fmtHeight, fmtWind } from '../lib/format';
 import { compass } from '../lib/geo';
 import { sessionOverall, surfedHourIdx, type SpotRec } from '../lib/recommend';
 import { SPOT_FEATURES } from '../lib/similarity';
-import { fmtDate, fmtMin, isoToMin } from '../lib/time';
+import { fmtDate, fmtMin } from '../lib/time';
 import { useElementWidth } from '../hooks';
 import { Icon } from './icons';
 import Timeline, { LABEL_W, PAD_R, type HourScore } from './Timeline';
@@ -36,21 +36,26 @@ const STEPS = [-30, -15, 15, 30];
 
 /**
  * A logged session on another day's forecast (Sessions tab of a spot): your session as a band on
- * the day's chart, draggable in 15-minute steps within daylight; below, the conditions of the
+ * the day's chart (daylight, wider when the best match reaches into the night), draggable in
+ * 15-minute steps; below, the conditions of the
  * closest lined-up hour then and on that day.
  */
 export default function SessionCompare({ spot, session, derived, rec, hours, sunrise, sunset, dayWord, nowMin, settings, onBack, daySwitch }: Props) {
   const surfed = useMemo(() => surfedHourIdx(session).map((i) => derived[i]).filter((d): d is Derived => !!d), [session, derived]);
+  const dayHours: DayHour[] = useMemo(() => rec.hours.map((h) => ({ d: h.derived, daylight: h.daylight })), [rec]);
+  const closest = useMemo(() => closestPair(spot, surfed, dayHours), [spot, surfed, dayHours]);
+  // The best match can be at any hour, night included.
+  const dayRange = shiftRange(session.startMin, session.endMin, 0, 1440);
+  const bestShift = clamp(closest ? closest.dayMin - closest.sessMin : 0, dayRange[0], dayRange[1]);
+  // The chart shows daylight (± 1 h) and only reaches into the night as far as the best match
+  // needs; the session can be moved anywhere on it.
   const rise = sunrise ?? 420;
   const set = sunset ?? 1170;
-  const view: [number, number] = [Math.max(0, Math.floor((rise - 60) / 60) * 60), Math.min(1440, Math.ceil((set + 60) / 60) * 60)];
-  const dayHours: DayHour[] = useMemo(() => rec.hours.map((h) => ({ d: h.derived, daylight: h.daylight })), [rec]);
-  // Daylight as the ratings count it (hours at least half after sunrise / before sunset), so the
-  // closest pair behind "% like today" can always be lined up.
-  const light = rec.hours.filter((h) => h.daylight).map((h) => isoToMin(h.time) ?? 0);
-  const range = shiftRange(session.startMin, session.endMin, light.length ? Math.min(...light) : rise, light.length ? Math.max(...light) + 60 : set);
-  const closest = useMemo(() => closestPair(spot, surfed, dayHours), [spot, surfed, dayHours]);
-  const bestShift = clamp(closest ? closest.dayMin - closest.sessMin : range[0], range[0], range[1]);
+  const view: [number, number] = [
+    Math.max(0, Math.min(Math.floor((rise - 60) / 60) * 60, Math.floor((session.startMin + bestShift) / 60) * 60)),
+    Math.min(1440, Math.max(Math.ceil((set + 60) / 60) * 60, Math.ceil((session.endMin + bestShift) / 60) * 60)),
+  ];
+  const range = shiftRange(session.startMin, session.endMin, view[0], view[1]);
   const [shiftState, setShift] = useState<number | null>(null);
   const shift = clamp(shiftState ?? bestShift, range[0], range[1]);
   const a = useMemo(() => align(spot, surfed, dayHours, shift), [spot, surfed, dayHours, shift]);
@@ -79,7 +84,8 @@ export default function SessionCompare({ spot, session, derived, rec, hours, sun
       case 'cross':
         return d.uX == null ? '–' : fmtWind(d.uX, settings.windUnit);
       case 'tide':
-        return tideLabel(d.tideNorm, null);
+        // Where the tide stands between its low (0 %) and high (100 %), then the word for it.
+        return d.tideNorm == null ? '–' : `${Math.round(d.tideNorm * 100)}% · ${tideLabel(d.tideNorm, null)}`;
       case 'tideTrend':
         return d.tideTrend == null ? '–' : d.tideTrend > 0.25 ? 'rising' : d.tideTrend < -0.25 ? 'falling' : 'turning';
       default:
