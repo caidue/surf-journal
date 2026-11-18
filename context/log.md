@@ -2,6 +2,9 @@
 
 ## 2026-11-18
 
+* **Update** of [Releases](/operations/releases.md): 1.12.2 and 1.12.3 committed together, tagged `v1.12.3` and pushed.
+* **Update** of [Session comparison](/features/session-comparison.md), [Similarity](/engine/similarity.md), [0024](/decisions/0024-handles-and-session-comparison.md), [Releases](/operations/releases.md) (1.12.3): best match and dragging to the minute; ±15 / ±30 buttons stay.
+* **Update** of [Session comparison](/features/session-comparison.md), [Similarity](/engine/similarity.md), [Releases](/operations/releases.md) (1.12.2): best match needs at least 60 minutes of daylight; the list uses the same best match.
 * **Update** of [Releases](/operations/releases.md): 1.12.0 and 1.12.1 committed together, tagged `v1.12.1` and pushed.
 * **Update** of [Session comparison](/features/session-comparison.md), [0024](/decisions/0024-handles-and-session-comparison.md), [Releases](/operations/releases.md) (1.12.1): daylight chart again, widened only for a best match at night.
 * **Update** of [Session comparison](/features/session-comparison.md), [0024](/decisions/0024-handles-and-session-comparison.md), [Similarity](/engine/similarity.md), [Releases](/operations/releases.md) (1.12.0): whole day again instead of daylight only, values interpolated to the minute, tide shown as a position; how tide is compared.

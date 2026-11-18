@@ -5,9 +5,10 @@ import { isoToMin } from './time';
 
 /**
  * Lining a logged session up against another day (the spot's Sessions tab): the session is moved
- * along the day in 15-minute steps, and each surfed hour is compared with the day's conditions at
- * the time it lands on (interpolated between the forecast's hours). The list's "27 % like today"
- * is the closest single pair of a surfed hour and an hour of the day.
+ * along the day to the minute, and each surfed hour is compared with the day's conditions at
+ * the time it lands on (interpolated between the forecast's hours). The best match (and the list's
+ * "27 % like today") is the position with the closest single pair that keeps at least an hour of
+ * the session in daylight: night hours may be part of it, but it is never all night.
  */
 
 export interface DayHour {
@@ -35,7 +36,8 @@ export interface Alignment {
   best: Pair | null;
 }
 
-export const SHIFT_STEP = 15;
+/** The session moves (dragging, Best match) to the minute; the buttons add 15 or 30. */
+export const SHIFT_STEP = 1;
 
 const byMinute = (hours: DayHour[]) => {
   const m = new Map<number, DayHour>();
@@ -105,22 +107,31 @@ export function align(spot: Spot, surfed: Derived[], day: DayHour[], shift: numb
   return { shift, pairs, mean, best };
 }
 
-/** The closest single pair of a surfed hour and an hour of the day (night included): the list's "% like today". */
-export function closestPair(spot: Spot, surfed: Derived[], day: DayHour[]): Pair | null {
-  let best: Pair | null = null;
-  for (const s of surfed) {
-    const sm = isoToMin(s.time);
-    if (sm == null) continue;
-    for (const h of day) {
-      const dm = isoToMin(h.d.time);
-      const p = dm == null ? null : pair(spot, s, sm, h, dm);
-      if (p && (!best || p.pct > best.pct)) best = p;
-    }
+/** A best match keeps at least this much of the session in daylight (all of it when shorter). */
+export const MIN_DAYLIGHT = 60;
+
+/** Minutes of [start, end] between sunrise and sunset. */
+export const daylightOverlap = (start: number, end: number, rise: number, set: number) => Math.max(0, Math.min(end, set) - Math.max(start, rise));
+
+/**
+ * The best position of the session on the day (to the minute): the closest single pair, the
+ * better average on ties, among positions with at least MIN_DAYLIGHT minutes in daylight. This is
+ * what the list's "% like today" shows.
+ */
+export function bestMatch(spot: Spot, surfed: Derived[], day: DayHour[], startMin: number, endMin: number, rise: number, set: number): Alignment | null {
+  const need = Math.min(MIN_DAYLIGHT, endMin - startMin);
+  const [lo, hi] = shiftRange(startMin, endMin, 0, 1440);
+  let best: Alignment | null = null;
+  for (let sh = lo; sh <= hi; sh += SHIFT_STEP) {
+    if (daylightOverlap(startMin + sh, endMin + sh, rise, set) < need) continue;
+    const a = align(spot, surfed, day, sh);
+    if (!a.best) continue;
+    if (!best || a.best.pct > best.best!.pct || (a.best.pct === best.best!.pct && (a.mean ?? 0) > (best.mean ?? 0))) best = a;
   }
   return best;
 }
 
-/** Shifts (multiples of 15 min) that keep the whole session between `from` and `to` minutes of the day. */
+/** Shifts (whole minutes) that keep the whole session between `from` and `to` minutes of the day. */
 export function shiftRange(startMin: number, endMin: number, from: number, to: number, step = SHIFT_STEP): [number, number] {
   let lo = Math.ceil((from - startMin) / step) * step;
   let hi = Math.floor((to - endMin) / step) * step;

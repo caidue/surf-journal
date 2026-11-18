@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.12.3 — 2026-11-18
+
+- Session comparison: Best match and dragging now work to the minute instead of in 15-minute steps; the −30 / −15 / +15 / +30 buttons stay.
+
+## 1.12.2 — 2026-11-18
+
+- Session comparison: the best match may reach into the night, but always keeps at least an hour of your session in daylight, so it is never all at night. The "% like today" in the sessions list uses the same best match.
+
 ## 1.12.1 — 2026-11-18
 
 - Session comparison: the chart shows daylight again instead of the whole night. It only reaches into the night as far as needed when the best match is there.

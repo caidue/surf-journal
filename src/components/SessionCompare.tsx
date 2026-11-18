@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import type { HourConditions, Session, Settings, Spot } from '../types';
 import { tideLabel, type Derived } from '../lib/conditions';
-import { align, closestPair, featureCloseness, SHIFT_STEP, shiftRange, type DayHour } from '../lib/compare';
+import { align, bestMatch, featureCloseness, SHIFT_STEP, shiftRange, type DayHour } from '../lib/compare';
 import { fmtHeight, fmtWind } from '../lib/format';
 import { compass } from '../lib/geo';
 import { sessionOverall, surfedHourIdx, type SpotRec } from '../lib/recommend';
@@ -37,20 +37,20 @@ const STEPS = [-30, -15, 15, 30];
 /**
  * A logged session on another day's forecast (Sessions tab of a spot): your session as a band on
  * the day's chart (daylight, wider when the best match reaches into the night), draggable in
- * 15-minute steps; below, the conditions of the
+ * minute steps (±15 / ±30 buttons); below, the conditions of the
  * closest lined-up hour then and on that day.
  */
 export default function SessionCompare({ spot, session, derived, rec, hours, sunrise, sunset, dayWord, nowMin, settings, onBack, daySwitch }: Props) {
   const surfed = useMemo(() => surfedHourIdx(session).map((i) => derived[i]).filter((d): d is Derived => !!d), [session, derived]);
   const dayHours: DayHour[] = useMemo(() => rec.hours.map((h) => ({ d: h.derived, daylight: h.daylight })), [rec]);
-  const closest = useMemo(() => closestPair(spot, surfed, dayHours), [spot, surfed, dayHours]);
-  // The best match can be at any hour, night included.
-  const dayRange = shiftRange(session.startMin, session.endMin, 0, 1440);
-  const bestShift = clamp(closest ? closest.dayMin - closest.sessMin : 0, dayRange[0], dayRange[1]);
-  // The chart shows daylight (± 1 h) and only reaches into the night as far as the best match
-  // needs; the session can be moved anywhere on it.
   const rise = sunrise ?? 420;
   const set = sunset ?? 1170;
+  // The best match may reach into the night, but keeps at least an hour in daylight.
+  const best = useMemo(() => bestMatch(spot, surfed, dayHours, session.startMin, session.endMin, rise, set), [spot, surfed, dayHours, session.startMin, session.endMin, rise, set]);
+  const closest = best?.best ?? null;
+  const bestShift = best?.shift ?? 0;
+  // The chart shows daylight (± 1 h) and only reaches into the night as far as the best match
+  // needs; the session can be moved anywhere on it.
   const view: [number, number] = [
     Math.max(0, Math.min(Math.floor((rise - 60) / 60) * 60, Math.floor((session.startMin + bestShift) / 60) * 60)),
     Math.min(1440, Math.max(Math.ceil((set + 60) / 60) * 60, Math.ceil((session.endMin + bestShift) / 60) * 60)),
@@ -61,7 +61,7 @@ export default function SessionCompare({ spot, session, derived, rec, hours, sun
   const a = useMemo(() => align(spot, surfed, dayHours, shift), [spot, surfed, dayHours, shift]);
   const move = (to: number) => setShift(clamp(Math.round(to / SHIFT_STEP) * SHIFT_STEP, range[0], range[1]));
 
-  // Drag the session band along the day: 15-minute steps on the chart's time scale.
+  // Drag the session band along the day, to the minute, on the chart's time scale.
   const [wrapRef, width] = useElementWidth<HTMLDivElement>();
   const pxPerMin = Math.max(100, width - LABEL_W - PAD_R) / (view[1] - view[0]);
   const drag = useRef<{ x: number; shift: number } | null>(null);
@@ -134,8 +134,9 @@ export default function SessionCompare({ spot, session, derived, rec, hours, sun
             aria-valuenow={shift}
             aria-valuetext={`${when(session.startMin + shift)}–${when(session.endMin + shift)}`}
             onKeyDown={(e) => {
-              if (e.key === 'ArrowLeft') move(shift - SHIFT_STEP);
-              else if (e.key === 'ArrowRight') move(shift + SHIFT_STEP);
+              // Arrow keys: 1 minute, with Shift 15.
+              if (e.key === 'ArrowLeft') move(shift - (e.shiftKey ? 15 : SHIFT_STEP));
+              else if (e.key === 'ArrowRight') move(shift + (e.shiftKey ? 15 : SHIFT_STEP));
               else return;
               e.preventDefault();
             }}

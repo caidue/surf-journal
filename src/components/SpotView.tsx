@@ -2,13 +2,13 @@ import { useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session, Settings, Spot } from '../types';
 import { useConditions, useRating } from '../hooks';
 import { deriveSeries, tideExtremes, tideLabel, WIND_LABEL, type WindKind } from '../lib/conditions';
-import { buildHistory, calibratedGain, insights, matchSession, recommendSpotDay, sessionOverall } from '../lib/recommend';
+import { buildHistory, calibratedGain, insights, recommendSpotDay, sessionOverall } from '../lib/recommend';
 import { KNOWLEDGE_LABEL, spotKnowledge } from '../lib/confidence';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
 import { compass, haversineKm } from '../lib/geo';
-import { similarityPct } from '../lib/similarity';
 import { surfForecastUrl, surflineUrl } from '../lib/links';
 import { gridKey } from '../lib/openMeteo';
+import { bestMatch } from '../lib/compare';
 import ForecastTable from './ForecastTable';
 import { Icon, type IconName } from './icons';
 import MapView from './MapView';
@@ -106,24 +106,25 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
   const tides = useMemo(() => (series ? tideExtremes(series.hours, date) : []), [series, date]);
 
   const mySessions = useMemo(() => sessions.filter((s) => s.spotId === spot.id), [sessions, spot.id]);
+  const dayInfo = series?.days.find((d) => d.date === date);
+  // "% like today": the session's best match on the day (the same one the comparison opens on),
+  // which keeps at least an hour of the session in daylight.
   const matched = useMemo(() => {
-    if (!rec) return mySessions.map((s) => ({ s, pct: null as number | null, when: null as string | null }));
+    if (!rec) return mySessions.map((s) => ({ s, pct: null as number | null, when: null as number | null }));
     const hist = buildHistory(spot, mySessions, settings, today, rec.gain);
+    const day = rec.hours.map((h) => ({ d: h.derived, daylight: h.daylight }));
+    const rise = isoToMin(dayInfo?.sunrise) ?? 420;
+    const set = isoToMin(dayInfo?.sunset) ?? 1170;
     return hist
       .map((h) => {
-        let best: { d: number; when: string } | null = null;
-        for (const hr of rec.hours) {
-          const nb = matchSession(spot, hr.derived, h);
-          if (nb && (!best || nb.d < best.d)) best = { d: nb.d, when: hr.time };
-        }
-        return { s: h.session, pct: best ? similarityPct(best.d) : null, when: best?.when ?? null };
+        const m = bestMatch(spot, h.hours.map((i) => h.derived[i]).filter(Boolean), day, h.session.startMin, h.session.endMin, rise, set);
+        return { s: h.session, pct: m?.best?.pct ?? null, when: m?.best?.dayMin ?? null };
       })
       .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
-  }, [rec, mySessions, spot, settings, today]);
+  }, [rec, mySessions, spot, settings, today, dayInfo]);
   const ins = useMemo(() => insights(spot, sessions), [spot, sessions]);
   const compared = compareId ? mySessions.find((s) => s.id === compareId) ?? null : null;
   const comparedDerived = useMemo(() => (compared && rec ? deriveSeries(spot, compared.conditions, rec.gain) : []), [compared, rec, spot]);
-  const dayInfo = series?.days.find((d) => d.date === date);
   const calib = useMemo(() => calibratedGain(spot, sessions), [spot, sessions]);
 
   const dayOptions = [0, 1, 2].map((o) => ({ id: String(o), label: o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : fmtDate(addDays(today, o), { weekday: 'long' }) }));
@@ -299,7 +300,7 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                           <span className="small muted">{sessionSummary(s, spot, settings)}</span>
                         </span>
                         {pct != null && (
-                          <span className="pct" title={when ? `Closest to ${fmtMin(isoToMin(when) ?? 0)}` : ''}>
+                          <span className="pct" title={when != null ? `Closest to ${fmtMin(when)}` : ''}>
                             {pct}% like {dayWord}
                           </span>
                         )}
@@ -309,7 +310,7 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                   ))}
                 </ul>
               )}
-              {matched.length > 0 && <p className="muted tiny">% = how alike its closest hour is to an hour {dayWord}. Tap a session to compare.</p>}
+              {matched.length > 0 && <p className="muted tiny">% = how alike its closest hour is to {dayWord} (at least an hour of it in daylight). Tap a session to compare.</p>}
               <h4>What your ratings say</h4>
               <p className="muted small">
                 Average fun rating at each tide stage and wind, from your relevant sessions here

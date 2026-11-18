@@ -16,7 +16,7 @@ import { DEFAULT_SETTINGS, withCurrentCategories } from '../db';
 import { evaluateRules, inArc } from './rules';
 import { spotKnowledge, sureness, tideKnown } from './confidence';
 import { marineHour, windHour } from './openMeteo';
-import { align, closestPair, dayAt, featureCloseness, shiftRange } from './compare';
+import { align, bestMatch, dayAt, daylightOverlap, featureCloseness, shiftRange } from './compare';
 import caleta from './fixtures/caleta-2026-11-14';
 
 const spot: Spot = {
@@ -708,23 +708,34 @@ describe('lining a session up against another day (Sessions tab)', () => {
   const target = deriveSeries(spot, day('2026-03-01', (h) => ({ swell: h >= 14 ? [2, 12, 320] : [0.6, 8, 320], seaLevel: Math.sin(((h - 6) / 12.4) * 2 * Math.PI) })));
   const dayHours = target.map((d, h) => ({ d, daylight: h >= 7 && h < 19 }));
 
-  it('only moves the session within daylight (sunrise 07:00, sunset 19:00), in 15-minute steps', () => {
+  it('keeps the session within the given part of the day, to the minute (or in larger steps)', () => {
     expect(shiftRange(480, 600, 420, 1140)).toEqual([-60, 540]); // 07:00–09:00 … 17:00–19:00
-    expect(shiftRange(485, 600, 420, 1140)).toEqual([-60, 540]);
+    expect(shiftRange(485, 600, 420, 1140)).toEqual([-65, 540]);
+    expect(shiftRange(485, 600, 420, 1140, 15)).toEqual([-60, 540]);
   });
-  it('the closest pair is the list\'s "% like today", over the whole day', () => {
-    const best = closestPair(spot, surfedHours, dayHours)!;
-    expect(best.dayMin).toBeGreaterThanOrEqual(14 * 60);
-    let listBest = 0;
-    for (const t of dayHours) {
-      const nb = matchSession(spot, t.d, surfed);
-      if (nb) listBest = Math.max(listBest, similarityPct(nb.d));
-    }
-    expect(best.pct).toBe(listBest);
-    // Night hours count too.
+  it('the best match keeps at least an hour in daylight; night hours may be part of it', () => {
+    // Sunrise 07:00, sunset 19:00; the session (08:00–10:00) lines up best with 14:00–16:00.
+    const best = bestMatch(spot, surfedHours, dayHours, 480, 600, 420, 1140)!;
+    expect(best.best!.dayMin).toBeGreaterThanOrEqual(14 * 60);
+    // The same conditions at 02:00 (night) never win on their own...
     const same = deriveSeries(spot, day('2026-02-01', () => ({ swell: [2, 12, 320] })));
-    const night = target.map((d, h) => (h === 2 ? { d: { ...same[8], time: d.time }, daylight: false } : { d, daylight: h >= 7 && h < 19 }));
-    expect(closestPair(spot, surfedHours, night)!.dayMin).toBe(120);
+    const flat = deriveSeries(spot, day('2026-03-01', () => ({ swell: [0.6, 8, 320] })));
+    const at = (hr: number) => flat.map((d, h) => (h === hr ? { d: { ...same[8], time: d.time }, daylight: false } : { d, daylight: h >= 7 && h < 19 }));
+    expect(bestMatch(spot, surfedHours, at(2), 480, 600, 420, 1140)!.best!.dayMin).not.toBe(120);
+    // ...nor at 05:00 (the 2-hour session would end at sunrise)...
+    expect(bestMatch(spot, surfedHours, at(5), 480, 600, 420, 1140)!.best!.dayMin).not.toBe(300);
+    // ...but at 06:00 they can: 06:00–08:00 has an hour in daylight.
+    const m = bestMatch(spot, surfedHours, at(6), 480, 600, 420, 1140)!;
+    expect(m.best!.dayMin).toBe(360);
+    expect(daylightOverlap(480 + m.shift, 600 + m.shift, 420, 1140)).toBeGreaterThanOrEqual(60);
+    expect(daylightOverlap(0, 60, 420, 1140)).toBe(0);
+  });
+  it('finds the best match to the minute', () => {
+    // The session's swell sits 20 minutes into the 14:00–15:00 change: best at 13:40-ish, not on a 15-minute mark.
+    const ramp = deriveSeries(spot, day('2026-03-01', (h) => ({ swell: h >= 14 ? [3, 12, 320] : [0.6, 12, 320], seaLevel: Math.sin(((h - 6) / 12.4) * 2 * Math.PI) })));
+    const dh = ramp.map((d, h) => ({ d, daylight: h >= 7 && h < 19 }));
+    const m = bestMatch(spot, surfedHours, dh, 480, 600, 420, 1140)!;
+    expect(m.shift % 15).not.toBe(0);
   });
   it('lines each surfed hour up with the day at the exact minute, between hours interpolated', () => {
     const early = align(spot, surfedHours, dayHours, 0);
