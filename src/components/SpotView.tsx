@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session, Settings, Spot } from '../types';
 import { useConditions, useRating } from '../hooks';
-import { tideExtremes, tideLabel, WIND_LABEL, type WindKind } from '../lib/conditions';
+import { deriveSeries, tideExtremes, tideLabel, WIND_LABEL, type WindKind } from '../lib/conditions';
 import { buildHistory, calibratedGain, insights, matchSession, recommendSpotDay, sessionOverall } from '../lib/recommend';
 import { KNOWLEDGE_LABEL, spotKnowledge } from '../lib/confidence';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
@@ -13,6 +13,7 @@ import ForecastTable from './ForecastTable';
 import { Icon, type IconName } from './icons';
 import MapView from './MapView';
 import SpotGuide from './SpotGuide';
+import SessionCompare from './SessionCompare';
 import { sessionSummary } from './Journal';
 import { CondBadges, ConditionsStatus, Empty, PickDetails, ScoreBadge, Segmented } from './ui';
 
@@ -54,23 +55,32 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
   const today = todayAt();
   const [dayOffset, setDayOffset] = useState(initialDay);
   const [tab, setTabState] = useState<SpotTab>(loadTab);
+  /** The session shown next to the chosen day in the Sessions tab (null = the list). */
+  const [compareId, setCompareIdState] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const tabsAnchor = useRef<HTMLDivElement>(null);
+  const setCompareId = (id: string | null) => {
+    setCompareIdState(id);
+    toTop();
+  };
   const setTab = (t: SpotTab) => {
     setTabState(t);
-    // A new tab starts at its top, not at the previous tab's scroll position: in the popup its own
-    // scroll area goes back up; on the page the window goes back to where the tabs stick, if past it.
+    toTop();
+    try {
+      localStorage.setItem(TAB_KEY, t);
+    } catch {
+      /* per-viewer convenience only */
+    }
+  };
+  // A new tab (or view) starts at its top, not at the previous one's scroll position: in the popup its
+  // own scroll area goes back up; on the page the window goes back to where the tabs stick, if past it.
+  const toTop = () => {
     if (mode === 'sheet') {
       if (scrollRef.current) scrollRef.current.scrollTop = 0;
     } else if (tabsAnchor.current) {
       const bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-actual')) || 56;
       const y = tabsAnchor.current.getBoundingClientRect().top + window.scrollY - bar;
       if (window.scrollY > y) window.scrollTo(0, y);
-    }
-    try {
-      localStorage.setItem(TAB_KEY, t);
-    } catch {
-      /* per-viewer convenience only */
     }
   };
   const date = addDays(today, dayOffset);
@@ -112,6 +122,9 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
       .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
   }, [rec, mySessions, spot, settings, today]);
   const ins = useMemo(() => insights(spot, sessions), [spot, sessions]);
+  const compared = compareId ? mySessions.find((s) => s.id === compareId) ?? null : null;
+  const comparedDerived = useMemo(() => (compared && rec ? deriveSeries(spot, compared.conditions, rec.gain) : []), [compared, rec, spot]);
+  const dayInfo = series?.days.find((d) => d.date === date);
   const calib = useMemo(() => calibratedGain(spot, sessions), [spot, sessions]);
 
   const dayOptions = [0, 1, 2].map((o) => ({ id: String(o), label: o === 0 ? 'Today' : o === 1 ? 'Tomorrow' : fmtDate(addDays(today, o), { weekday: 'long' }) }));
@@ -241,7 +254,34 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
 
           {tab === 'guide' && <SpotGuide spot={spot} compact={mode === 'sheet'} />}
 
-          {tab === 'sessions' && (
+          {tab === 'sessions' && compared && (
+            rec && series ? (
+              <SessionCompare
+                key={`${compared.id}|${date}`}
+                spot={spot}
+                session={compared}
+                derived={comparedDerived}
+                rec={rec}
+                hours={series.hours}
+                sunrise={isoToMin(dayInfo?.sunrise) ?? null}
+                sunset={isoToMin(dayInfo?.sunset) ?? null}
+                dayWord={dayWord}
+                nowMin={dayOffset === 0 ? nowMinutesAt(series.utcOffsetSeconds) : null}
+                settings={settings}
+                onBack={() => setCompareId(null)}
+                daySwitch={<Segmented options={dayOptions} value={String(dayOffset)} onChange={(v) => setDayOffset(Number(v))} />}
+              />
+            ) : (
+              <>
+                <button type="button" className="link" onClick={() => setCompareId(null)}>
+                  ← Back to the sessions
+                </button>
+                <p className="muted">{loading ? 'Loading forecast…' : 'No forecast to compare with.'}</p>
+              </>
+            )
+          )}
+
+          {tab === 'sessions' && !compared && (
             <>
               {matched.length === 0 ? (
                 <Empty>No sessions logged here yet.</Empty>
@@ -249,7 +289,7 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                 <ul className="plain sv-sessions">
                   {matched.map(({ s, pct, when }) => (
                     <li key={s.id} className={s.excluded ? 'excluded' : ''}>
-                      <a href={`#/session/${s.id}`} className="row gap">
+                      <button type="button" className="sv-row row gap" onClick={() => setCompareId(s.id)} title={`Compare with ${dayWord}`}>
                         <ScoreBadge score={sessionOverall(s)} size="sm" />
                         <span>
                           <strong>{fmtDate(s.date)}</strong>{' '}
@@ -265,12 +305,12 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                           </span>
                         )}
                         {s.excluded && <span className="badge muted">not relevant</span>}
-                      </a>
+                      </button>
                     </li>
                   ))}
                 </ul>
               )}
-              {matched.length > 0 && <p className="muted tiny">The % compares each session with the closest daylight hour {dayWord} (change the day on the Forecast tab).</p>}
+              {matched.length > 0 && <p className="muted tiny">The % compares each session with the closest daylight hour {dayWord}. Tap a session to see it next to {dayWord} and line it up with other hours.</p>}
               <h4>What your ratings say</h4>
               <p className="muted small">
                 Average fun rating at each tide stage and wind, from your relevant sessions here

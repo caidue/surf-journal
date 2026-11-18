@@ -38,10 +38,14 @@ interface Props {
   onSessionChange?: (r: Range) => void;
   /** Shown across the conditions rows when there are no hourly conditions (e.g. logged offline). */
   emptyText?: string;
+  /** Text above the session band instead of its time ("Thu 23 Oct · 10:00–12:00"). */
+  sessionLabel?: string;
+  /** Hide the time axis (a chart lined up under another one). */
+  noAxis?: boolean;
 }
 
-const LABEL_W = 64;
-const PAD_R = 8;
+export const LABEL_W = 64;
+export const PAD_R = 8;
 export const WIND_BG: Record<WindKind, string> = {
   glassy: '#e0f2fe',
   offshore: '#bbf7d0',
@@ -51,7 +55,12 @@ export const WIND_BG: Record<WindKind, string> = {
   onshore: '#fecaca',
 };
 
-type Drag = { kind: 'brush'; mode: 'new' | 'start' | 'end' | 'move'; anchor: number; offset: number; moved: boolean };
+type Drag = { kind: 'brush'; mode: 'new' | 'start' | 'end'; anchor: number; moved: boolean };
+
+/** Session handles: 1.2 × wider and 1.5 × longer than before (8 × 36), and a wide invisible grip. */
+const HANDLE_W = 10;
+const HANDLE_H = 54;
+const HANDLE_HIT = 28;
 
 const snap = (m: number, step = SLOT_MIN) => Math.round(m / step) * step;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -83,7 +92,7 @@ export default function Timeline(p: Props) {
     y += h + gap;
     return r;
   };
-  const sessLane = interactive ? row(16, 2) : null; // "11:15–12:45 · 1 h 30 min" above the rows
+  const sessLane = interactive || p.sessionLabel ? row(16, 2) : null; // "11:15–12:45 · 1 h 30 min" above the rows
   const scoreRow = p.scores ? row(20, 4) : null;
   const wave = row(66, 2);
   const swell = row(46, 2);
@@ -93,7 +102,7 @@ export default function Timeline(p: Props) {
   const tide = row(42, 6);
   const rowsTop = scoreRow?.y ?? wave.y;
   const condBottom = y - 6;
-  const axis = row(18, 0);
+  const axis = p.noAxis ? row(0, 0) : row(18, 0);
   const H = y;
 
   const STACK_MAX = 50; // wave curve full height (3 m)
@@ -114,18 +123,23 @@ export default function Timeline(p: Props) {
   const toMin = (px: number) => clamp(v0 + (px - LABEL_W) / pxPerMin, v0, v1);
   const sess = p.session;
 
+  /** Drag across the empty chart to mark a new session; once there is one, only its handles move it. */
   const onBrushDown = (e: React.PointerEvent) => {
     if (!p.onSessionChange) return;
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    const m = toMin(local(e).px);
-    const tol = Math.max(10, 14 / pxPerMin);
-    let mode: 'new' | 'start' | 'end' | 'move' = 'new';
-    if (sess) {
-      if (Math.abs(m - sess.startMin) <= tol) mode = 'start';
-      else if (Math.abs(m - sess.endMin) <= tol) mode = 'end';
-      else if (m > sess.startMin && m < sess.endMin) mode = 'move';
-    }
-    drag.current = { kind: 'brush', mode, anchor: snap(m), offset: sess ? m - sess.startMin : 0, moved: false };
+    drag.current = { kind: 'brush', mode: 'new', anchor: snap(toMin(local(e).px)), moved: false };
+  };
+  const onHandleDown = (mode: 'start' | 'end') => (e: React.PointerEvent) => {
+    if (!p.onSessionChange) return;
+    e.stopPropagation();
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    drag.current = { kind: 'brush', mode, anchor: 0, moved: false };
+  };
+  /** The ±5 min buttons: move one edge, keeping at least 10 minutes in the water. */
+  const nudge = (edge: 'start' | 'end', delta: number) => {
+    if (!sess || !p.onSessionChange) return;
+    if (edge === 'start') p.onSessionChange({ startMin: clamp(sess.startMin + delta, 0, sess.endMin - 10), endMin: sess.endMin });
+    else p.onSessionChange({ startMin: sess.startMin, endMin: clamp(sess.endMin + delta, sess.startMin + 10, 24 * 60) });
   };
   const onBrushMove = (e: React.PointerEvent) => {
     const d = drag.current;
@@ -139,10 +153,6 @@ export default function Timeline(p: Props) {
       p.onSessionChange({ startMin: Math.min(m, sess.endMin - 10), endMin: sess.endMin });
     } else if (sess && d.mode === 'end') {
       p.onSessionChange({ startMin: sess.startMin, endMin: Math.max(m, sess.startMin + 10) });
-    } else if (sess && d.mode === 'move') {
-      const len = sess.endMin - sess.startMin;
-      const start = clamp(snap(toMin(local(e).px) - d.offset), 0, 24 * 60 - len);
-      p.onSessionChange({ startMin: start, endMin: start + len });
     }
   };
   const onBrushUp = () => {
@@ -200,6 +210,26 @@ export default function Timeline(p: Props) {
 
   return (
     <div ref={ref} className="timeline">
+      {interactive && sess && (
+        <div className="tl-nudge" aria-label="Fine-tune the session time">
+          {(['start', 'end'] as const).map((edge) => {
+            const m = edge === 'start' ? sess.startMin : sess.endMin;
+            const word = edge === 'start' ? 'Start' : 'End';
+            return (
+              <div key={edge} className="tl-nudge-edge">
+                <span className="muted small">{word}</span>
+                <button type="button" className="nudge" onClick={() => nudge(edge, -SLOT_MIN)} aria-label={`${word} ${SLOT_MIN} minutes earlier`} title={`${SLOT_MIN} min earlier`}>
+                  −{SLOT_MIN}
+                </button>
+                <strong className="nudge-time">{fmtMin(m)}</strong>
+                <button type="button" className="nudge" onClick={() => nudge(edge, SLOT_MIN)} aria-label={`${word} ${SLOT_MIN} minutes later`} title={`${SLOT_MIN} min later`}>
+                  +{SLOT_MIN}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {width > 0 && (
         <svg width={width} height={H} className={interactive ? 'interactive' : ''} onPointerUp={end} onPointerCancel={() => (drag.current = null)}>
           {/* night */}
@@ -256,8 +286,8 @@ export default function Timeline(p: Props) {
           {label(wave, 'Wave', p.heightUnit === 'ft' ? 'ft' : 'm')}
           <HeightCurve
             points={hours.flatMap((r) => (r.d?.hb == null ? [] : [{ x: x(r.m) + pxPerHour / 2, h: r.d.hb }]))}
-            x0={x(v0)}
-            x1={x(v1)}
+            x0={x(Math.max(v0, hours[0]?.m ?? v0))}
+            x1={x(Math.min(v1, (hours[hours.length - 1]?.m ?? v1 - 60) + 60))}
             base={wave.y + wave.h}
             maxPx={STACK_MAX}
           />
@@ -364,20 +394,20 @@ export default function Timeline(p: Props) {
               <rect x={x(sess.startMin)} y={rowsTop - 2} width={Math.max(2, x(sess.endMin) - x(sess.startMin))} height={condBottom - rowsTop + 2} className="session" rx={4} />
               {interactive && (
                 <>
-                  <rect x={x(sess.startMin) - 4} y={wave.y + 16} width={8} height={36} rx={4} className="handle" />
-                  <rect x={x(sess.endMin) - 4} y={wave.y + 16} width={8} height={36} rx={4} className="handle" />
+                  <rect x={x(sess.startMin) - HANDLE_W / 2} y={wave.y + 6} width={HANDLE_W} height={HANDLE_H} rx={5} className="handle" />
+                  <rect x={x(sess.endMin) - HANDLE_W / 2} y={wave.y + 6} width={HANDLE_W} height={HANDLE_H} rx={5} className="handle" />
                 </>
               )}
               <text x={clamp((x(sess.startMin) + x(sess.endMin)) / 2, LABEL_W + 60, LABEL_W + plotW - 60)} y={(sessLane?.y ?? rowsTop - 14) + 12} textAnchor="middle" className="session-label">
-                {fmtMin(sess.startMin)}–{fmtMin(sess.endMin)} · {fmtDuration(sess.endMin - sess.startMin)}
+                {p.sessionLabel ?? `${fmtMin(sess.startMin)}–${fmtMin(sess.endMin)} · ${fmtDuration(sess.endMin - sess.startMin)}`}
               </text>
             </g>
           )}
 
           {p.nowMin != null && p.nowMin >= v0 && p.nowMin <= v1 && <line x1={x(p.nowMin)} x2={x(p.nowMin)} y1={0} y2={condBottom} className="now" />}
 
-          {/* brush hit area */}
-          {interactive && (
+          {/* brush hit area: only while there is no session yet (then only the handles drag) */}
+          {interactive && !sess && (
             <rect
               x={LABEL_W}
               y={0}
@@ -389,6 +419,24 @@ export default function Timeline(p: Props) {
               onPointerMove={onBrushMove}
             />
           )}
+          {/* handle hit areas: wider than the handles, for fingers */}
+          {interactive &&
+            sess &&
+            (['start', 'end'] as const).map((edge) => (
+              <rect
+                key={edge}
+                x={x(edge === 'start' ? sess.startMin : sess.endMin) - HANDLE_HIT / 2}
+                y={rowsTop - 2}
+                width={HANDLE_HIT}
+                height={condBottom - rowsTop + 2}
+                fill="transparent"
+                className="handle-hit"
+                aria-label={edge === 'start' ? 'Drag to change the start' : 'Drag to change the end'}
+                onPointerDown={onHandleDown(edge)}
+                onPointerMove={onBrushMove}
+                onLostPointerCapture={() => (drag.current = null)}
+              />
+            ))}
           {interactive && !sess && (
             <text x={LABEL_W + plotW / 2} y={wave.y + 22} textAnchor="middle" className="hint" pointerEvents="none">
               {plotW < 380 ? "Drag to mark your time in the water" : "Drag across the chart to mark when you were in the water"}
@@ -396,7 +444,7 @@ export default function Timeline(p: Props) {
           )}
 
           {/* axis */}
-          {ticks.map((m) => (
+          {!p.noAxis && ticks.map((m) => (
             <text key={m} x={x(m)} y={axis.y + 13} textAnchor="middle" className="tl-axis">
               {fmtMin(m)}
             </text>

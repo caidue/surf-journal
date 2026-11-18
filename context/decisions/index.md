@@ -25,6 +25,7 @@ Accepted decisions (numbered) and pending ones.
 * [0021: Rate spots for another level](0021-rate-for-another-level.md) - A temporary Rate-for switch rates spots for a typical surfer of any level, without your sessions.
 * [0022: Backup into the user's own cloud through the share sheet](0022-share-sheet-backup.md) - Phones back up through the system share sheet; no native cloud, no cloud APIs; desktop keeps its data and the download.
 * [0023: Size as a range, not a hard cut-off](0023-size-uncertainty.md) - Median of the wave models, a likely range carried into the rating, exclusion only when even the low end is too big, wave-model disagreement in the confidence, and a sheltered Majanicho.
+* [0024: Handles-only dragging and comparing sessions instead of editing them](0024-handles-and-session-comparison.md) - The session chart moves only by its handles (with ±5 min buttons); a session in a spot's Sessions tab opens a comparison with the chosen day, not the editor.
 
 # Pending decisions
 

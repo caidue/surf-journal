@@ -10,7 +10,7 @@ sources:
     title: "Research: surf journal app feasibility (2026-11)"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-18T18:00:00+00:00"
 ---
 # Similarity of conditions
 
@@ -26,4 +26,4 @@ Weighted, tolerance-scaled distance over spot-relative features (`SPOT_FEATURES`
 | tide height (normalised) | 2 | 0.18 |
 | tide trend | 1 | 0.6 |
 
-`d = sqrt(Σ w·(Δ/tol)² · (Σw_all / Σw_present) / 3)`; kernel `exp(−d²/2)` (0 beyond d = 2.5). Sessions count as "in similar conditions" from kernel 0.25 (`SIMILAR_MIN_K`, ≈ one step off in size, wind and tide together). `absFeatures()` compares regional sea states via the strongest train. Shown in Explore ("Your past sessions in conditions like today") and the spot's Sessions tab.
+`d = sqrt(Σ w·(Δ/tol)² · (Σw_all / Σw_present) / 3)`; kernel `exp(−d²/2)` (0 beyond d = 2.5). The Sessions tab's "% like today" is `similarityPct(d)` of the closest pair of a surfed hour and a daylight hour of the chosen day; the [session comparison](/features/session-comparison.md) shows that pair and each condition's closeness `exp(−(Δ/tol)²/2)` (`lib/compare.ts`). Sessions count as "in similar conditions" from kernel 0.25 (`SIMILAR_MIN_K`, ≈ one step off in size, wind and tide together). `absFeatures()` compares regional sea states via the strongest train. Shown in Explore ("Your past sessions in conditions like today") and the spot's Sessions tab.

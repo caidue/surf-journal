@@ -78,6 +78,7 @@ User-facing screens and flows. ([folder index](features/index.md))
 * [Hourly forecast table](features/forecast-table.md) - Surf-forecast-style hourly table: rating for you (or a chosen level), wave, swell trains, energy, wind, tide.
 * [Journal](features/journal.md) - List of logged sessions with trips (named folders), filters, stats and relevance switches.
 * [Onboarding: Your surfing](features/onboarding.md) - First-launch questions that build the skill profile; also the profile editor.
+* [Session comparison](features/session-comparison.md) - A logged session next to today (or another forecast day) in the spot's Sessions tab: stacked charts, drag to line up, and what the % similarity is made of.
 * [Session logging](features/session-logging.md) - Logging a session on the day's conditions timeline, with ratings, details and how it felt.
 * [Settings](features/settings.md) - Your surfing, units, spots, how old sessions count, categories, phone/offline, data, demo, about.
 * [Spot editor](features/spot-editor.md) - Adding and editing spots, peaks and guides.
@@ -132,6 +133,7 @@ Accepted decisions (numbered) and pending ones. ([folder index](decisions/index.
 * [0021: Rate spots for another level](decisions/0021-rate-for-another-level.md) - A temporary Rate-for switch rates spots for a typical surfer of any level, without your sessions.
 * [0022: Backup into the user's own cloud through the share sheet](decisions/0022-share-sheet-backup.md) - Phones back up through the system share sheet; no native cloud, no cloud APIs; desktop keeps its data and the download.
 * [0023: Size as a range, not a hard cut-off](decisions/0023-size-uncertainty.md) - Median of the wave models, a likely range carried into the rating, exclusion only when even the low end is too big, wave-model disagreement in the confidence, and a sheltered Majanicho.
+* [0024: Handles-only dragging and comparing sessions instead of editing them](decisions/0024-handles-and-session-comparison.md) - The session chart moves only by its handles (with ±5 min buttons); a session in a spot's Sessions tab opens a comparison with the chosen day, not the editor.
 * [Accounts, sync and a commercial data plan](decisions/pending/accounts-and-sync.md) - What a public release would need.
 * [Should several challenging causes compound?](decisions/pending/compounding-challenges.md) - Worst status wins, so two problems count like one.
 * [Ask Open-Meteo for per-train peak periods in MFWAM](decisions/pending/open-meteo-upstream.md) - Upstream improvement, not ours to build.

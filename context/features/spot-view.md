@@ -6,7 +6,7 @@ resource: "src/components/SpotView.tsx"
 tags: ["feature", "spot"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T17:00:00+00:00"
+  at: "2026-11-18T18:00:00+00:00"
 ---
 # Spot view
 
@@ -16,6 +16,6 @@ Header: name, region · break · level · peaks, **"Also called …"** (aliases)
 * **Forecast:** day selector, the [forecast table](/features/forecast-table.md) for the whole day (legend folded away behind "Legend"), then the **recommendation card** in the same layout as Explore's spot cards ("Go 07:19–09:00 · tide mid, falling", or "Not much for you …" on days without a window; condition badges; then the shared `PickDetails`: timing notes, suitability reasons, bullets with the best peak, the even-day line and the explanation, confidence footer), "Tide (vs mean sea level)" with the high/low chips on a row below it. The data source line is inside the table's "Legend & sources".
 * **Guide:** the [spot guide](/features/spot-guide.md), opening with the spot's description ("About this spot"; it used to sit in the header).
 * **Info:** **What the app knows** (knowledge level, rule count, `dataNote`), faces / offshore wind, best swell and size range, tide, break with power and peel, crowds / localism / lifeguard, **Elsewhere: Surfline · surf-forecast.com** links, size factor (default or calibrated), approximate-location warning, small map, source.
-* **Sessions** (phones: "Sessions", without the count; on phones each entry puts the "% like …" badge under the date and conditions so they get the full width): your sessions here with % similarity to the chosen day, and the [insights](/engine/insights.md) bars.
+* **Sessions** (phones: "Sessions", without the count; on phones each entry puts the "% like …" badge under the date and conditions so they get the full width): your sessions here with % similarity to the chosen day, and the [insights](/engine/insights.md) bars. Tapping a session no longer opens the editor: it opens the [session comparison](/features/session-comparison.md) in the same tab (back arrow at the top right; "Edit session" link there).
 
 Spots sharing the Open-Meteo grid cell are listed in the table legend (loaded together with neighbours within 25 km).

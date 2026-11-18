@@ -5,8 +5,8 @@ description: "Which file does what in src/."
 resource: "src/"
 tags: ["architecture", "code"]
 generated:
-  by: "claude-code/claude-fable-5-2"
-  at: "2026-11-16T12:50:00+00:00"
+  by: "claude-code/claude-opus-5-5"
+  at: "2026-11-18T18:00:00+00:00"
 ---
 # Code map
 
@@ -24,6 +24,7 @@ generated:
 * `skill.ts`: stages, body scale, boards, profile summary, learning, undo, rusty offer. [Skill profile](/engine/skill-profile.md), [Profile learning](/engine/profile-learning.md).
 * `recommend.ts`: session weights, size calibration, analog prediction, day recommendation, explanations, insights. [Personal prediction](/engine/personal-prediction.md).
 * `similarity.ts`: feature distance and kernel. [Similarity](/engine/similarity.md).
+* `compare.ts`: lines a session's surfed hours up against another day (`align`, `bestAlignment`, `shiftRange`, `featureCloseness`). [Session comparison](/features/session-comparison.md).
 * `format.ts`: heights, surf range + body words, wind units (km/h, kn, mph), directions ("NNW 333°"), energy colours.
 * `links.ts`: Surfline and surf-forecast URLs.
 * `sync.ts`: fills in / re-fetches session conditions. `pwa.ts`: service worker, install, persistence. `backup.ts`: backup through the share sheet, last-backup time ([Backup](/features/backup.md)). `demo.ts`: [demo sessions](/features/demo-sessions.md). `geocode.ts`: [Nominatim](/data-sources/nominatim.md). `geo.ts`, `time.ts`: helpers.
@@ -41,4 +42,4 @@ generated:
 * `CLAUDE.md` / `AGENTS.md`: agent instructions, incl. the rule to keep `context/` current.
 
 ## Components (`src/components/`)
-Explore, SpotSheet/SpotPage/SpotView, ForecastTable, Timeline, surfGlyphs (shared wave/swell drawing), SpotGuide, SessionEditor, Journal, SettingsPage, Onboarding, StageCard, SpotEditor, SpotPicker, MapView, SpotThumb, ui (Chips, Segmented, ActionBar, badges, SuitReasons), icons. See [features](/features/index.md).
+Explore, SpotSheet/SpotPage/SpotView, SessionCompare, ForecastTable, Timeline, surfGlyphs (shared wave/swell drawing), SpotGuide, SessionEditor, Journal, SettingsPage, Onboarding, StageCard, SpotEditor, SpotPicker, MapView, SpotThumb, ui (Chips, Segmented, ActionBar, badges, SuitReasons), icons. See [features](/features/index.md).

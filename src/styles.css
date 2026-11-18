@@ -1372,6 +1372,52 @@ body.full-map .foot {
 }
 .timeline .handle {
   fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+.timeline .handle-hit {
+  cursor: ew-resize;
+  touch-action: none;
+}
+/* ±5 min buttons for each edge of the session, above the chart. */
+.tl-nudge {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0 0 var(--sp-2) 64px;
+}
+.tl-nudge-edge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.tl-nudge .nudge {
+  min-width: 40px;
+  height: 30px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.tl-nudge .nudge:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+.tl-nudge .nudge-time {
+  min-width: 3.2em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+  .tl-nudge {
+    margin-left: 0;
+  }
 }
 .session-label {
   font-size: 11px;
@@ -2103,25 +2149,147 @@ ul.plain li::before {
 ul.plain.sv-sessions li::before {
   content: none;
 }
+.sv-sessions .sv-row {
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sv-sessions .sv-row:hover strong {
+  color: var(--accent-strong);
+}
+/* A session next to another day (SessionCompare). */
+.cmp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.cmp-head h3 {
+  margin: 0 0 2px;
+}
+.cmp-explain {
+  background: var(--accent-soft);
+  border-radius: 10px;
+  padding: var(--sp-3);
+  margin: var(--sp-3) 0;
+  font-size: var(--fs-sm);
+}
+.cmp-chart-label {
+  margin: var(--sp-3) 0 var(--sp-1);
+}
+.cmp-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 var(--sp-2);
+  font-size: var(--fs-sm);
+}
+.cmp-buttons {
+  display: inline-flex;
+  gap: var(--sp-2);
+}
+.cmp .nudge {
+  min-width: 44px;
+  height: 30px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.cmp .nudge:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.cmp-drag {
+  cursor: grab;
+  touch-action: pan-y;
+  border-top: 1px dashed var(--line);
+  padding-top: var(--sp-2);
+  border-radius: 4px;
+}
+.cmp-drag:active {
+  cursor: grabbing;
+}
+.cmp-drag:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.cmp-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--sp-4);
+  font-size: var(--fs-sm);
+}
+.cmp-table caption {
+  text-align: left;
+  padding-bottom: var(--sp-2);
+}
+.cmp-table th,
+.cmp-table td {
+  text-align: left;
+  padding: 6px var(--sp-2) 6px 0;
+  border-bottom: 1px solid var(--line-2);
+  font-weight: normal;
+}
+.cmp-table thead th {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.cmp-bar {
+  display: inline-block;
+  width: 72px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line-2);
+  overflow: hidden;
+  vertical-align: middle;
+}
+.cmp-bar > span {
+  display: block;
+  height: 100%;
+}
+@media (max-width: 600px) {
+  .cmp-table th,
+  .cmp-table td {
+    padding-right: 6px;
+  }
+  .cmp-table td:last-child {
+    padding-right: 0;
+  }
+  .cmp-bar {
+    width: 40px;
+  }
+}
 .sv-sessions .when {
   white-space: nowrap;
 }
 /* Phones: the date and conditions get the full width next to the score; the "% like …" badge
    (and "not relevant") go underneath. */
 @media (max-width: 600px) {
-  .sv-sessions li > a {
+  .sv-sessions li > .sv-row {
     display: grid;
     grid-template-columns: auto 1fr;
     column-gap: var(--sp-3);
     row-gap: var(--sp-1);
     align-items: start;
   }
-  .sv-sessions li > a > .score {
+  .sv-sessions li > .sv-row > .score {
     grid-row: span 3;
     margin-top: 2px;
   }
-  .sv-sessions li > a > .pct,
-  .sv-sessions li > a > .badge {
+  .sv-sessions li > .sv-row > .pct,
+  .sv-sessions li > .sv-row > .badge {
     grid-column: 2;
     justify-self: start;
     margin: 0;

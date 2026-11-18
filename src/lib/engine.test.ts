@@ -7,14 +7,15 @@ import { fPeriod, peakDerived, quality, rateSpot, ratedPeaks, scoreLabel, sizeFi
 import { bodyRange, learnFromSession, profileForStage, profileSummary, snapshot, undoLastChange } from './skill';
 import { RETIRED_SPOTS, SEED_SPOTS } from '../data/seedSpots';
 import { SPOT_RULES } from '../data/spotRules';
-import { distance, kernel, SIMILAR_MIN_K } from './similarity';
-import { calibratedGain, explain, predict, buildHistory, recommendSpotDay, sessionWeight, insights, ratingFor, sessionOverall } from './recommend';
+import { distance, kernel, SIMILAR_MIN_K, similarityPct } from './similarity';
+import { calibratedGain, explain, matchSession, predict, buildHistory, recommendSpotDay, sessionWeight, insights, ratingFor, sessionOverall } from './recommend';
 import { parseRegionQuery, subBox } from './geocode';
 import { monthRanges } from './format';
 import { DEFAULT_SETTINGS, withCurrentCategories } from '../db';
 import { evaluateRules, inArc } from './rules';
 import { spotKnowledge, sureness, tideKnown } from './confidence';
 import { marineHour, windHour } from './openMeteo';
+import { align, bestAlignment, featureCloseness, shiftRange } from './compare';
 import caleta from './fixtures/caleta-2026-11-14';
 
 const spot: Spot = {
@@ -692,5 +693,38 @@ describe('size uncertainty (decision 0023)', () => {
     expect(n).toBe(1);
     expect(gain).toBeLessThan(spot.gain);
     expect(gain).toBeGreaterThan(calibratedGain(spot, [s1, session('2026-02-02', 7, { fields: { observedSize: 'waist' } })]).gain);
+  });
+});
+
+describe('lining a session up against another day (Sessions tab)', () => {
+  // Session 08:00–10:00 on 1 Feb in a 2 m swell; on 1 Mar the swell is that size only from 14:00.
+  const sess = session('2026-02-01', 7, {}, day('2026-02-01', () => ({ swell: [2, 12, 320] })));
+  const surfed = buildHistory(spot, [sess], settings, '2026-03-01')[0];
+  const surfedHours = surfed.hours.map((i) => surfed.derived[i]);
+  const target = deriveSeries(spot, day('2026-03-01', (h) => ({ swell: h >= 14 ? [2, 12, 320] : [0.6, 8, 320] })));
+  const dayHours = target.map((d, h) => ({ d, daylight: h >= 7 && h < 19 }));
+
+  it('the reachable shifts keep at least one surfed hour on the chart', () => {
+    expect(shiftRange(surfedHours, 360, 1200)).toEqual([-180, 660]) // 09:00 → 06:00 … 08:00 → 19:00;
+  });
+  it('finds the hour the list\'s "% like today" comes from, and slides from there', () => {
+    const best = bestAlignment(spot, surfedHours, dayHours, shiftRange(surfedHours, 360, 1200)!)!;
+    expect(best.best!.dayMin).toBeGreaterThanOrEqual(14 * 60);
+    // The same pair the list uses (matchSession over daylight hours).
+    let listBest = 0;
+    for (const t of dayHours.filter((h) => h.daylight)) {
+      const nb = matchSession(spot, t.d, surfed);
+      if (nb) listBest = Math.max(listBest, similarityPct(nb.d));
+    }
+    expect(best.best!.pct).toBe(listBest);
+    const early = align(spot, surfedHours, dayHours, 0);
+    expect(early.pairs).toHaveLength(2);
+    expect(early.mean!).toBeLessThan(best.mean!);
+  });
+  it('explains each condition as a closeness from 0 to 100', () => {
+    const a = align(spot, surfedHours, dayHours, 0);
+    expect(featureCloseness('size', a.best!.parts)!).toBeLessThan(40);
+    expect(featureCloseness('swellDir', a.best!.parts)).toBe(100);
+    expect(featureCloseness('nope', a.best!.parts)).toBeNull();
   });
 });

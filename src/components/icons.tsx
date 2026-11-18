@@ -87,6 +87,7 @@ const PATHS = {
     </>
   ),
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  back: <path d="M19 12H5M11 6l-6 6 6 6" />,
   plus: <path d="M12 5v14M5 12h14" />,
   text: (
     <>

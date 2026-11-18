@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.10.0 — 2026-11-18
+
+- **Marking your time in the water:** once a session is marked, only its handles move it, so a stray drag or a scroll can't shift it. The handles are bigger and easier to grab, and Start and End each have −5 / +5 minute buttons above the chart.
+- **Compare a session with today:** in a spot's Sessions tab, tapping a session now shows it under today's (or tomorrow's) forecast on the same time scale instead of opening the editor. Drag it along the day (or use ← 1 h / 1 h →) to line it up with other hours. A short note explains what "27% like today" means, and a table shows each condition then and now with how close it is. A back arrow at the top right returns to the list; "Edit session" is still one tap away.
+
 ## 1.9.0 — 2026-11-18
 
 - **Wave heights closer to reality:** the forecast now takes the middle of the three wave models instead of always the highest one, so heights near the coast come out lower (Majanicho on 19 Nov: about 2.2 m instead of 2.8 m).
