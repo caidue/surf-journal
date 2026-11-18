@@ -8,7 +8,7 @@ User-facing screens and flows.
 * [Hourly forecast table](forecast-table.md) - Surf-forecast-style hourly table: rating for you (or a chosen level), wave, swell trains, energy, wind, tide.
 * [Journal](journal.md) - List of logged sessions with trips (named folders), filters, stats and relevance switches.
 * [Onboarding: Your surfing](onboarding.md) - First-launch questions that build the skill profile; also the profile editor.
-* [Session comparison](session-comparison.md) - A logged session next to today (or another forecast day) in the spot's Sessions tab: stacked charts, drag to line up, and what the % similarity is made of.
+* [Session comparison](session-comparison.md) - A logged session on today's (or another forecast day's) chart in the spot's Sessions tab: drag it along the day, see what the % similarity is made of.
 * [Session logging](session-logging.md) - Logging a session on the day's conditions timeline, with ratings, details and how it felt.
 * [Settings](settings.md) - Your surfing, units, spots, how old sessions count, categories, phone/offline, data, demo, about.
 * [Spot editor](spot-editor.md) - Adding and editing spots, peaks and guides.

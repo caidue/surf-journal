@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import type { HourConditions, Session, Settings, Spot } from '../types';
 import { tideLabel, type Derived } from '../lib/conditions';
-import { align, bestAlignment, featureCloseness, shiftRange, type DayHour } from '../lib/compare';
+import { align, closestPair, featureCloseness, SHIFT_STEP, shiftRange, type DayHour } from '../lib/compare';
 import { fmtHeight, fmtWind } from '../lib/format';
 import { compass } from '../lib/geo';
 import { sessionOverall, surfedHourIdx, type SpotRec } from '../lib/recommend';
@@ -14,7 +14,7 @@ import Timeline, { LABEL_W, PAD_R, type HourScore } from './Timeline';
 interface Props {
   spot: Spot;
   session: Session;
-  /** The session's hours, derived with the spot's size factor (buildHistory). */
+  /** The session's hours, derived for this spot. */
   derived: Derived[];
   /** The day to compare with: its rated hours and conditions. */
   rec: SpotRec;
@@ -31,45 +31,45 @@ interface Props {
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const hhmm = (date: string, min: number) => `${date}T${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+const cap = (s: string) => s.replace(/^./, (c) => c.toUpperCase());
+const STEPS = [-30, -15, 15, 30];
 
 /**
- * A logged session next to another day (Sessions tab of a spot): the day's forecast on top, the
- * hours you surfed below on the same time scale. Drag the session (or use the buttons) to line it
- * up with other hours; the similarity of the lined-up hours and what makes it up are shown.
+ * A logged session on another day's forecast (Sessions tab of a spot): your session as a band on
+ * the day's chart, draggable in 15-minute steps within daylight; below, the conditions of the
+ * closest lined-up hour then and on that day.
  */
 export default function SessionCompare({ spot, session, derived, rec, hours, sunrise, sunset, dayWord, nowMin, settings, onBack, daySwitch }: Props) {
-  const date = rec.hours[0]?.time.slice(0, 10) ?? '';
-  const surfedIdx = useMemo(() => surfedHourIdx(session), [session]);
-  const surfed = useMemo(() => surfedIdx.map((i) => derived[i]).filter((d): d is Derived => !!d), [surfedIdx, derived]);
-  const view: [number, number] = [Math.max(0, Math.floor(((sunrise ?? 420) - 60) / 60) * 60), Math.min(1440, Math.ceil(((sunset ?? 1170) + 60) / 60) * 60)];
+  const surfed = useMemo(() => surfedHourIdx(session).map((i) => derived[i]).filter((d): d is Derived => !!d), [session, derived]);
+  const rise = sunrise ?? 420;
+  const set = sunset ?? 1170;
+  const view: [number, number] = [Math.max(0, Math.floor((rise - 60) / 60) * 60), Math.min(1440, Math.ceil((set + 60) / 60) * 60)];
   const dayHours: DayHour[] = useMemo(() => rec.hours.map((h) => ({ d: h.derived, daylight: h.daylight })), [rec]);
-  const range = useMemo(() => shiftRange(surfed, view[0], view[1]), [surfed, view[0], view[1]]); // eslint-disable-line react-hooks/exhaustive-deps
-  const initial = useMemo(() => (range ? bestAlignment(spot, surfed, dayHours, range) : null), [spot, surfed, dayHours, range]);
+  // Daylight as the ratings count it (hours at least half after sunrise / before sunset), so the
+  // closest pair behind "% like today" can always be lined up.
+  const light = rec.hours.filter((h) => h.daylight).map((h) => isoToMin(h.time) ?? 0);
+  const range = shiftRange(session.startMin, session.endMin, light.length ? Math.min(...light) : rise, light.length ? Math.max(...light) + 60 : set);
+  const closest = useMemo(() => closestPair(spot, surfed, dayHours), [spot, surfed, dayHours]);
+  const bestShift = clamp(closest ? closest.dayMin - closest.sessMin : range[0], range[0], range[1]);
   const [shiftState, setShift] = useState<number | null>(null);
-  const shift = clamp(shiftState ?? initial?.shift ?? range?.[0] ?? 0, range?.[0] ?? 0, range?.[1] ?? 0);
+  const shift = clamp(shiftState ?? bestShift, range[0], range[1]);
   const a = useMemo(() => align(spot, surfed, dayHours, shift), [spot, surfed, dayHours, shift]);
+  const move = (to: number) => setShift(clamp(Math.round(to / SHIFT_STEP) * SHIFT_STEP, range[0], range[1]));
 
-  // Dragging the session chart: whole hours on the shared time scale.
+  // Drag the session band along the day: 15-minute steps on the chart's time scale.
   const [wrapRef, width] = useElementWidth<HTMLDivElement>();
-  const pxPerHour = (Math.max(100, width - LABEL_W - PAD_R) / (view[1] - view[0])) * 60;
+  const pxPerMin = Math.max(100, width - LABEL_W - PAD_R) / (view[1] - view[0]);
   const drag = useRef<{ x: number; shift: number } | null>(null);
-  const move = (to: number) => range && setShift(clamp(to, range[0], range[1]));
 
-  const dayScores: HourScore[] = rec.hours.map((h) => ({ score: h.score, unsuitable: h.suit.status === 'unsuitable' }));
+  const scores: HourScore[] = rec.hours.map((h) => ({ score: h.score, unsuitable: h.suit.status === 'unsuitable' }));
   const overall = sessionOverall(session);
-  const shifted = surfedIdx
-    .map((i) => ({ h: session.conditions[i], d: derived[i] }))
-    .filter((x) => x.h && x.d)
-    .map((x) => ({ m: (isoToMin(x.h.time) ?? 0) + shift, ...x }))
-    .filter((x) => x.m >= 0 && x.m < 1440);
-  const sessLabel = `${fmtDate(session.date, { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtMin(session.startMin)}–${fmtMin(session.endMin)}`;
-  const listPct = initial?.best?.pct ?? null;
+  const day = cap(dayWord);
+  const when = (m: number) => fmtMin(clamp(m, 0, 1440));
 
   const fmt = (key: string, d: Derived): string => {
     switch (key) {
       case 'size':
-        return fmtHeight(d.hb, settings.heightUnit);
+        return fmtHeight(d.hIn, settings.heightUnit);
       case 'period':
         return d.tDom == null ? '–' : `${Math.round(d.tDom)} s`;
       case 'swellDir':
@@ -91,12 +91,10 @@ export default function SessionCompare({ spot, session, derived, rec, hours, sun
     <div className="cmp">
       <div className="cmp-head">
         <div>
-          <h3>
-            Your session on {fmtDate(session.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-          </h3>
+          <h3>Your session on {fmtDate(session.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</h3>
           <div className="muted small">
-            {fmtMin(session.startMin)}–{fmtMin(session.endMin)}{overall != null && ` · you rated it ${overall.toFixed(1)}/10`} ·{' '}
-            <a href={`#/session/${session.id}`}>Edit session</a>
+            {fmtMin(session.startMin)}–{fmtMin(session.endMin)}
+            {overall != null && ` · you rated it ${overall.toFixed(1)}/10`} · <a href={`#/session/${session.id}`}>Edit session</a>
           </div>
         </div>
         <button type="button" className="sheet-close" onClick={onBack} aria-label="Back to the sessions" title="Back to the sessions">
@@ -107,76 +105,31 @@ export default function SessionCompare({ spot, session, derived, rec, hours, sun
       <div className="sheet-day">{daySwitch}</div>
 
       {!surfed.length ? (
-        <p className="muted">No conditions are saved for this session yet (they are added when you're online).</p>
+        <p className="muted">No conditions saved for this session yet (added when you're online).</p>
       ) : (
         <>
-          {listPct != null && initial?.best && (
-            <div className="cmp-explain">
+          {closest && (
+            <p className="cmp-explain">
               <strong>
-                “{listPct}% like {dayWord}”
-              </strong>{' '}
-              is the closest single hour: the {fmtMin(initial.best.sessMin)} hour of your session on {fmtDate(session.date, { day: 'numeric', month: 'short' })} against {dayWord} {fmtMin(initial.best.dayMin)}. It weighs wave size, swell period and direction, wind and tide: 100% = the same, about 60% = each off by its usual tolerance.
-            </div>
+                {closest.pct}% like {dayWord}
+              </strong>
+              : your {fmtMin(closest.sessMin)} hour best matches {dayWord} {fmtMin(closest.dayMin)} (swell, wind, tide). Drag your session to compare other times.
+            </p>
           )}
-
-          <div className="cmp-chart-label">
-            <strong>{dayWord.replace(/^./, (c) => c.toUpperCase())}</strong> <span className="muted small">forecast · dashed box = where your session is lined up</span>
-          </div>
-          <Timeline
-            hours={rec.hours.map((h) => hours[h.idx])}
-            derived={rec.hours.map((h) => h.derived)}
-            scores={dayScores}
-            scoreLabel="Rating"
-            scoreSub="for you"
-            spot={spot}
-            sunrise={sunrise}
-            sunset={sunset}
-            heightUnit={settings.heightUnit}
-            windUnit={settings.windUnit}
-            view={view}
-            nowMin={nowMin}
-            highlight={{ startMin: session.startMin + shift, endMin: session.endMin + shift }}
-          />
-
-          <div className="cmp-controls">
-            <span className="cmp-readout">
-              {a.best ? (
-                <>
-                  Lined up with {dayWord} {fmtMin(clamp(session.startMin + shift, 0, 1440))}–{fmtMin(clamp(session.endMin + shift, 0, 1440))}: <strong>{a.mean}% alike</strong>
-                  {a.pairs.length > 1 && ` on average, closest hour ${a.best.pct}%`}
-                </>
-              ) : (
-                <>No forecast for these hours {dayWord}</>
-              )}
-            </span>
-            <span className="cmp-buttons">
-              <button type="button" className="nudge" onClick={() => move(shift - 60)} disabled={!range || shift <= range[0]} aria-label="One hour earlier">
-                ← 1 h
-              </button>
-              <button type="button" className="nudge" onClick={() => move(shift + 60)} disabled={!range || shift >= range[1]} aria-label="One hour later">
-                1 h →
-              </button>
-              {initial && shift !== initial.shift && (
-                <button type="button" className="nudge" onClick={() => setShift(initial.shift)}>
-                  Best match
-                </button>
-              )}
-            </span>
-          </div>
 
           <div
             ref={wrapRef}
             className="cmp-drag"
             tabIndex={0}
             role="slider"
-            aria-label="Your session, drag to line it up with other hours"
-            aria-valuemin={range?.[0]}
-            aria-valuemax={range?.[1]}
+            aria-label={`Your session on ${dayWord}'s forecast; drag or use the arrow keys to move it`}
+            aria-valuemin={range[0]}
+            aria-valuemax={range[1]}
             aria-valuenow={shift}
-            aria-valuetext={`Lined up with ${fmtMin(clamp(session.startMin + shift, 0, 1440))}`}
+            aria-valuetext={`${when(session.startMin + shift)}–${when(session.endMin + shift)}`}
             onKeyDown={(e) => {
-              if (e.key === 'ArrowLeft') move(shift - 60);
-              else if (e.key === 'ArrowRight') move(shift + 60);
+              if (e.key === 'ArrowLeft') move(shift - SHIFT_STEP);
+              else if (e.key === 'ArrowRight') move(shift + SHIFT_STEP);
               else return;
               e.preventDefault();
             }}
@@ -186,39 +139,65 @@ export default function SessionCompare({ spot, session, derived, rec, hours, sun
             }}
             onPointerMove={(e) => {
               const d = drag.current;
-              if (!d) return;
-              const to = d.shift + Math.round((e.clientX - d.x) / pxPerHour) * 60;
-              if (to !== shift) move(to);
+              if (d) move(d.shift + (e.clientX - d.x) / pxPerMin);
             }}
             onPointerUp={() => (drag.current = null)}
             onPointerCancel={() => (drag.current = null)}
+            onLostPointerCapture={() => (drag.current = null)}
           >
             <Timeline
-              hours={shifted.map((x) => ({ ...x.h, time: hhmm(date, x.m) }))}
-              derived={shifted.map((x) => ({ ...x.d, time: hhmm(date, x.m) }))}
-              scores={overall == null ? undefined : shifted.map(() => ({ score: overall, title: `You rated this session ${overall.toFixed(1)}/10` }))}
-              scoreLabel="Fun"
-              scoreSub="you rated"
+              hours={rec.hours.map((h) => hours[h.idx])}
+              derived={rec.hours.map((h) => h.derived)}
+              scores={scores}
+              scoreLabel="Rating"
+              scoreSub="for you"
               spot={spot}
+              sunrise={sunrise}
+              sunset={sunset}
               heightUnit={settings.heightUnit}
               windUnit={settings.windUnit}
               view={view}
+              nowMin={nowMin}
               session={{ startMin: session.startMin + shift, endMin: session.endMin + shift }}
-              sessionLabel={`Your session ${sessLabel} · drag ↔`}
-              noAxis
+              sessionLabel={`Your session · ${when(session.startMin + shift)}–${when(session.endMin + shift)} ↔`}
             />
           </div>
 
-          {a.best && (
+          <div className="cmp-controls">
+            {STEPS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="nudge"
+                onClick={() => move(shift + s)}
+                disabled={s < 0 ? shift <= range[0] : shift >= range[1]}
+                aria-label={`${Math.abs(s)} minutes ${s < 0 ? 'earlier' : 'later'}`}
+              >
+                {s < 0 ? `−${-s}` : `+${s}`}
+              </button>
+            ))}
+            {shift !== bestShift && (
+              <button type="button" className="nudge" onClick={() => setShift(bestShift)}>
+                Best match
+              </button>
+            )}
+          </div>
+
+          {a.best ? (
             <table className="cmp-table">
-              <caption className="muted small">
-                Closest hour as lined up: the {fmtMin(a.best.sessMin)} hour of your session against {dayWord} {fmtMin(a.best.dayMin)} ({a.best.pct}% alike)
+              <caption>
+                <strong>{a.mean}% alike</strong>
+                <span className="muted">
+                  {' '}
+                  at {when(session.startMin + shift)}–{when(session.endMin + shift)}
+                  {a.pairs.length > 1 && ` · closest hour ${a.best.pct}%`}: your {fmtMin(a.best.sessMin)} vs {fmtMin(a.best.dayMin)}
+                </span>
               </caption>
               <thead>
                 <tr>
                   <th scope="col">Condition</th>
                   <th scope="col">Then</th>
-                  <th scope="col">{dayWord.replace(/^./, (c) => c.toUpperCase())}</th>
+                  <th scope="col">{day}</th>
                   <th scope="col">How close</th>
                 </tr>
               </thead>
@@ -227,12 +206,12 @@ export default function SessionCompare({ spot, session, derived, rec, hours, sun
                   const c = featureCloseness(f.key, a.best!.parts);
                   return (
                     <tr key={f.key}>
-                      <th scope="row">{f.label.replace(/^./, (x) => x.toUpperCase())}</th>
+                      <th scope="row">{cap(f.label)}</th>
                       <td>{fmt(f.key, a.best!.sess)}</td>
                       <td>{fmt(f.key, a.best!.day)}</td>
                       <td>
                         {c == null ? (
-                          <span className="muted">no data</span>
+                          <span className="muted">–</span>
                         ) : (
                           <span className="cmp-bar" title={`${c}%`}>
                             <span style={{ width: `${c}%`, background: c >= 60 ? 'var(--good)' : c >= 30 ? '#eab308' : 'var(--danger)' }} />
@@ -244,6 +223,8 @@ export default function SessionCompare({ spot, session, derived, rec, hours, sun
                 })}
               </tbody>
             </table>
+          ) : (
+            <p className="muted">No forecast for these hours {dayWord}.</p>
           )}
         </>
       )}

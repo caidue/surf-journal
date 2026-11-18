@@ -15,7 +15,7 @@ import { DEFAULT_SETTINGS, withCurrentCategories } from '../db';
 import { evaluateRules, inArc } from './rules';
 import { spotKnowledge, sureness, tideKnown } from './confidence';
 import { marineHour, windHour } from './openMeteo';
-import { align, bestAlignment, featureCloseness, shiftRange } from './compare';
+import { align, closestPair, featureCloseness, shiftRange } from './compare';
 import caleta from './fixtures/caleta-2026-11-14';
 
 const spot: Spot = {
@@ -498,20 +498,22 @@ describe('similarity & prediction', () => {
     expect(distance(a, a, spot).d).toBe(0);
     expect(kernel(distance(a, b, spot).d)).toBeLessThan(0.05);
     // One tolerance off in size only -> clearly similar but not identical.
-    const c = { ...a, hb: Math.exp(Math.log(a.hb! + 0.2) + 0.25) - 0.2 };
+    const c = { ...a, hIn: Math.exp(Math.log(a.hIn! + 0.2) + 0.25) - 0.2 };
     expect(distance(a, c, spot).d).toBeCloseTo(1, 5);
   });
 
   it('where the "similar sessions" line sits', () => {
     const a = deriveSeries(spot, day('2026-01-01'))[9];
     const k = (b: typeof a) => kernel(distance(a, b, spot).d);
-    const grow = (f: number) => Math.exp(Math.log(a.hb! + 0.2) + f * 0.25) - 0.2;
+    const grow = (f: number) => Math.exp(Math.log(a.hIn! + 0.2) + f * 0.25) - 0.2;
     // One step off in size, onshore wind and tide together: still listed.
-    expect(k({ ...a, hb: grow(1), uOff: a.uOff! - 9, tideNorm: Math.min(1, a.tideNorm! + 0.18) })).toBeGreaterThan(SIMILAR_MIN_K);
+    expect(k({ ...a, hIn: grow(1), uOff: a.uOff! - 9, tideNorm: Math.min(1, a.tideNorm! + 0.18) })).toBeGreaterThan(SIMILAR_MIN_K);
     // A 25° swell-direction change alone is still similar.
     expect(k({ ...a, dirDom: (a.dirDom! + 25) % 360 })).toBeGreaterThan(0.5);
-    // 1.6 m vs 2.6 m at the spot is too different on its own.
-    expect(kernel(distance({ ...a, hb: 1.6 }, { ...a, hb: 2.6 }, spot).d)).toBeLessThan(SIMILAR_MIN_K);
+    // 1.1 m vs 1.8 m of swell at the spot (about 1.6 vs 2.6 m faces) is too different on its own.
+    expect(kernel(distance({ ...a, hIn: 1.1 }, { ...a, hIn: 1.8 }, spot).d)).toBeLessThan(SIMILAR_MIN_K);
+    // The size factor (calibration) doesn't change how alike two hours are.
+    expect(distance({ ...a, hb: 1 }, { ...a, hb: 3 }, spot).d).toBe(0);
   });
 
   it('missing features do not make sessions look more similar', () => {
@@ -697,29 +699,39 @@ describe('size uncertainty (decision 0023)', () => {
 });
 
 describe('lining a session up against another day (Sessions tab)', () => {
-  // Session 08:00–10:00 on 1 Feb in a 2 m swell; on 1 Mar the swell is that size only from 14:00.
+  // Session 08:00–10:00 on 1 Feb in a 2 m swell; on 1 Mar the swell is that size only from 14:00,
+  // and the tide is 6 hours later.
   const sess = session('2026-02-01', 7, {}, day('2026-02-01', () => ({ swell: [2, 12, 320] })));
   const surfed = buildHistory(spot, [sess], settings, '2026-03-01')[0];
   const surfedHours = surfed.hours.map((i) => surfed.derived[i]);
-  const target = deriveSeries(spot, day('2026-03-01', (h) => ({ swell: h >= 14 ? [2, 12, 320] : [0.6, 8, 320] })));
+  const target = deriveSeries(spot, day('2026-03-01', (h) => ({ swell: h >= 14 ? [2, 12, 320] : [0.6, 8, 320], seaLevel: Math.sin(((h - 6) / 12.4) * 2 * Math.PI) })));
   const dayHours = target.map((d, h) => ({ d, daylight: h >= 7 && h < 19 }));
 
-  it('the reachable shifts keep at least one surfed hour on the chart', () => {
-    expect(shiftRange(surfedHours, 360, 1200)).toEqual([-180, 660]) // 09:00 → 06:00 … 08:00 → 19:00;
+  it('only moves the session within daylight (sunrise 07:00, sunset 19:00), in 15-minute steps', () => {
+    expect(shiftRange(480, 600, 420, 1140)).toEqual([-60, 540]); // 07:00–09:00 … 17:00–19:00
+    expect(shiftRange(485, 600, 420, 1140)).toEqual([-60, 540]);
   });
-  it('finds the hour the list\'s "% like today" comes from, and slides from there', () => {
-    const best = bestAlignment(spot, surfedHours, dayHours, shiftRange(surfedHours, 360, 1200)!)!;
-    expect(best.best!.dayMin).toBeGreaterThanOrEqual(14 * 60);
-    // The same pair the list uses (matchSession over daylight hours).
+  it('the closest pair is the list\'s "% like today", and only uses daylight hours', () => {
+    const best = closestPair(spot, surfedHours, dayHours)!;
+    expect(best.dayMin).toBeGreaterThanOrEqual(14 * 60);
+    expect(best.dayMin).toBeLessThan(19 * 60);
     let listBest = 0;
     for (const t of dayHours.filter((h) => h.daylight)) {
       const nb = matchSession(spot, t.d, surfed);
       if (nb) listBest = Math.max(listBest, similarityPct(nb.d));
     }
-    expect(best.best!.pct).toBe(listBest);
+    expect(best.pct).toBe(listBest);
+    // A night with the same swell is never the closest pair.
+    const night = target.map((d, h) => ({ d: h < 5 ? deriveSeries(spot, day('2026-03-01', () => ({ swell: [2, 12, 320] })))[h] : d, daylight: h >= 7 && h < 19 }));
+    expect(closestPair(spot, surfedHours, night)!.dayMin).toBeGreaterThanOrEqual(7 * 60);
+  });
+  it('lines each surfed hour up with the nearest hour of the day', () => {
     const early = align(spot, surfedHours, dayHours, 0);
-    expect(early.pairs).toHaveLength(2);
-    expect(early.mean!).toBeLessThan(best.mean!);
+    expect(early.pairs.map((p) => p.dayMin)).toEqual([480, 540]);
+    expect(align(spot, surfedHours, dayHours, 30).pairs.map((p) => p.dayMin)).toEqual([540, 600]);
+    expect(align(spot, surfedHours, dayHours, 15).pairs.map((p) => p.dayMin)).toEqual([480, 540]);
+    const late = align(spot, surfedHours, dayHours, 6 * 60);
+    expect(late.mean!).toBeGreaterThan(early.mean!);
   });
   it('explains each condition as a closeness from 0 to 100', () => {
     const a = align(spot, surfedHours, dayHours, 0);

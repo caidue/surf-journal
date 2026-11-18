@@ -2180,21 +2180,12 @@ ul.plain.sv-sessions li::before {
   margin: var(--sp-3) 0;
   font-size: var(--fs-sm);
 }
-.cmp-chart-label {
-  margin: var(--sp-3) 0 var(--sp-1);
-}
 .cmp-controls {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: center;
   gap: var(--sp-2);
-  margin: var(--sp-3) 0 var(--sp-2);
-  font-size: var(--fs-sm);
-}
-.cmp-buttons {
-  display: inline-flex;
-  gap: var(--sp-2);
+  margin: var(--sp-2) 0 var(--sp-3);
 }
 .cmp .nudge {
   min-width: 44px;
@@ -2215,8 +2206,6 @@ ul.plain.sv-sessions li::before {
 .cmp-drag {
   cursor: grab;
   touch-action: pan-y;
-  border-top: 1px dashed var(--line);
-  padding-top: var(--sp-2);
   border-radius: 4px;
 }
 .cmp-drag:active {

@@ -23,6 +23,12 @@ export interface Derived {
   dirDom: number | null;
   /** Offshore-model "energy" proxy Σ a·H²·T. */
   energy: number | null;
+  /**
+   * Swell height reaching the spot (m): the offshore trains inside the spot's swell window,
+   * √Σ a·H² (a = exposure × wind-sea weight). Raw forecast data only: no breaking formula, no size
+   * factor or calibration, so it compares days fairly (similarity.ts).
+   */
+  hIn: number | null;
   windSpeed: number | null;
   windDir: number | null;
   windGust: number | null;
@@ -106,6 +112,7 @@ export function partitions(c: HourConditions): Partition[] {
 export function deriveHour(spot: Spot, c: HourConditions, tide?: { norm: number | null; trend: number | null }, gain = spot.gain): Derived {
   const parts = partitions(c);
   let hbSq = 0;
+  let inSq = 0;
   let eSum = 0;
   let tNum = 0;
   let sx = 0;
@@ -114,6 +121,7 @@ export function deriveHour(spot: Spot, c: HourConditions, tide?: { norm: number 
     const a = exposure(spot, p.dir) * p.weight;
     const hb = breakingHeight(p.h, p.t) * a;
     hbSq += hb * hb;
+    inSq += a * p.h * p.h;
     const e = a * p.h * p.h * p.t;
     eSum += e;
     tNum += e * p.t;
@@ -148,6 +156,7 @@ export function deriveHour(spot: Spot, c: HourConditions, tide?: { norm: number 
     tDom,
     dirDom,
     energy: parts.length ? eSum : null,
+    hIn: parts.length ? Math.sqrt(inSq) : null,
     windSpeed: c.windSpeed,
     windDir: c.windDir,
     windGust: c.windGust,

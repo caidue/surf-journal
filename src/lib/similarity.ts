@@ -21,8 +21,10 @@ export interface FeatureSpec {
 }
 
 export const SPOT_FEATURES: FeatureSpec[] = [
-  // Size on a log scale: 0.3 m matters at 0.8 m, much less at 3 m.
-  { key: 'size', label: 'wave size', weight: 3, tol: 0.25, get: (d) => (d.hb == null ? null : Math.log(d.hb + 0.2)) },
+  // Size on a log scale: 0.3 m matters at 0.8 m, much less at 3 m. The raw swell reaching the spot
+  // (Derived.hIn), not the estimated face height: that one also depends on the breaking formula and
+  // the size factor calibrated from your sessions, which would change how alike two days look.
+  { key: 'size', label: 'swell size at the spot', weight: 3, tol: 0.25, get: (d) => (d.hIn == null ? null : Math.log(d.hIn + 0.2)) },
   { key: 'period', label: 'swell period (peak)', weight: 1.5, tol: 2, get: (d) => d.tDom },
   // 20°: model swell directions are uncertain by ~10–15°, and a swell turning out of the spot's
   // window already shows up in the size feature (via exposure), so don't double-punish it.

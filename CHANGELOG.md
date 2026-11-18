@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.11.0 — 2026-11-18
+
+- **Session comparison, simpler:** your session is now a band on today's forecast chart, and you drag it right there (the second chart is gone). It moves in 15-minute steps with −30 / −15 / +15 / +30 buttons, and only within daylight, so the best match is never at 4 in the morning. The texts are shorter, and the exact values are listed below the chart.
+- **Fairer "% like today":** sessions are now compared on the raw swell that reaches the spot instead of the estimated wave height, so recalibrating a spot's size no longer changes how alike two days look.
+
 ## 1.10.0 — 2026-11-18
 
 - **Marking your time in the water:** once a session is marked, only its handles move it, so a stray drag or a scroll can't shift it. The handles are bigger and easier to grab, and Start and End each have −5 / +5 minute buttons above the chart.

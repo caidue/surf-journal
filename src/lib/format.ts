@@ -54,7 +54,7 @@ export function fmtFeature(key: string, d: Derived | undefined, s: Pick<Settings
   if (!d) return '–';
   switch (key) {
     case 'size':
-      return fmtHeight(d.hb, s.heightUnit);
+      return fmtHeight(d.hIn, s.heightUnit);
     case 'period':
       return d.tDom == null ? '–' : `${Math.round(d.tDom)} s peak`;
     case 'swellDir':

@@ -6,7 +6,7 @@ resource: "src/types.ts"
 tags: ["architecture", "schema"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-18T15:00:00+00:00"
+  at: "2026-11-18T20:00:00+00:00"
 ---
 # Data model
 
@@ -36,4 +36,4 @@ Defined in `src/types.ts`. Stored tables: `spots`, `sessions`, `forecasts`, `geo
 
 **UserPhoto**: `id`, `spotId`, `blob` (JPEG ≤ 1600 px), `width`, `height`, `caption?`, `addedAt`.
 
-Derived (not stored): `Derived` per hour in `src/lib/conditions.ts` (`hb`, `hbLo`/`hbHi` (likely range: the wave models' spread, at least ±20 %), `hsSpread` ((max − min) / median of the models' total height), `tDom`, `dirDom`, `energy`, wind components `uOff`/`uX`, `tideNorm`, `tideTrend` (between the bracketing low and high, mid-hour), `openHb` (the same swell on an open north-facing reef, for local-rule gates)).
+Derived (not stored): `Derived` per hour in `src/lib/conditions.ts` (`hb`, `hbLo`/`hbHi` (likely range: the wave models' spread, at least ±20 %), `hsSpread` ((max − min) / median of the models' total height), `hIn` (swell height reaching the spot, raw: no breaking formula or size factor; used for similarity), `tDom`, `dirDom`, `energy`, wind components `uOff`/`uX`, `tideNorm`, `tideTrend` (between the bracketing low and high, mid-hour), `openHb` (the same swell on an open north-facing reef, for local-rule gates)).

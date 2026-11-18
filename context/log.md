@@ -2,6 +2,7 @@
 
 ## 2026-11-18
 
+* **Creation** of [0025: Similarity on the raw swell](/decisions/0025-similarity-on-raw-swell.md); **Update** of [Session comparison](/features/session-comparison.md) (one draggable chart, 15-minute steps within daylight, ±15 / ±30 buttons, shorter texts), [0024](/decisions/0024-handles-and-session-comparison.md), [Similarity](/engine/similarity.md) (size = `hIn`), [Data model](/architecture/data-model.md), [Releases](/operations/releases.md) (1.11.0).
 * **Creation** of [Session comparison](/features/session-comparison.md) and [0024](/decisions/0024-handles-and-session-comparison.md); **Update** of [Conditions timeline](/features/timeline.md) (handles-only dragging, bigger handles, ±5 min buttons), [Spot view](/features/spot-view.md) (a session opens the comparison), [Similarity](/engine/similarity.md), [Code map](/architecture/code-map.md), [Releases](/operations/releases.md) (1.10.0).
 * **Update** of [Releases](/operations/releases.md): wave-size release renumbered 1.9.0 after the cloud-backup 1.8.0 from another session; decision renumbered 0023.
 * **Update** of [Knowledge base maintenance](/operations/knowledge-base.md), [Majanicho wave height discrepancy](/research/majanicho-wave-height.md): the deep-research report and notes are kept in the repo (`reports/`, `research_notes/`).

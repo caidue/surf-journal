@@ -310,7 +310,7 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                   ))}
                 </ul>
               )}
-              {matched.length > 0 && <p className="muted tiny">The % compares each session with the closest daylight hour {dayWord}. Tap a session to see it next to {dayWord} and line it up with other hours.</p>}
+              {matched.length > 0 && <p className="muted tiny">% = how alike its closest hour is to a daylight hour {dayWord}. Tap a session to compare.</p>}
               <h4>What your ratings say</h4>
               <p className="muted small">
                 Average fun rating at each tide stage and wind, from your relevant sessions here
