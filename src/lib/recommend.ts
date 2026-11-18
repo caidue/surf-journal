@@ -73,11 +73,14 @@ export function calibratedGain(spot: Spot, sessions: Session[]): { gain: number;
     const mean = hbs.reduce((a, b) => a + b, 0) / hbs.length;
     ratios.push(obs.m / mean);
   }
-  if (ratios.length < 2) return { gain: spot.gain, n: ratios.length };
+  if (!ratios.length) return { gain: spot.gain, n: 0 };
   ratios.sort((a, b) => a - b);
   const mid = Math.floor(ratios.length / 2);
   const median = ratios.length % 2 ? ratios[mid] : (ratios[mid - 1] + ratios[mid]) / 2;
-  return { gain: Math.max(0.3, Math.min(2.5, median)), n: ratios.length };
+  // Shrink toward the spot's default: one session moves the gain halfway, two by 2/3, and so on.
+  const n = ratios.length;
+  const gain = (spot.gain + n * median) / (n + 1);
+  return { gain: Math.max(0.3, Math.min(2.5, gain)), n };
 }
 
 /* ------------------------------------------------------------------ */

@@ -14,7 +14,7 @@ import { SPOT_GUIDES } from './spotGuides';
  * Bump SEED_VERSION whenever this list changes: devices then refresh the built-in spots
  * (db.ts → refreshSeedSpots) and move sessions of RETIRED_SPOTS to their new spot.
  */
-export const SEED_VERSION = 8; // 8: dataNote; 7: corrections from local sources (data/spotRules.ts); 6: El Hierro split; 5: three spots added (3 was used by an earlier build)
+export const SEED_VERSION = 9; // 9: Majanicho gain 0.68, inside peaks sizeFactor 0.8; 8: dataNote; 7: corrections from local sources (data/spotRules.ts); 6: El Hierro split; 5: three spots added (3 was used by an earlier build)
 
 /** Spots that were merged into another one: old id → new id. (Seed 4 merged The Bubble into El Hierro; seed 6 split them again.) */
 export const RETIRED_SPOTS: Record<string, string> = {};
@@ -213,11 +213,14 @@ const seed: SeedSpot[] = [
     power: 'punchy',
     peel: 'medium',
     crowd: 'high',
+    // More sheltered than the open North Shore reefs (surf-forecast: too small on 14 % of days vs
+    // 2–5 %); the inside needs ~2 m on the outside reefs before it works (decision 0022).
+    gain: 0.68,
     hazards: ['rocks', 'crowds'],
     description: 'Fishing hamlet with several reef peaks; a good backup when the main spots are too big. Popular with SUP and windsurfers.',
     peakOverrides: {
-      'inside-a': { tide: 'mid-high', minSize: 0.8 },
-      'inside-right': { tide: 'mid-high', maxSize: 1.9 },
+      'inside-a': { tide: 'mid-high', minSize: 0.8, sizeFactor: 0.8 },
+      'inside-right': { tide: 'mid-high', maxSize: 1.9, sizeFactor: 0.8 },
       outside: { tide: 'all', minSize: 0.8, maxSize: 2.4 },
     },
   },

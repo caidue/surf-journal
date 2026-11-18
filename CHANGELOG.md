@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0 — 2026-11-18
+
+- **Wave heights closer to reality:** the forecast now takes the middle of the three wave models instead of always the highest one, so heights near the coast come out lower (Majanicho on 19 Nov: about 2.2 m instead of 2.8 m).
+- **No more "not for you" on an uncertain size:** a spot is only ruled out on size when even the low end of its likely range is bigger than your biggest wave. If the range reaches your limit, it stays in the list with "May be bigger than you like: ~2.5 m (2.0–3.0 m)…" and a lower score.
+- **Likely range from the models:** the range shown next to the wave height now widens when the wave models disagree, and the rating's confidence drops one step when they do.
+- **Majanicho is more sheltered:** smaller waves than the open North Shore reefs, and smaller again at the inside peaks.
+- **One logged size counts:** noting the wave size of a single session already adjusts the spot's size, halfway toward what you saw.
+- The forecast legend explains that Wave is a face height like Surfline's, while most other sites show the smaller offshore swell height.
+
 ## 1.7.1 — 2026-11-17
 
 - **Wave row as one smooth curve:** instead of the stacked Japanese-style waves, the wave height is one continuous blue-filled line over all hours that bends softly at each hour (full height at 3 m), in the forecast and in the session chart.

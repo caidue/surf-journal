@@ -6,7 +6,7 @@ resource: "src/types.ts"
 tags: ["architecture", "schema"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T11:30:00+00:00"
+  at: "2026-11-18T15:00:00+00:00"
 ---
 # Data model
 
@@ -16,13 +16,13 @@ Defined in `src/types.ts`. Stored tables: `spots`, `sessions`, `forecasts`, `geo
 
 **Spot**: `id`, `name` (Surfline's where it has one), `aliases?`, `dataNote?` (why its forecast point or location is doubtful), `externalIds? {surfline: "slug/id", surfForecast: slug}`, `region`, `lat`, `lon`, `coordsApprox`, `facing`, `idealSwellDir`, `swellWindow`, `minSize`, `maxSize` (breaking face height, m), `tide`, `breakType` (beach/reef/point), `bottom` (sand/reef/rock/mixed), `level` (beginner/all/intermediate/advanced/expert), `power?` (mellow/punchy/hollow/slab), `peel?` (slow/medium/fast/sectiony), `lifeguard?`, `crowd?`, `localism?`, `hazards[]`, `description`, `peaks[]`, `guide?`, `gain`, `source?`, `custom?`.
 
-**Peak**: `id`, `name`, `description?`, `breakType?`, `bottom?`, `direction?`, `level?`, `goodWhen?`, `season?`, rating overrides `minSize?`, `maxSize?`, `tide?`, `power?`, `peel?` ([Per-peak rating](/engine/per-peak-rating.md)).
+**Peak**: `id`, `name`, `description?`, `breakType?`, `bottom?`, `direction?`, `level?`, `goodWhen?`, `season?`, rating overrides `minSize?`, `maxSize?`, `tide?`, `power?`, `peel?`, `sizeFactor?` (breaking height relative to the spot's estimate, e.g. 0.8 for a sheltered inside peak) ([Per-peak rating](/engine/per-peak-rating.md)).
 
-**HourConditions** (version `CONDITIONS_VERSION = 3`): `time` (local), `waveH`, `waveDir`, `waveTp` (peak), `waveTe` (energy period), `trains: WaveTrain[]`, `tpEstimated?`, `windSpeed`, `windDir`, `windGust` (km/h; mean of the wind models over the sea), `windModels?: {model, speed, dir, gust}[]`, `windSpread?` (deg), `seaLevel` (m vs MSL incl. tide), `waterTemp`, `airTemp`.
+**HourConditions** (version `CONDITIONS_VERSION = 4`): `time` (local), `waveH` (median of the wave models), `waveHModels?` (each model's total height), `waveDir`, `waveTp` (peak), `waveTe` (energy period), `trains: WaveTrain[]`, `tpEstimated?`, `windSpeed`, `windDir`, `windGust` (km/h; mean of the wind models over the sea), `windModels?: {model, speed, dir, gust}[]`, `windSpread?` (deg), `seaLevel` (m vs MSL incl. tide), `waterTemp`, `airTemp`.
 
 **SpotRule** (`src/data/spotRules.ts`, not stored): `id`, `kind` (tide/swell/size/wind/level/role/timing/logistics), `text`, `confidence` (high/medium/low), `sources: {name, url?, kind}[]`, `inRating`, `note?`. See [Local knowledge](/spots/local-knowledge.md).
 
-**WaveTrain**: `kind` (swell/wind), `h` (m, scaled to MFWAM Hs), `tp` (peak period, s), `dir` (from, deg).
+**WaveTrain**: `kind` (swell/wind), `h` (m, scaled to the models' median Hs), `tp` (peak period, s), `dir` (from, deg).
 
 **ConditionsSeries** (cached forecast): `key` = `cell|start|end`, `lat`, `lon`, `timezone`, `utcOffsetSeconds`, `hours`, `days` (sunrise/sunset), `source`, `version`, `gridLat?`, `gridLon?` (MFWAM cell), `fetchedAt`, `stale?` (never stored).
 
@@ -36,4 +36,4 @@ Defined in `src/types.ts`. Stored tables: `spots`, `sessions`, `forecasts`, `geo
 
 **UserPhoto**: `id`, `spotId`, `blob` (JPEG ≤ 1600 px), `width`, `height`, `caption?`, `addedAt`.
 
-Derived (not stored): `Derived` per hour in `src/lib/conditions.ts` (`hb`, `tDom`, `dirDom`, `energy`, wind components `uOff`/`uX`, `tideNorm`, `tideTrend` (between the bracketing low and high, mid-hour), `openHb` (the same swell on an open north-facing reef, for local-rule gates)).
+Derived (not stored): `Derived` per hour in `src/lib/conditions.ts` (`hb`, `hbLo`/`hbHi` (likely range: the wave models' spread, at least ±20 %), `hsSpread` ((max − min) / median of the models' total height), `tDom`, `dirDom`, `energy`, wind components `uOff`/`uX`, `tideNorm`, `tideTrend` (between the bracketing low and high, mid-hour), `openHb` (the same swell on an open north-facing reef, for local-rule gates)).

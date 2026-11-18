@@ -79,6 +79,11 @@ export interface Peak {
   tide?: TidePref;
   power?: Power;
   peel?: Peel;
+  /**
+   * Breaking height here relative to the spot's estimate (e.g. 0.8 for an inside peak that gets
+   * less of the swell). The forecast point sits offshore, so sheltered peaks need this.
+   */
+  sizeFactor?: number;
 }
 
 /** A freely licensed photo (Wikimedia Commons), shown with its credit. */
@@ -156,7 +161,7 @@ export interface Spot {
 }
 
 /** Version of the stored conditions (sessions and cached forecasts); older snapshots are re-fetched. */
-export const CONDITIONS_VERSION = 3; // 3: wind over the sea from four models (cell_selection=sea)
+export const CONDITIONS_VERSION = 4; // 4: median wave model + each model's height; 3: wind over the sea from four models (cell_selection=sea)
 
 /** One swell train (or the wind sea) in one hour, offshore. */
 export interface WaveTrain {
@@ -172,8 +177,10 @@ export interface WaveTrain {
 /** One hour of conditions at a spot (local time at the spot). Offshore model values, see lib/openMeteo.ts. */
 export interface HourConditions {
   time: string; // "2026-11-12T07:00" (local)
-  /** Total sea: significant wave height (m) and mean direction (Météo-France MFWAM). */
+  /** Total sea: significant wave height (m), the median of the wave models, and mean direction (Météo-France MFWAM). */
   waveH: number | null;
+  /** Each wave model's total height (m) when two or more have data: their spread is the size uncertainty. */
+  waveHModels?: number[];
   waveDir: number | null;
   /** Peak period of the total sea (s): ECMWF WAM, else GFS-Wave. */
   waveTp: number | null;

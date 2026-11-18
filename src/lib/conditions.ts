@@ -8,8 +8,16 @@ import { angdiff, toRad } from './geo';
  */
 export interface Derived {
   time: string;
-  /** Estimated breaking wave height at the spot (m). */
+  /** Estimated breaking wave height at the spot (m): the central estimate. */
   hb: number | null;
+  /**
+   * Likely range of the breaking height (m): the wave models' spread, at least ±20 % (the usual
+   * error of a wave model near the coast). The size checks in rating.ts use the low end.
+   */
+  hbLo: number | null;
+  hbHi: number | null;
+  /** How far the wave models disagree on the total height: (max − min) / median; 0 with one model. */
+  hsSpread: number;
   /** Energy-weighted dominant PEAK period (s) and direction (deg) of the swell reaching the spot. */
   tDom: number | null;
   dirDom: number | null;
@@ -33,6 +41,26 @@ export interface Derived {
    * for local rules like "only works when the North Shore is big" (lib/rules.ts).
    */
   openHb: number | null;
+}
+
+/** From this relative spread ((max − min) / median of the total height) the wave models "disagree". */
+export const MODELS_DISAGREE = 0.2;
+
+/** Smallest uncertainty of the breaking height either way: coastal wave-model error (CMEMS: ~20 % scatter). */
+export const HB_BAND = 0.2;
+
+/**
+ * Low and high end of the breaking height: the wave models' lowest and highest total height,
+ * carried over to the breaking height (Hb ∝ H^0.8), and at least ±HB_BAND around it.
+ */
+export function hbBand(hb: number | null, c: Pick<HourConditions, 'waveH' | 'waveHModels'>): { lo: number | null; hi: number | null; spread: number } {
+  const ms = c.waveHModels ?? [];
+  const mid = c.waveH;
+  const spread = ms.length >= 2 && mid != null && mid > 0.05 ? (Math.max(...ms) - Math.min(...ms)) / mid : 0;
+  if (hb == null) return { lo: null, hi: null, spread };
+  const rLo = ms.length >= 2 && mid != null && mid > 0.05 ? Math.pow(Math.min(...ms) / mid, 0.8) : 1;
+  const rHi = ms.length >= 2 && mid != null && mid > 0.05 ? Math.pow(Math.max(...ms) / mid, 0.8) : 1;
+  return { lo: hb * Math.min(1 - HB_BAND, rLo), hi: hb * Math.max(1 + HB_BAND, rHi), spread };
 }
 
 /** The open North Shore reef used as the regional size reference (exposed to W–N–NE swell). */
@@ -93,6 +121,7 @@ export function deriveHour(spot: Spot, c: HourConditions, tide?: { norm: number 
     sy += e * Math.sin(toRad(p.dir));
   }
   const hb = parts.length ? gain * Math.sqrt(hbSq) : null;
+  const band = hbBand(hb, c);
   let openSq = 0;
   for (const p of parts) {
     const b = breakingHeight(p.h, p.t) * exposure(OPEN_NORTH, p.dir) * p.weight;
@@ -113,6 +142,9 @@ export function deriveHour(spot: Spot, c: HourConditions, tide?: { norm: number 
   return {
     time: c.time,
     hb,
+    hbLo: band.lo,
+    hbHi: band.hi,
+    hsSpread: band.spread,
     tDom,
     dirDom,
     energy: parts.length ? eSum : null,

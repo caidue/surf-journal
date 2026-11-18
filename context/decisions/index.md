@@ -23,6 +23,7 @@ Accepted decisions (numbered) and pending ones.
 * [0019: Grade how sure each rating is; withhold where guessing is dangerous](0019-rating-confidence.md) - Ratings carry Reliable / Less certain / Rough guide from local knowledge, model agreement and your sessions; no rating for undocumented expert reefs at low tide.
 * [0020: Trips as named folders of sessions](0020-trips.md) - Group journal sessions into named trips with optional dates; one trip per session.
 * [0021: Rate spots for another level](0021-rate-for-another-level.md) - A temporary Rate-for switch rates spots for a typical surfer of any level, without your sessions.
+* [0022: Size as a range, not a hard cut-off](0022-size-uncertainty.md) - Median of the wave models, a likely range carried into the rating, exclusion only when even the low end is too big, wave-model disagreement in the confidence, and a sheltered Majanicho.
 
 # Pending decisions
 

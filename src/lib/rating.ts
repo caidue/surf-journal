@@ -1,5 +1,5 @@
 import type { Peak, SkillProfile, Spot, SpotLevel, TidePref } from '../types';
-import type { Derived } from './conditions';
+import { MODELS_DISAGREE, type Derived } from './conditions';
 import { boardInfo, bodyWord, levelName, REQUIRED_STAGE, stageInfo } from './skill';
 import { evaluateRules, type FiredRule, type RuleResult } from './rules';
 
@@ -91,7 +91,7 @@ export function quality(spot: Spot, d: Derived, rules?: RuleResult): Quality {
 
 /* ---------------- peaks ---------------- */
 
-const OVERRIDES = ['level', 'minSize', 'maxSize', 'tide', 'power', 'peel'] as const;
+const OVERRIDES = ['level', 'minSize', 'maxSize', 'tide', 'power', 'peel', 'sizeFactor'] as const;
 
 /** Peaks rated on their own (two or more peaks that override a rating field); [] = rate the spot as a whole. */
 export function ratedPeaks(spot: Spot): Peak[] {
@@ -113,6 +113,14 @@ export function peakSpot(spot: Spot, peak: Peak | null | undefined): Spot {
     bottom: peak.bottom ?? spot.bottom,
     breakType: peak.breakType ?? spot.breakType,
   };
+}
+
+/** The hour as this peak sees it: its waves `sizeFactor` times the spot's (a more sheltered inside peak). */
+export function peakDerived(d: Derived, peak: Peak | null | undefined): Derived {
+  const f = peak?.sizeFactor;
+  if (!f || f === 1) return d;
+  const x = (v: number | null) => (v == null ? null : v * f);
+  return { ...d, hb: x(d.hb), hbLo: x(d.hbLo), hbHi: x(d.hbHi) };
 }
 
 /* ---------------- suitability: the rules for your skill profile ---------------- */
@@ -192,7 +200,15 @@ export function suitability(
   const M = Math.max(p.max, C * 1.2);
   const steep = p.steepExp ?? stageInfo(st).steepExp;
   // Compare the size as it is shown (0.1 m or 1 ft), so a reason never reads "~2.2 m vs 2.2 m".
-  const H = d.hb == null ? null : unit === 'ft' ? Math.round(d.hb * 3.281) / 3.281 : Math.round(d.hb * 10) / 10;
+  const shown = (m: number) => (unit === 'ft' ? Math.round(m * 3.281) / 3.281 : Math.round(m * 10) / 10);
+  const H = d.hb == null ? null : shown(d.hb);
+  // The likely range (wave-model spread, at least ±20 %): a spot is ruled out on size only when
+  // even its low end is too big; when the range reaches your limit it gets a warning and a penalty.
+  const Hlo = d.hb == null ? null : shown(d.hbLo ?? d.hb * 0.8);
+  const Hhi = d.hb == null ? null : shown(d.hbHi ?? d.hb * 1.2);
+  const range = Hlo == null || Hhi == null ? '' : unit === 'ft' ? ` (${Math.round(Hlo * 3.281)}–${Math.round(Hhi * 3.281)} ft)` : ` (${Hlo.toFixed(1)}–${Hhi.toFixed(1)} m)`;
+  const unsure = d.hsSpread >= MODELS_DISAGREE ? 'the wave models disagree' : 'the forecast is uncertain';
+  let sizeCap = 1;
 
   // The spot's (or peak's) level, as a stage; a local rule can raise it for this hour.
   const raised = ruleLevel && REQUIRED_STAGE[ruleLevel.level] > REQUIRED_STAGE[spot.level] ? ruleLevel : null;
@@ -203,7 +219,7 @@ export function suitability(
   else if (req - st === 1) add('spot', 'challenging', `${why}A step up: this spot is usually surfed from ${levelName(req)} (stage ${req}). Your level: ${levelName(st)}.`);
 
   const fit = sizeFit(H, C, st);
-  if (H != null) {
+  if (H != null && Hlo != null && Hhi != null) {
     if (fit < 0.65) add('size', 'ok', `${fit < 0.3 ? 'Too small to practise' : 'Small for progressing'}: ~${h(H)} (${bodyWord(H)}) vs your comfortable ${bodyWord(C)} (${h(C)}).`);
     else if (H <= 0.8 * C) add('size', 'good', `Right in your range: ~${h(H)} (${bodyWord(H)}); you're comfortable to ${bodyWord(C)} (${h(C)}).`, true);
     else if (H <= C) add('size', 'ok', `Top of your comfort zone: ~${h(H)} vs your ${h(C)} (${bodyWord(C)}).`);
@@ -213,8 +229,13 @@ export function suitability(
         p.wantsChallenge ? 'stretch' : 'challenging',
         `${p.wantsChallenge ? 'Stretch session: ' : ''}bigger than you're comfortable in, ~${h(H)} vs ${bodyWord(C)} (${h(C)}), but within the ${h(M)} you've caught.`.replace(/^b/, 'B'),
       );
-    else if (H <= 1.15 * M) add('size', st >= 6 ? 'challenging' : 'unsuitable', `Bigger than anything you've surfed: ~${h(H)} vs your biggest ${h(M)}.`);
-    else add('size', 'unsuitable', `Well beyond your biggest waves: ~${h(H)} vs ${h(M)}.`);
+    else if (Hlo <= M) {
+      // Probably bigger, but the range reaches your limit: penalise by how much of it lies above.
+      const pAbove = Hhi > Hlo ? Math.min(1, Math.max(0, (Hhi - M) / (Hhi - Hlo))) : 1;
+      sizeCap = SUIT_FACTOR.challenging * (1 - 0.5 * pAbove);
+      add('size', 'challenging', `May be bigger than you like: ~${h(H)}${range} vs your biggest ${h(M)}; ${unsure}, so check it before you paddle out.`);
+    } else if (Hlo <= 1.15 * M) add('size', st >= 6 ? 'challenging' : 'unsuitable', `Bigger than anything you've surfed: ~${h(H)}${range} vs your biggest ${h(M)}.`);
+    else add('size', 'unsuitable', `Well beyond your biggest waves: ~${h(H)}${range} vs ${h(M)}.`);
     if (H > OVERHEAD && st <= 5) add('size', 'challenging', `Overhead sets (~${h(H)}): injury risk rises sharply before stage 6.`);
 
     const board = boardInfo(p.board);
@@ -223,7 +244,8 @@ export function suitability(
     const tp = d.tDom ?? 0;
     if (tp >= 13 && H > 0.7 * C && st <= 5) add('period', H > C ? 'challenging' : 'ok', `Long-period groundswell (${Math.round(tp)} s peak): sets hit harder than the height suggests.`);
 
-    if (H > spot.maxSize * 1.15) add('spot', st >= 7 ? 'challenging' : 'unsuitable', `Bigger than this spot handles well: ~${h(H)}, it works up to about ${h(spot.maxSize)}.`);
+    if (Hlo > spot.maxSize * 1.15) add('spot', st >= 7 ? 'challenging' : 'unsuitable', `Bigger than this spot handles well: ~${h(H)}${range}, it works up to about ${h(spot.maxSize)}.`);
+    else if (H > spot.maxSize * 1.15) add('spot', 'challenging', `May be bigger than this spot handles well: ~${h(H)}${range}, it works up to about ${h(spot.maxSize)}.`);
   }
 
   // Bottom.
@@ -270,7 +292,7 @@ export function suitability(
     const plus = all.find((r) => r.positive);
     if (plus) reasons = [...reasons, plus];
   }
-  return { status, factor: status === 'unsuitable' ? 0 : Math.min(SUIT_FACTOR[status], fit), reasons };
+  return { status, factor: status === 'unsuitable' ? 0 : Math.min(SUIT_FACTOR[status], fit, sizeCap), reasons };
 }
 
 /** One line for tooltips: "Top of your comfort zone…; Reef bottom…". */
@@ -304,7 +326,7 @@ export interface SpotRating {
 /** Rates a spot for one hour: per peak when its peaks differ (ratedPeaks), else as a whole. */
 export function rateSpot(spot: Spot, d: Derived, profile: SkillProfile, unit: 'm' | 'ft' = 'm'): SpotRating {
   const peaks = ratedPeaks(spot);
-  const rated = (peaks.length ? peaks : [null]).map((peak) => ({ peak, r: recommendability(peakSpot(spot, peak), d, profile, unit, peak?.id) }));
+  const rated = (peaks.length ? peaks : [null]).map((peak) => ({ peak, r: recommendability(peakSpot(spot, peak), peakDerived(d, peak), profile, unit, peak?.id) }));
   const mine = rated.reduce((a, b) => (b.r.score > a.r.score ? b : a));
   const waves = rated.reduce((a, b) => (b.r.quality.q > a.r.quality.q ? b : a));
   // Name a peak only when the peaks really differ for you this hour.

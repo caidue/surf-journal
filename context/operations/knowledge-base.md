@@ -10,7 +10,7 @@ sources:
     title: "Open Knowledge Format v0.2 specification"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-13T21:20:00+00:00"
+  at: "2026-11-18T15:30:00+00:00"
 ---
 # Knowledge base maintenance
 
@@ -28,7 +28,7 @@ generated:
 | `spots/` | spot content: catalogue, naming, special cases |
 | `influences/` | products, research and design rules that shaped the app |
 | `decisions/` | accepted decisions (numbered, ADR style); `decisions/pending/` for open ones |
-| `research/` | research reports behind decisions |
+| `research/` | research reports behind decisions (deep-research originals from 2026-11-18 on are kept in the repo: `reports/<title>.md` with the researchers' notes in `research_notes/<title>/`) |
 | `operations/` | commands, testing, deployment, releases, this file |
 
 ## File rules

@@ -13,7 +13,7 @@ sources:
 seed_version: "8"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T20:30:00+00:00"
+  at: "2026-11-18T15:00:00+00:00"
 ---
 # Built-in spot catalogue (seed 8)
 
@@ -28,7 +28,7 @@ Ids never change; names follow Surfline where it has the spot ([Naming](/spots/n
 | fv-generoso | **Generosa** | Generoso, La Generosa, La Hennerosa | ✓ | Genarosa | intermediate | – | Wannasurf/surf-forecast; approximate |
 | fv-suicides | Suicides | Suicidios | – | Suicides_2 | expert | Main reef (expert), Inside left (advanced) | Wannasurf (approximate, on the reef); surf-forecast's point is 1.7 km out to sea |
 | fv-la-caleta | La Caleta | Caletta | – | – | intermediate | – | fuerteventuraplayas; approximate; no counterpart elsewhere |
-| fv-majanicho | Majanicho | – | ✓ | Majanicho | intermediate | Inside A-frame, Inside right, Outside (overrides) | Surfline (moved from 28.742, −13.944) |
+| fv-majanicho | Majanicho | – | ✓ | Majanicho | intermediate | Inside A-frame, Inside right (both size × 0.8), Outside (overrides); gain 0.68 | Surfline (moved from 28.742, −13.944) |
 | fv-the-bubble | The Bubble | The Bubble (Hierro Right), Hierro Right, La Derecha, Derecha, Bubble | ✓ (shared) | The-Bubble | expert | – | Surfline's point, off OSM's "La Derecha" beach ([El Hierro area](/spots/el-hierro.md)) |
 | fv-derecha-alemanes | Derecha de los Alemanes | German Right, Derecha Alemanes, Los Alemanes, Hierro Right, El Hierro, Yarro | ✓ (shared) | Los-Alemanes | advanced | – | east side of the El Hierro bay (Wannasurf's access note; Windguru user pin); approximate |
 | fv-el-hierro | **Izquierda del Hierro** | El Hierro, Hierro Left, Hierro (left), La Izquierda, Izquierda, Izquierda de El Hierro | ✓ (shared) | Izquierda | advanced | – | Wannasurf, west side of the bay; approximate |

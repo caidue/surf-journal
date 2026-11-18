@@ -6,12 +6,13 @@ resource: "src/lib/rating.ts"
 tags: ["engine", "rating", "peaks"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-16T13:20:00+00:00"
+  at: "2026-11-18T15:00:00+00:00"
 ---
 # Per-peak rating
 
 * `ratedPeaks(spot)`: peaks that override at least one of `level`, `minSize`, `maxSize`, `tide`, `power`, `peel`, and only when there are **two or more** of them; otherwise the spot is rated as a whole.
 * `peakSpot(spot, peak)`: the spot with the peak's overrides (also `bottom`, `breakType`).
+* `peakDerived(d, peak)`: the hour with the peak's `sizeFactor` applied to `hb`, `hbLo`, `hbHi` (a sheltered inside peak gets less of the swell than the offshore forecast point says; Majanicho's inside peaks 0.8).
 * `rateSpot(spot, derived, profile)`: rates every rated peak; **For you** = the peak with the highest score for you; **Spot rating** = the best peak's quality (shown in the forecast's Rating tooltip since the Spot row was removed). The peak is named ("Best for you: La Izquierda") only when the peaks really differ for you that hour.
 * Used by `recommendSpotDay`, the session editor timeline and demo data.
 

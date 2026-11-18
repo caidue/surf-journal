@@ -135,7 +135,7 @@ describe('offline conditions', () => {
     const out = await fetchSeries([cell], today, today);
     const s = out.get(cellKey(cell))!;
     expect(s.stale).toBeUndefined();
-    expect(s.hours[0].waveH).toBe(1.5);
+    expect(s.hours[0].waveH).toBe(1.45);
     expect(await db.forecasts.get(`${cellKey(cell)}|${today}|${today}`)).toBeTruthy();
   });
 });
@@ -149,8 +149,8 @@ describe('sessions logged offline', () => {
     const s = (await db.sessions.get('a'))!;
     expect(s.conditionsPending).toBe(false);
     expect(s.conditions).toHaveLength(24);
-    expect(s.conditions[8].waveH).toBe(1.5);
-    expect(s.conditions[8].trains[0]).toEqual({ kind: 'swell', h: 1.5, tp: 12, dir: 330 });
+    expect(s.conditions[8].waveH).toBe(1.45);
+    expect(s.conditions[8].trains[0]).toEqual({ kind: 'swell', h: 1.45, tp: 12, dir: 330 });
     expect(s.conditionsVersion).toBe(CONDITIONS_VERSION);
     expect(s.days?.[0].sunrise).toBe(`${date}T07:40`);
     expect(s.notes).toBe('logged at the beach');
@@ -162,7 +162,7 @@ describe('sessions logged offline', () => {
     await db.sessions.put(pendingSession('b', today, { conditions: dayHours(today, 0.4) }));
     vi.stubGlobal('fetch', vi.fn(async (url: string) => openMeteoResponse(url)));
     expect(await syncPendingSessions()).toBe(1);
-    expect((await db.sessions.get('b'))!.conditions[10].waveH).toBe(1.5);
+    expect((await db.sessions.get('b'))!.conditions[10].waveH).toBe(1.45);
   });
 
   it('leaves sessions pending while offline', async () => {
@@ -220,7 +220,7 @@ describe('grid cells', () => {
 
 describe('four-model marine data', () => {
   const at = (o: Record<string, number | null>) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, [v]]));
-  it('takes swell trains from GFS-Wave (peak periods), scaled to the MFWAM total; zeros mean no train', () => {
+  it('takes swell trains from GFS-Wave (peak periods), scaled to the median of the models\' totals; zeros mean no train', () => {
     const h = marineHour(
       at({
         wave_height_meteofrance_wave: 1.92,
@@ -243,12 +243,13 @@ describe('four-model marine data', () => {
       }),
       0,
     );
-    expect(h.waveH).toBe(1.92);
+    expect(h.waveH).toBe(1.84); // median (here: mean) of MFWAM 1.92 and GFS-Wave 1.76
+    expect(h.waveHModels).toEqual([1.92, 1.76]);
     expect(h.waveTe).toBe(9.95);
     expect(h.waveTp).toBe(11.45);
     expect(h.trains).toHaveLength(2);
     expect(h.trains[0].tp).toBe(10.4);
-    expect(h.trains[0].h).toBeCloseTo(1.46 * (1.92 / 1.76), 2);
+    expect(h.trains[0].h).toBeCloseTo(1.46 * (1.84 / 1.76), 2);
     expect(h.seaLevel).toBe(-0.32);
     expect(h.tpEstimated).toBeUndefined();
   });
