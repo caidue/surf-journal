@@ -1,5 +1,6 @@
 import type { Peak, Spot } from '../types';
 import { SPOT_GUIDES } from './spotGuides';
+import { SWELL_OPEN } from './swellOpen';
 
 /**
  * Seed spots for northern Fuerteventura, compiled from public spot guides
@@ -14,7 +15,7 @@ import { SPOT_GUIDES } from './spotGuides';
  * Bump SEED_VERSION whenever this list changes: devices then refresh the built-in spots
  * (db.ts → refreshSeedSpots) and move sessions of RETIRED_SPOTS to their new spot.
  */
-export const SEED_VERSION = 10; // 10: La Caleta swell window 345° ±50°; 9: Majanicho gain 0.68, inside peaks sizeFactor 0.8; 8: dataNote; 7: corrections from local sources (data/spotRules.ts); 6: El Hierro split; 5: three spots added (3 was used by an earlier build)
+export const SEED_VERSION = 11; // 11: swell windows from the coastline (openness); 10: La Caleta swell window 345° ±50°; 9: Majanicho gain 0.68, inside peaks sizeFactor 0.8; 8: dataNote; 7: corrections from local sources (data/spotRules.ts); 6: El Hierro split; 5: three spots added (3 was used by an earlier build)
 
 /** Spots that were merged into another one: old id → new id. (Seed 4 merged The Bubble into El Hierro; seed 6 split them again.) */
 export const RETIRED_SPOTS: Record<string, string> = {};
@@ -186,6 +187,7 @@ const seed: SeedSpot[] = [
     // which shut out 310° completely although model directions are uncertain by 10–15°.
     idealSwellDir: 345,
     swellWindow: 50,
+    windowFromSources: true, // the bay is too small for the coastline data: the sources' window applies too
     minSize: 0.8,
     maxSize: 3,
     tide: 'all', // sources conflict; the size-dependent window (low to low-mid on small swell) needs the rules engine
@@ -556,6 +558,7 @@ export const SEED_SPOTS: Spot[] = seed.map(({ peakOverrides, ...s }) => {
     source: SRC,
     gain: DEFAULT_GAIN[s.breakType],
     coordsApprox: true,
+    openness: SWELL_OPEN[s.id],
     ...s,
     peaks,
     guide: SPOT_GUIDES[s.id]?.guide,

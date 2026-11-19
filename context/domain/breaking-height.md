@@ -10,14 +10,14 @@ sources:
     title: "Komar & Gaughan (1972)"
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-18T15:00:00+00:00"
+  at: "2026-11-19T14:30:00+00:00"
 ---
 # Breaking height at a spot
 
 # Computation
 1. Offshore data is sampled 2.5 km seaward of the spot along its facing (`samplePoint()` in `src/lib/geo.ts`).
 2. Per train: Komar–Gaughan `Hb = 0.39 · g^(1/5) · (T · H²)^(2/5)` with T = peak period.
-3. Times **exposure** to the spot's swell window: 1 within 55 % of `swellWindow` around `idealSwellDir`, cosine taper to 0 at the edge.
+3. Times **exposure** (`exposure(spot, dir, period)`): how much of the train reaches the spot. Built-in spots use their **openness from the coastline** (how far the sea is open in each direction, see [Swell windows](/domain/swell-windows.md)) times a shore-angle factor; spots you add use the hand-set window. Either is averaged over the direction spread (10° + 1.5° per second of period above 10 s), so a swell near an edge counts partly and long-period swell wraps further in.
 4. Wind sea × 0.7.
 5. Combined as the root of the sum of squares, times the spot's **gain** (default beach 0.72, reef/point 0.77; calibrated per spot from your observed sizes, see [Size calibration](/engine/size-calibration.md)).
 

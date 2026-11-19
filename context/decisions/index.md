@@ -27,6 +27,7 @@ Accepted decisions (numbered) and pending ones.
 * [0023: Size as a range, not a hard cut-off](0023-size-uncertainty.md) - Median of the wave models, a likely range carried into the rating, exclusion only when even the low end is too big, wave-model disagreement in the confidence, and a sheltered Majanicho.
 * [0024: Handles-only dragging and comparing sessions instead of editing them](0024-handles-and-session-comparison.md) - The session chart moves only by its handles (with ±5 min buttons); a session in a spot's Sessions tab opens a comparison with the chosen day, not the editor.
 * [0025: Similarity compares the raw swell, not the estimated face height](0025-similarity-on-raw-swell.md) - The size feature of the similarity is the swell height reaching the spot from the offshore trains, independent of the breaking formula and the size factor.
+* [0026: Swell windows from the coastline, softened by the forecast's direction uncertainty](0026-swell-windows-from-the-coastline.md) - Built-in spots get their swell window from the OpenStreetMap coastline; every window is averaged over a direction spread that grows with the swell period.
 
 # Pending decisions
 

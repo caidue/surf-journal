@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { HourConditions, Session, Settings, Spot, WaveTrain } from '../types';
 import { SLOTS } from '../types';
 import { angdiff, destination, haversineKm } from './geo';
-import { breakingHeight, deriveHour, hbBand, deriveSeries, exposure, tideExtremes, tideInfo, totalEnergyKJ, waveEnergyKJ, windKind } from './conditions';
+import { breakingHeight, deriveHour, directionSpread, hbBand, deriveSeries, exposure, tideExtremes, tideInfo, totalEnergyKJ, waveEnergyKJ, windKind } from './conditions';
 import { fPeriod, peakDerived, quality, rateSpot, ratedPeaks, scoreLabel, sizeFit, suitability } from './rating';
 import { bodyRange, learnFromSession, profileForStage, profileSummary, snapshot, undoLastChange } from './skill';
 import { RETIRED_SPOTS, SEED_SPOTS } from '../data/seedSpots';
@@ -357,11 +357,49 @@ describe('local knowledge', () => {
   it('La Caleta: north to north-west swell gets in, a more westerly one does not', () => {
     const c = byId('fv-la-caleta');
     expect(exposure(c, 350)).toBe(1);
-    expect(exposure(c, 328)).toBe(1);
-    // 19 Nov 2026: the main swell from 311° got in fine.
-    expect(exposure(c, 311)).toBeGreaterThan(0.5);
-    expect(exposure(c, 300)).toBeLessThan(0.5);
-    expect(exposure(c, 290)).toBe(0);
+    expect(exposure(c, 328)).toBeGreaterThan(0.95);
+    // 19 Nov 2026: the main swell from 311° (12 s) got in fine.
+    expect(exposure(c, 311, 12)).toBeGreaterThan(0.5);
+    expect(exposure(c, 300, 12)).toBeLessThan(0.5);
+    expect(exposure(c, 280, 12)).toBeLessThan(0.05);
+  });
+});
+
+describe('swell windows: general rule and the coastline (decision 0026)', () => {
+  const byId = (id: string) => SEED_SPOTS.find((x) => x.id === id)!;
+  it('every built-in spot has its openness from the coastline', () => {
+    for (const s of SEED_SPOTS) expect(s.openness, s.id).toMatch(/^[0-9]{180}$/);
+  });
+  it('a swell near the edge of a window fades out instead of flipping within a few degrees', () => {
+    const w = { idealSwellDir: 0, swellWindow: 40 };
+    const steps = [30, 32, 34, 36, 38, 40, 42, 44].map((d) => exposure(w, d));
+    for (let i = 1; i < steps.length; i++) expect(steps[i - 1] - steps[i]).toBeLessThan(0.15);
+    expect(exposure(w, 40)).toBeGreaterThan(0.05); // the old hard edge gave 0
+  });
+  it('long-period swell wraps further in than short-period swell from the same direction', () => {
+    expect(directionSpread(8)).toBe(10);
+    expect(directionSpread(16)).toBe(19);
+    expect(directionSpread(25)).toBe(22);
+    const c = byId('fv-la-caleta');
+    expect(exposure(c, 300, 16)).toBeGreaterThan(exposure(c, 300, 9));
+  });
+  it('Lanzarote shadows the north partly: the Corralejo beaches get NE swell, N only partly, NW hardly', () => {
+    const b = byId('fv-corralejo-beach');
+    expect(exposure(b, 45, 10)).toBeGreaterThan(0.8);
+    expect(exposure(b, 0, 10)).toBeGreaterThan(0.05);
+    expect(exposure(b, 0, 10)).toBeLessThan(0.5);
+    expect(exposure(b, 315, 10)).toBe(0);
+  });
+  it('Lobos and Rocky Point: best on NW–NNW, N partly shadowed by Lanzarote', () => {
+    for (const id of ['fv-lobos', 'fv-rocky-point']) {
+      const s = byId(id);
+      expect(exposure(s, 325, 12), id).toBeGreaterThan(0.75);
+      expect(exposure(s, 0, 12), id).toBeLessThan(exposure(s, 325, 12));
+    }
+  });
+  it('swell running along the shore does not reach the break', () => {
+    expect(exposure(byId('fv-majanicho'), 250, 10)).toBeLessThan(0.1);
+    expect(exposure(byId('fv-cotillo-piedra-playa'), 60, 10)).toBe(0);
   });
 });
 

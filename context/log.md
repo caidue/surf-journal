@@ -2,6 +2,7 @@
 
 ## 2026-11-19
 
+* **Creation** of [Swell windows](/domain/swell-windows.md) and [0026](/decisions/0026-swell-windows-from-the-coastline.md); **Update** of [Breaking height](/domain/breaking-height.md), [Glossary](/product/glossary.md), [Data model](/architecture/data-model.md), [Code map](/architecture/code-map.md), [Spot catalogue](/spots/catalogue.md), [Releases](/operations/releases.md) (1.13.0): swell windows from the OpenStreetMap coastline, direction spread and long-period wrap for every spot, "Gets swell from" in the Info tab.
 * **Update** of [Spot catalogue](/spots/catalogue.md), [Releases](/operations/releases.md) (1.12.4): La Caleta swell window 345° ±50° (seed 10); its local-knowledge rule now says north-west still gets in, with your report of 2026-11-19 as a source.
 
 ## 2026-11-18

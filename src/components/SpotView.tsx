@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session, Settings, Spot } from '../types';
 import { useConditions, useRating } from '../hooks';
-import { deriveSeries, tideExtremes, tideLabel, WIND_LABEL, type WindKind } from '../lib/conditions';
+import { deriveSeries, swellRanges, tideExtremes, tideLabel, WIND_LABEL, type WindKind } from '../lib/conditions';
 import { buildHistory, calibratedGain, insights, recommendSpotDay, sessionOverall } from '../lib/recommend';
 import { KNOWLEDGE_LABEL, spotKnowledge } from '../lib/confidence';
 import { addDays, fmtDate, fmtMin, isoToMin, nowMinutesAt, todayAt } from '../lib/time';
@@ -331,10 +331,19 @@ export default function SpotView({ spot, spots, sessions, settings, go, mode, in
                 <dd>
                   {compass(spot.facing)} ({Math.round(spot.facing)}°) · offshore wind from {compass(spot.facing + 180)}
                 </dd>
-                <dt>Best swell</dt>
+                <dt>Gets swell from</dt>
                 <dd>
-                  {compass(spot.idealSwellDir)} (±{spot.swellWindow}°), {spot.minSize}–{spot.maxSize} m breaking
+                  {swellRanges(spot)
+                    .map(([a, b]) => (b - a >= 360 ? 'all directions' : `${compass(a)}–${compass(b)} (${a}°–${b}°)`))
+                    .join(', ') || 'hardly any direction'}
+                  <div className="muted small">
+                    {spot.openness
+                      ? `Where at least half of a 12 s swell gets in: from the coastline around the spot (OpenStreetMap)${spot.windowFromSources ? ' and local sources' : ''}, with long-period swell wrapping further in.`
+                      : `Your setting: ${compass(spot.idealSwellDir)} ±${spot.swellWindow}°, with long-period swell wrapping further in.`}
+                  </div>
                 </dd>
+                <dt>Size range</dt>
+                <dd>{spot.minSize}–{spot.maxSize} m breaking</dd>
                 <dt>Tide</dt>
                 <dd>{spot.tide === 'all' ? 'all tides' : spot.tide}</dd>
                 <dt>Break</dt>

@@ -5,7 +5,7 @@ description: "Surf and app terms used in code, UI and this knowledge base."
 tags: ["glossary", "domain"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-14T00:30:00+00:00"
+  at: "2026-11-19T14:30:00+00:00"
 ---
 # Glossary
 
@@ -14,7 +14,7 @@ generated:
 * **Tp (peak period):** period of the most energetic waves; what surf sites show. **Tm01**: mean period (≈ Tp / 1.3). **Te / Tm-1,0**: energy period. See [Wave periods](/domain/wave-periods.md).
 * **hb (breaking height):** estimated face height at the spot, `Derived.hb`. See [Breaking height](/domain/breaking-height.md).
 * **Face height:** trough-to-lip height as you'd describe it on the beach (not Hawaiian feet). See [Body scale](/domain/body-scale.md).
-* **Swell window:** directions a spot is open to (`idealSwellDir ± swellWindow`); trains outside it are greyed out.
+* **Swell window:** directions a spot gets swell from: for built-in spots from the coastline around it (open sea, Lanzarote's shadow), for your own spots `idealSwellDir ± swellWindow`; softened by the forecast's direction uncertainty and widened for long-period swell ([Swell windows](/domain/swell-windows.md)). Trains (almost) outside it are greyed out; poor ones are red.
 * **Gain / size factor:** per-spot multiplier from modelled to observed breaking height. See [Size calibration](/engine/size-calibration.md).
 * **Spot rating (q):** how good the waves are, 0–10, for anyone. See [Spot rating](/engine/spot-rating.md).
 * **For you:** your predicted fun, 0–10: spot rating × suitability, blended with your history. See [Personal prediction](/engine/personal-prediction.md).

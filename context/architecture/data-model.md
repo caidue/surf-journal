@@ -6,7 +6,7 @@ resource: "src/types.ts"
 tags: ["architecture", "schema"]
 generated:
   by: "claude-code/claude-opus-5-5"
-  at: "2026-11-18T20:00:00+00:00"
+  at: "2026-11-19T14:30:00+00:00"
 ---
 # Data model
 
@@ -14,7 +14,7 @@ Defined in `src/types.ts`. Stored tables: `spots`, `sessions`, `forecasts`, `geo
 
 # Schema
 
-**Spot**: `id`, `name` (Surfline's where it has one), `aliases?`, `dataNote?` (why its forecast point or location is doubtful), `externalIds? {surfline: "slug/id", surfForecast: slug}`, `region`, `lat`, `lon`, `coordsApprox`, `facing`, `idealSwellDir`, `swellWindow`, `minSize`, `maxSize` (breaking face height, m), `tide`, `breakType` (beach/reef/point), `bottom` (sand/reef/rock/mixed), `level` (beginner/all/intermediate/advanced/expert), `power?` (mellow/punchy/hollow/slab), `peel?` (slow/medium/fast/sectiony), `lifeguard?`, `crowd?`, `localism?`, `hazards[]`, `description`, `peaks[]`, `guide?`, `gain`, `source?`, `custom?`.
+**Spot**: `id`, `name` (Surfline's where it has one), `aliases?`, `dataNote?` (why its forecast point or location is doubtful), `externalIds? {surfline: "slug/id", surfForecast: slug}`, `region`, `lat`, `lon`, `coordsApprox`, `facing`, `idealSwellDir`, `swellWindow` (hand-set; the fallback for your own spots), `openness?` (built-in spots: 180 digits, how open the sea is per 2°, generated from the coastline), `windowFromSources?` (the hand-set window also applies, La Caleta), `minSize`, `maxSize` (breaking face height, m), `tide`, `breakType` (beach/reef/point), `bottom` (sand/reef/rock/mixed), `level` (beginner/all/intermediate/advanced/expert), `power?` (mellow/punchy/hollow/slab), `peel?` (slow/medium/fast/sectiony), `lifeguard?`, `crowd?`, `localism?`, `hazards[]`, `description`, `peaks[]`, `guide?`, `gain`, `source?`, `custom?`.
 
 **Peak**: `id`, `name`, `description?`, `breakType?`, `bottom?`, `direction?`, `level?`, `goodWhen?`, `season?`, rating overrides `minSize?`, `maxSize?`, `tide?`, `power?`, `peel?`, `sizeFactor?` (breaking height relative to the spot's estimate, e.g. 0.8 for a sheltered inside peak) ([Per-peak rating](/engine/per-peak-rating.md)).
 

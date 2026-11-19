@@ -167,7 +167,7 @@ export default function ForecastTable({
     const line = (x: TrainInfo) => `${fmtDir(x.dir)} · ${hgt(x.h)} ${ft ? 'ft' : 'm'} @ ${Math.round(x.t)} s peak · ${Math.round(x.kj)} kJ`;
     const w = COL_W - 4;
     return (
-      <td key={key} className={`fc-swell${isOutside(spot, t.dir) ? ' blocked' : ''}${extraClass}`} title={swellTooltip(swells, spot, line)}>
+      <td key={key} className={`fc-swell${isOutside(spot, t.dir, t.t) ? ' blocked' : ''}${extraClass}`} title={swellTooltip(swells, spot, line)}>
         <div>{hgt(t.h)}</div>
         {!main && <div className="muted">{Math.round(t.t)}s</div>}
         <svg className="fc-swell-svg" width={w} height={main ? 48 : 16}>

@@ -70,7 +70,7 @@ export function hbBand(hb: number | null, c: Pick<HourConditions, 'waveH' | 'wav
 }
 
 /** The open North Shore reef used as the regional size reference (exposed to W–N–NE swell). */
-const OPEN_NORTH = { idealSwellDir: 330, swellWindow: 90 };
+const OPEN_NORTH: SwellWindow = { idealSwellDir: 330, swellWindow: 90 };
 const OPEN_GAIN = 0.77;
 
 const G = 9.81;
@@ -82,14 +82,92 @@ export function breakingHeight(h: number, t: number): number {
   return KG * Math.pow(t * h * h, 0.4);
 }
 
-/** How much of a swell coming from `dir` reaches the spot: 1 inside the core window, cosine taper to 0 at the window edge. */
-export function exposure(spot: Pick<Spot, 'idealSwellDir' | 'swellWindow'>, dir: number): number {
+export type SwellWindow = Pick<Spot, 'idealSwellDir' | 'swellWindow'> & Partial<Pick<Spot, 'facing' | 'openness' | 'windowFromSources'>>;
+
+/** Hand-set window: 1 inside the core, cosine taper to 0 at the window edge. */
+function handWindow(spot: Pick<Spot, 'idealSwellDir' | 'swellWindow'>, dir: number): number {
   const d = Math.abs(angdiff(dir, spot.idealSwellDir));
   const w = Math.max(10, spot.swellWindow);
   const core = w * 0.55;
   if (d <= core) return 1;
   if (d >= w) return 0;
   return 0.5 * (1 + Math.cos((Math.PI * (d - core)) / (w - core)));
+}
+
+/** Swell arriving along the shore doesn't reach the break: full within 55° of the facing, 0 at 90°. */
+const ALONG_FULL = 55;
+const ALONG_ZERO = 90;
+function shoreAngle(facing: number, dir: number): number {
+  const d = Math.abs(angdiff(dir, facing));
+  if (d <= ALONG_FULL) return 1;
+  if (d >= ALONG_ZERO) return 0;
+  return 0.5 * (1 + Math.cos((Math.PI * (d - ALONG_FULL)) / (ALONG_ZERO - ALONG_FULL)));
+}
+
+/** How open the sea is towards `dir` (0–1), interpolated between the 2° steps of `openness`. */
+function openAt(openness: string, dir: number): number {
+  const n = openness.length;
+  const step = 360 / n;
+  const x = ((((dir % 360) + 360) % 360) / step);
+  const i = Math.floor(x) % n;
+  const f = x - Math.floor(x);
+  const a = Number(openness[i]) / 9;
+  const b = Number(openness[(i + 1) % n]) / 9;
+  return a + (b - a) * f;
+}
+
+/** The spot's window before the general blur: map (open sea × facing), or the hand-set window. */
+function windowAt(spot: SwellWindow, dir: number): number {
+  if (spot.openness && spot.facing != null) {
+    const m = openAt(spot.openness, dir) * shoreAngle(spot.facing, dir);
+    return spot.windowFromSources ? m * handWindow(spot, dir) : m;
+  }
+  return handWindow(spot, dir);
+}
+
+/**
+ * Where a spot gets swell, for people: the direction ranges where at least half of a 12 s swell
+ * reaches it, e.g. [[296, 20]] (clockwise, the swell comes FROM).
+ */
+export function swellRanges(spot: SwellWindow, period = 12, min = 0.5): [number, number][] {
+  const ok = Array.from({ length: 72 }, (_, i) => exposure(spot, i * 5, period) >= min);
+  if (ok.every(Boolean)) return [[0, 360]];
+  const start = ok.findIndex((v) => !v);
+  const out: [number, number][] = [];
+  let run: number | null = null;
+  for (let k = 1; k <= 72; k++) {
+    const i = (start + k) % 72;
+    if (ok[i] && run == null) run = i;
+    if (!ok[i] && run != null) {
+      out.push([run * 5, ((i - 1 + 72) % 72) * 5]);
+      run = null;
+    }
+  }
+  return out;
+}
+
+/**
+ * How far forecast swell directions can be off (deg): model directions are uncertain by about
+ * 10° (similarity.ts); long-period swell also bends further around headlands and into bays, so
+ * the spread grows by 1.5° per second of peak period above 10 s (up to +12°).
+ */
+export function directionSpread(period?: number | null): number {
+  return 10 + 1.5 * Math.min(8, Math.max(0, (period ?? 10) - 10));
+}
+const BLUR = [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2].map((k) => ({ k, w: Math.exp((-k * k) / 2) }));
+const BLUR_SUM = BLUR.reduce((a, b) => a + b.w, 0);
+
+/**
+ * How much of a swell coming from `dir` reaches the spot (0–1): the spot's window (from the map
+ * or hand-set) averaged over the direction spread, so a swell near an edge counts partly instead
+ * of flipping between in and out within a few degrees, and a long-period swell wraps further in.
+ */
+export function exposure(spot: SwellWindow, dir: number, period?: number | null): number {
+  const s = directionSpread(period);
+  let sum = 0;
+  for (const { k, w } of BLUR) sum += w * windowAt(spot, dir + k * s);
+  const e = sum / BLUR_SUM;
+  return e > 0.995 ? 1 : e < 0.005 ? 0 : e;
 }
 
 export interface Partition {
@@ -118,7 +196,7 @@ export function deriveHour(spot: Spot, c: HourConditions, tide?: { norm: number 
   let sx = 0;
   let sy = 0;
   for (const p of parts) {
-    const a = exposure(spot, p.dir) * p.weight;
+    const a = exposure(spot, p.dir, p.t) * p.weight;
     const hb = breakingHeight(p.h, p.t) * a;
     hbSq += hb * hb;
     inSq += a * p.h * p.h;
@@ -132,7 +210,7 @@ export function deriveHour(spot: Spot, c: HourConditions, tide?: { norm: number 
   const band = hbBand(hb, c);
   let openSq = 0;
   for (const p of parts) {
-    const b = breakingHeight(p.h, p.t) * exposure(OPEN_NORTH, p.dir) * p.weight;
+    const b = breakingHeight(p.h, p.t) * exposure(OPEN_NORTH, p.dir, p.t) * p.weight;
     openSq += b * b;
   }
   const openHb = parts.length ? OPEN_GAIN * Math.sqrt(openSq) : null;

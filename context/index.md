@@ -46,6 +46,7 @@ Surf science behind the numbers: periods, swell trains, breaking height, energy,
 * [Body scale (face heights)](domain/body-scale.md) - One scale of body words for onboarding, observed sizes and the forecast.
 * [Breaking height at a spot](domain/breaking-height.md) - From offshore trains to an estimated face height at the spot.
 * [Swell trains](domain/swell-trains.md) - Primary, secondary, tertiary swell and wind sea, and how they are combined.
+* [Swell windows](domain/swell-windows.md) - Which swell directions reach a spot: openness from the coastline, the shore angle, the forecast's direction uncertainty and long-period wrap.
 * [Tides](domain/tides.md) - Sea level, normalised tide stage, and high/low times.
 * [Wave energy (kJ)](domain/wave-energy.md) - Energy per metre of wave crest, as surf-forecast.com shows it.
 * [Wave periods: peak vs mean](domain/wave-periods.md) - Which period the app shows and why, and how the models report periods.
@@ -135,6 +136,7 @@ Accepted decisions (numbered) and pending ones. ([folder index](decisions/index.
 * [0023: Size as a range, not a hard cut-off](decisions/0023-size-uncertainty.md) - Median of the wave models, a likely range carried into the rating, exclusion only when even the low end is too big, wave-model disagreement in the confidence, and a sheltered Majanicho.
 * [0024: Handles-only dragging and comparing sessions instead of editing them](decisions/0024-handles-and-session-comparison.md) - The session chart moves only by its handles (with ±5 min buttons); a session in a spot's Sessions tab opens a comparison with the chosen day, not the editor.
 * [0025: Similarity compares the raw swell, not the estimated face height](decisions/0025-similarity-on-raw-swell.md) - The size feature of the similarity is the swell height reaching the spot from the offshore trains, independent of the breaking formula and the size factor.
+* [0026: Swell windows from the coastline, softened by the forecast's direction uncertainty](decisions/0026-swell-windows-from-the-coastline.md) - Built-in spots get their swell window from the OpenStreetMap coastline; every window is averaged over a direction spread that grows with the swell period.
 * [Accounts, sync and a commercial data plan](decisions/pending/accounts-and-sync.md) - What a public release would need.
 * [Should several challenging causes compound?](decisions/pending/compounding-challenges.md) - Worst status wins, so two problems count like one.
 * [Ask Open-Meteo for per-train peak periods in MFWAM](decisions/pending/open-meteo-upstream.md) - Upstream improvement, not ours to build.

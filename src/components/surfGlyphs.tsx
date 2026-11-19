@@ -1,5 +1,5 @@
 import type { HourConditions, Spot } from '../types';
-import { exposure, trainsByEnergy, type TrainInfo } from '../lib/conditions';
+import { exposure, trainsByEnergy, type SwellWindow, type TrainInfo } from '../lib/conditions';
 import { scoreColor } from '../lib/rating';
 
 /**
@@ -15,11 +15,11 @@ export const POOR_EXPOSURE = 0.5;
 /** Below this share it is practically outside the swell window. */
 export const OUTSIDE_EXPOSURE = 0.1;
 
-export const isPoor = (spot: Pick<Spot, 'idealSwellDir' | 'swellWindow'> | undefined, dir: number) => !!spot && exposure(spot, dir) < POOR_EXPOSURE;
-export const isOutside = (spot: Pick<Spot, 'idealSwellDir' | 'swellWindow'> | undefined, dir: number) => !!spot && exposure(spot, dir) < OUTSIDE_EXPOSURE;
+export const isPoor = (spot: SwellWindow | undefined, dir: number, period?: number | null) => !!spot && exposure(spot, dir, period) < POOR_EXPOSURE;
+export const isOutside = (spot: SwellWindow | undefined, dir: number, period?: number | null) => !!spot && exposure(spot, dir, period) < OUTSIDE_EXPOSURE;
 /** Colour of a swell train: rank 0–2 by energy; null = the wind sea (text colour). */
-export const swellColor = (spot: Pick<Spot, 'idealSwellDir' | 'swellWindow'> | undefined, dir: number, rank: number | null) =>
-  rank == null ? 'currentColor' : (isPoor(spot, dir) ? SWELL_RED : SWELL_BLUE)[Math.min(2, rank)];
+export const swellColor = (spot: SwellWindow | undefined, dir: number, rank: number | null, period?: number | null) =>
+  rank == null ? 'currentColor' : (isPoor(spot, dir, period) ? SWELL_RED : SWELL_BLUE)[Math.min(2, rank)];
 
 /** A small breaking wave in a 100 × 100 box: a slim back, a rounded crest with a soft lip, the face down. */
 export const SWELL_WAVE_PATH = 'M0 100 C26 96 42 66 58 36 C67 18 75 8 84 8 C91 8 95 13 94 18 C90 15 85 16 83 23 C85 52 92 80 100 100 Z';
@@ -95,7 +95,7 @@ export function SwellWaveGlyph({ cx, base, w, px, color, mirrored, dx = 0 }: { c
 /* Swells of one hour: which ones, their arrows, their waves           */
 /* ------------------------------------------------------------------ */
 
-type SpotDir = Pick<Spot, 'idealSwellDir' | 'swellWindow'> | undefined;
+type SpotDir = SwellWindow | undefined;
 
 /** A swell train with its rank by energy (0–2), or null for the wind sea. */
 export interface RankedSwell {
@@ -116,11 +116,12 @@ export function swellsOf(h: HourConditions): RankedSwell[] {
 }
 
 /** "(almost) outside the swell window" / "poor direction for this spot" / "". */
-export const swellDirNote = (spot: SpotDir, dir: number) => (isOutside(spot, dir) ? ' · (almost) outside the swell window' : isPoor(spot, dir) ? ' · poor direction for this spot' : '');
+export const swellDirNote = (spot: SpotDir, dir: number, period?: number | null) =>
+  isOutside(spot, dir, period) ? ' · (almost) outside the swell window' : isPoor(spot, dir, period) ? ' · poor direction for this spot' : '';
 
 /** Tooltip lines for the swells of one hour; `line` formats one train (height, period, direction, energy). */
 export const swellTooltip = (swells: RankedSwell[], spot: SpotDir, line: (t: TrainInfo) => string) =>
-  swells.map(({ t }, k) => `${k === 0 ? '' : `${k === 1 ? '2nd' : '3rd'} swell: `}${line(t)}${swellDirNote(spot, t.dir)}`).join('\n');
+  swells.map(({ t }, k) => `${k === 0 ? '' : `${k === 1 ? '2nd' : '3rd'} swell: `}${line(t)}${swellDirNote(spot, t.dir, t.t)}`).join('\n');
 
 /**
  * The swells' direction arrows side by side, centred on (cx, cy), pointing where the swell goes:
@@ -134,7 +135,7 @@ export function SwellArrows({ swells, spot, cx, cy, size = 13, step = 12 }: { sw
           key={k}
           d="M0 -8 L5 4 L0 1 L-5 4 Z"
           transform={`translate(${cx + (k - (swells.length - 1) / 2) * step},${cy}) rotate(${t.dir + 180}) scale(${(size / 20) * (k === 0 && swells.length > 1 ? 1.15 : 0.95)})`}
-          fill={swellColor(spot, t.dir, rank)}
+          fill={swellColor(spot, t.dir, rank, t.t)}
         />
       ))}
     </g>
@@ -161,8 +162,8 @@ export function SwellWaves({ swells, spot, cx, base, w, maxPx, fullAt = 1.6, shi
             base={base}
             w={w}
             px={Math.max(4, Math.min(1, t.h / fullAt) * maxPx)}
-            color={swellColor(spot, t.dir, rank)}
-            mirrored={isPoor(spot, t.dir)}
+            color={swellColor(spot, t.dir, rank, t.t)}
+            mirrored={isPoor(spot, t.dir, t.t)}
           />
         ))}
     </g>

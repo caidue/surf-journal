@@ -5,6 +5,7 @@ Surf science behind the numbers: periods, swell trains, breaking height, energy,
 * [Body scale (face heights)](body-scale.md) - One scale of body words for onboarding, observed sizes and the forecast.
 * [Breaking height at a spot](breaking-height.md) - From offshore trains to an estimated face height at the spot.
 * [Swell trains](swell-trains.md) - Primary, secondary, tertiary swell and wind sea, and how they are combined.
+* [Swell windows](swell-windows.md) - Which swell directions reach a spot: openness from the coastline, the shore angle, the forecast's direction uncertainty and long-period wrap.
 * [Tides](tides.md) - Sea level, normalised tide stage, and high/low times.
 * [Wave energy (kJ)](wave-energy.md) - Energy per metre of wave crest, as surf-forecast.com shows it.
 * [Wave periods: peak vs mean](wave-periods.md) - Which period the app shows and why, and how the models report periods.

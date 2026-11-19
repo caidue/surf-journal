@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.13.0 — 2026-11-19
+
+- **Swell windows from the real coastline:** for every built-in spot the app now works out which swell directions reach it from the map (open sea, headlands, Lanzarote's shadow) instead of a hand-picked range. For example, NE swell only partly reaches the north shore, and the Corralejo beaches get N swell only partly and NW hardly.
+- **No more hard edges:** a swell near the edge of a spot's window now counts partly instead of flipping from "gets in" to "blocked" within a few degrees, because forecast directions are uncertain by about 10°. Long-period groundswell counts as wrapping further into bays than short wind swell.
+- The spot's Info tab shows where it gets swell from, e.g. "NW–NNE (310°–15°)".
+- Sizes, ratings and the swell colours change at several spots because of this.
+
 ## 1.12.4 — 2026-11-19
 
 - La Caleta: a north-west swell now counts as getting into the bay, so it is blue in the forecast instead of red and facing left. Only a more westerly swell (WNW and beyond) counts as a poor direction. This also gives La Caleta more realistic sizes and ratings on NW swell days.

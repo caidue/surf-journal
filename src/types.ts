@@ -137,6 +137,15 @@ export interface Spot {
   idealSwellDir: number;
   /** Half-width of the swell window around idealSwellDir (deg). */
   swellWindow: number;
+  /**
+   * How open the sea is in each direction (one digit 0–9 per 2° from N; 0 = land within 3 km,
+   * 9 = none within 40 km), from the OpenStreetMap coastline (scripts/swell-windows.ts →
+   * data/swellOpen.ts). When set, it replaces idealSwellDir/swellWindow as the swell window (with
+   * the facing fading out swell along the shore); spots you add use the hand-set window.
+   */
+  openness?: string;
+  /** Local sources narrow the window further: idealSwellDir/swellWindow also apply on top of openness. */
+  windowFromSources?: boolean;
   /** Breaking wave height (m) at which the spot starts to work / gets too big. */
   minSize: number;
   maxSize: number;
