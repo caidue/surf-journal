@@ -36,6 +36,7 @@ const src = {
   sf: (slug: string): RuleSource => ({ name: 'surf-forecast.com', url: `https://www.surf-forecast.com/breaks/${slug}`, kind: 'forecast-site' }),
   surfline: (path: string): RuleSource => ({ name: 'Surfline', url: `https://www.surfline.com/surf-report/${path}`, kind: 'forecast-site' }),
   session1114: { name: 'Your session, La Caleta, 2026-11-14 (good 11:00–12:00, flat 12:00–14:00)', kind: 'observation' },
+  report1119: { name: 'Your report, La Caleta, 2026-11-19 (NW 311° and NNW 328° swell got in fine)', kind: 'observation' },
 } satisfies Record<string, RuleSource | ((x: string) => RuleSource)>;
 
 export const SPOT_RULES: Record<string, SpotRule[]> = {
@@ -152,9 +153,9 @@ export const SPOT_RULES: Record<string, SpotRule[]> = {
     {
       id: 'caleta-swell',
       kind: 'swell',
-      text: 'Needs a northerly swell; north-west swell does not wrap into the bay.',
+      text: 'Works best with a swell from north to north-north-west; north-west still gets in, but a more westerly swell does not wrap into the bay.',
       confidence: 'medium',
-      sources: [src.gonna, src.sf('Mechihonas')],
+      sources: [src.gonna, src.sf('Mechihonas'), src.report1119],
       inRating: true,
     },
     {

@@ -1,5 +1,9 @@
 # Knowledge base log
 
+## 2026-11-19
+
+* **Update** of [Spot catalogue](/spots/catalogue.md), [Releases](/operations/releases.md) (1.12.4): La Caleta swell window 345° ±50° (seed 10); its local-knowledge rule now says north-west still gets in, with your report of 2026-11-19 as a source.
+
 ## 2026-11-18
 
 * **Update** of [Releases](/operations/releases.md): 1.12.2 and 1.12.3 committed together, tagged `v1.12.3` and pushed.

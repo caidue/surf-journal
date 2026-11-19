@@ -354,10 +354,14 @@ describe('local knowledge', () => {
   it('turns conflicting tide sources into no tide preference, not a hard one', () => {
     for (const id of ['fv-la-caleta', 'fv-generoso', 'fv-cotillo-spew-pits']) expect(byId(id).tide, id).toBe('all');
   });
-  it('La Caleta needs a northerly swell: north-west swell barely reaches it', () => {
+  it('La Caleta: north to north-west swell gets in, a more westerly one does not', () => {
     const c = byId('fv-la-caleta');
     expect(exposure(c, 350)).toBe(1);
-    expect(exposure(c, 315)).toBeLessThan(0.5);
+    expect(exposure(c, 328)).toBe(1);
+    // 19 Nov 2026: the main swell from 311° got in fine.
+    expect(exposure(c, 311)).toBeGreaterThan(0.5);
+    expect(exposure(c, 300)).toBeLessThan(0.5);
+    expect(exposure(c, 290)).toBe(0);
   });
 });
 

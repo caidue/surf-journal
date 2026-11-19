@@ -14,7 +14,7 @@ import { SPOT_GUIDES } from './spotGuides';
  * Bump SEED_VERSION whenever this list changes: devices then refresh the built-in spots
  * (db.ts → refreshSeedSpots) and move sessions of RETIRED_SPOTS to their new spot.
  */
-export const SEED_VERSION = 9; // 9: Majanicho gain 0.68, inside peaks sizeFactor 0.8; 8: dataNote; 7: corrections from local sources (data/spotRules.ts); 6: El Hierro split; 5: three spots added (3 was used by an earlier build)
+export const SEED_VERSION = 10; // 10: La Caleta swell window 345° ±50°; 9: Majanicho gain 0.68, inside peaks sizeFactor 0.8; 8: dataNote; 7: corrections from local sources (data/spotRules.ts); 6: El Hierro split; 5: three spots added (3 was used by an earlier build)
 
 /** Spots that were merged into another one: old id → new id. (Seed 4 merged The Bubble into El Hierro; seed 6 split them again.) */
 export const RETIRED_SPOTS: Record<string, string> = {};
@@ -181,8 +181,11 @@ const seed: SeedSpot[] = [
     lat: 28.7508, // fuerteventuraplayas, a few minutes east of Majanicho
     lon: -13.9234,
     facing: 345,
-    idealSwellDir: 350, // needs a northerly swell; NW swell doesn't wrap into the bay (gonna.surf, spotRules)
-    swellWindow: 40,
+    // Best from N to NNW; a north-west swell still gets in (your report, 2026-11-19: 311° + 328° worked),
+    // west of that it doesn't wrap into the bay (gonna.surf, spotRules). Seed 10 widened ±40° around 350°,
+    // which shut out 310° completely although model directions are uncertain by 10–15°.
+    idealSwellDir: 345,
+    swellWindow: 50,
     minSize: 0.8,
     maxSize: 3,
     tide: 'all', // sources conflict; the size-dependent window (low to low-mid on small swell) needs the rules engine

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.12.4 — 2026-11-19
+
+- La Caleta: a north-west swell now counts as getting into the bay, so it is blue in the forecast instead of red and facing left. Only a more westerly swell (WNW and beyond) counts as a poor direction. This also gives La Caleta more realistic sizes and ratings on NW swell days.
+
 ## 1.12.3 — 2026-11-18
 
 - Session comparison: Best match and dragging now work to the minute instead of in 15-minute steps; the −30 / −15 / +15 / +30 buttons stay.
